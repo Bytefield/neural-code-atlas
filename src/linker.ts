@@ -4,6 +4,10 @@ import { Storage, NCNode } from './storage.js';
 
 const SUPPORTED_EXTS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.py'];
 
+/**
+ * Write-path component. Resolves import paths to known node names and persists
+ * updated deps to the database. Graph reads are handled by GraphSnapshot.
+ */
 export class Linker {
   private storage: Storage;
 
@@ -66,40 +70,6 @@ export class Linker {
     if (updates.length > 0) {
       this.storage.upsertNodes(updates);
     }
-  }
-
-  /**
-   * Build a forward dep map: nodeName → Set of nodeNames it depends on.
-   */
-  buildDepGraph(): Map<string, Set<string>> {
-    const all = this.storage.getAllNodes();
-    const nameSet = new Set(all.map(n => n.name));
-    const graph = new Map<string, Set<string>>();
-
-    for (const node of all) {
-      const deps = new Set(node.deps.filter(d => nameSet.has(d)));
-      graph.set(node.name, deps);
-    }
-
-    return graph;
-  }
-
-  /**
-   * Build a reverse dep map: nodeName → Set of nodeNames that depend on it.
-   */
-  buildReverseDepGraph(): Map<string, Set<string>> {
-    const fwd = this.buildDepGraph();
-    const rev = new Map<string, Set<string>>();
-
-    for (const [name, deps] of fwd) {
-      for (const dep of deps) {
-        const s = rev.get(dep) ?? new Set();
-        s.add(name);
-        rev.set(dep, s);
-      }
-    }
-
-    return rev;
   }
 }
 
