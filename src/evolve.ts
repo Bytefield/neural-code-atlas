@@ -1,5 +1,5 @@
 import { Storage, NCNode, NCWarning } from './storage.js';
-import { Linker } from './linker.js';
+import { GraphSnapshot } from './graph.js';
 import { FlowDetector } from './flow.js';
 import { loadEvolveConfig } from './nca.config.js';
 
@@ -10,11 +10,9 @@ export interface EvolveResult {
 
 export class Evolver {
   private storage: Storage;
-  private linker: Linker;
 
   constructor(storage: Storage) {
     this.storage = storage;
-    this.linker = new Linker(storage);
   }
 
   analyze(rootPath?: string): EvolveResult {
@@ -22,15 +20,14 @@ export class Evolver {
     this.storage.clearWarnings();
     const warnings: NCWarning[] = [];
 
-    const nodes = this.storage.getAllNodes();
-    if (nodes.length === 0) {
+    const snap = GraphSnapshot.build(this.storage);
+
+    if (snap.nodes.length === 0) {
       return { warnings: [], summary: 'NCA|evolve|no_nodes' };
     }
 
-    const graph = this.linker.buildDepGraph();
-
     // R001 High complexity
-    for (const n of nodes) {
+    for (const n of snap.nodes) {
       if (n.complexity >= cfg.complexityThreshold) {
         warnings.push({
           rule_id: 'R001',
@@ -41,7 +38,7 @@ export class Evolver {
     }
 
     // R002 Too many parameters
-    for (const n of nodes) {
+    for (const n of snap.nodes) {
       if (n.inputs.length > cfg.maxParamsThreshold) {
         warnings.push({
           rule_id: 'R002',
@@ -52,8 +49,8 @@ export class Evolver {
     }
 
     // R003 Too many dependencies
-    for (const n of nodes) {
-      const deps = graph.get(n.name) ?? new Set();
+    for (const n of snap.nodes) {
+      const deps = snap.forward.get(n.name) ?? new Set();
       if (deps.size > cfg.maxDepsThreshold) {
         warnings.push({
           rule_id: 'R003',
@@ -64,8 +61,7 @@ export class Evolver {
     }
 
     // R004 Cycles
-    const cycles = detectCycles(graph);
-    for (const cycle of cycles) {
+    for (const cycle of snap.cycles) {
       warnings.push({
         rule_id: 'R004',
         node_id: cycle[0],
@@ -74,7 +70,10 @@ export class Evolver {
     }
 
     // R005 Deep dependency chains
-    const chains = findLongChains(graph, cfg.maxChainDepth);
+    const chains = findLongChains(
+      snap.forward as unknown as Map<string, Set<string>>,
+      cfg.maxChainDepth
+    );
     for (const chain of chains) {
       warnings.push({
         rule_id: 'R005',
@@ -84,10 +83,9 @@ export class Evolver {
     }
 
     // R006 Isolated nodes (no callers, no deps, not a top-level export)
-    const reverseGraph = this.linker.buildReverseDepGraph();
-    for (const n of nodes) {
-      const callers = reverseGraph.get(n.name) ?? new Set();
-      const deps = graph.get(n.name) ?? new Set();
+    for (const n of snap.nodes) {
+      const callers = snap.reverse.get(n.name) ?? new Set();
+      const deps = snap.forward.get(n.name) ?? new Set();
       if (callers.size === 0 && deps.size === 0 && n.type !== 'class') {
         warnings.push({
           rule_id: 'R006',
@@ -103,7 +101,7 @@ export class Evolver {
     }
 
     // Refresh flow index so flows reflect current graph state
-    const detector = new FlowDetector(this.storage);
+    const detector = new FlowDetector(this.storage, snap);
     detector.detectAll();
 
     const ts = Date.now();
@@ -117,49 +115,7 @@ export class Evolver {
   }
 }
 
-function detectCycles(graph: Map<string, Set<string>>): string[][] {
-  const cycles: string[][] = [];
-  const visited = new Set<string>();
-  const recStack = new Set<string>();
-
-  function dfs(node: string, path: string[]): void {
-    if (recStack.has(node)) {
-      const cycleStart = path.indexOf(node);
-      if (cycleStart !== -1) {
-        cycles.push(path.slice(cycleStart));
-      }
-      return;
-    }
-    if (visited.has(node)) return;
-
-    visited.add(node);
-    recStack.add(node);
-    path.push(node);
-
-    const deps = graph.get(node) ?? new Set();
-    for (const dep of deps) {
-      dfs(dep, [...path]);
-    }
-
-    recStack.delete(node);
-  }
-
-  for (const node of graph.keys()) {
-    if (!visited.has(node)) {
-      dfs(node, []);
-    }
-  }
-
-  // Deduplicate cycles
-  const seen = new Set<string>();
-  return cycles.filter(c => {
-    const key = [...c].sort().join(',');
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
+// Intentionally preserved as-is — buggy memoisation to be fixed in a separate commit.
 function findLongChains(graph: Map<string, Set<string>>, maxDepth: number): string[][] {
   const long: string[][] = [];
   const memo = new Map<string, number>();
