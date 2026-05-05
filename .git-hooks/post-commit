@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# NCA post-commit hook — incremental re-index after each commit
+# Install: cp .git-hooks/post-commit .git/hooks/post-commit && chmod +x .git/hooks/post-commit
+
+NCA_BIN="$(dirname "$0")/../../node_modules/.bin/nca"
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+# Try local install first, then global
+if [ -f "$NCA_BIN" ]; then
+  "$NCA_BIN" scan "$PROJECT_ROOT" 2>/dev/null
+elif command -v nca &>/dev/null; then
+  nca scan "$PROJECT_ROOT" 2>/dev/null
+else
+  # Fallback: try ts-node or compiled dist
+  NCA_DIST="$PROJECT_ROOT/node_modules/neural-code-atlas/dist/cli.js"
+  if [ -f "$NCA_DIST" ]; then
+    node "$NCA_DIST" scan "$PROJECT_ROOT" 2>/dev/null
+  fi
+fi
+
+exit 0
