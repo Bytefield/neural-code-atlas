@@ -1,5 +1,5 @@
 import { Storage, NCNode, NCFlow } from './storage.js';
-import { Linker } from './linker.js';
+import { GraphSnapshot } from './graph.js';
 
 const MAX_DEPTH = 10;
 
@@ -12,27 +12,15 @@ export interface FlowResult {
 
 export class FlowDetector {
   private storage: Storage;
-  private linker: Linker;
-  private depGraph: Map<string, Set<string>> | null = null;
+  private snap: GraphSnapshot;
 
-  constructor(storage: Storage) {
+  constructor(storage: Storage, snap?: GraphSnapshot) {
     this.storage = storage;
-    this.linker = new Linker(storage);
-  }
-
-  private getGraph(): Map<string, Set<string>> {
-    if (!this.depGraph) {
-      this.depGraph = this.linker.buildDepGraph();
-    }
-    return this.depGraph;
-  }
-
-  invalidateGraph(): void {
-    this.depGraph = null;
+    this.snap = snap ?? GraphSnapshot.build(storage);
   }
 
   detect(entryName: string): FlowResult {
-    const graph = this.getGraph();
+    const graph = this.snap.forward;
     const steps: string[] = [];
     const visited = new Set<string>();
     const cycleNodes = new Set<string>();
@@ -76,12 +64,11 @@ export class FlowDetector {
   }
 
   detectAll(): FlowResult[] {
-    const graph = this.getGraph();
+    const graph = this.snap.forward;
     const results: FlowResult[] = [];
     const allNames = new Set(graph.keys());
 
-    // Find nodes that are not depended upon by anyone (entry points)
-    const reverseGraph = this.linker.buildReverseDepGraph();
+    const reverseGraph = this.snap.reverse;
     const entryPoints: string[] = [];
 
     for (const name of allNames) {
@@ -95,7 +82,7 @@ export class FlowDetector {
       const result = this.detect(entry);
       if (result.steps.length > 1) {
         results.push(result);
-        // Store in DB
+        // Always persist — covers both new flows and re-traces after re-scan
         this.storage.upsertFlow({ name: entry, steps: result.steps });
       }
     }
