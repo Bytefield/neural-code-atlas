@@ -51,6 +51,10 @@ if (!fs.existsSync(CLI)) {
   process.exit(1);
 }
 
+const Database = require('better-sqlite3');
+const { Storage: StorageClass } = require(path.join(ROOT, 'dist', 'storage.js'));
+const { MigrationError } = require(path.join(ROOT, 'dist', 'migrations', 'index.js'));
+
 // AC1: scan works
 test('AC1 scan indexes fixture files', () => {
   const out = run(`scan ${FIXTURES}`);
@@ -98,6 +102,124 @@ test('AC6 evolve returns warning output', () => {
   const out = run(`evolve`);
   assert(out.includes('NCA|evolve'), `Expected NCA|evolve header, got: ${out.slice(0, 200)}`);
   assert(out.includes('[W]'), 'Expected [W] section');
+});
+
+// MIG-01: fresh DB applies all migrations
+test('MIG-01 fresh DB applies all migrations', () => {
+  const dbFile = path.join(tmpDir, 'mig01.db');
+  try {
+    const storage = new StorageClass(dbFile);
+    storage.close();
+
+    const db = new Database(dbFile);
+    const versionRow = db.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'").get();
+    assert(versionRow && versionRow.value === '1', `Expected schema_version=1, got: ${JSON.stringify(versionRow)}`);
+
+    const logRow = db.prepare('SELECT * FROM migration_log WHERE version = 1').get();
+    assert(logRow, 'Expected migration_log row for version 1');
+    assert(logRow.name === 'init_schema', `Expected name=init_schema, got: ${logRow.name}`);
+    db.close();
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// MIG-02: already-migrated DB applies nothing on second open
+test('MIG-02 already-migrated DB applies nothing', () => {
+  const dbFile = path.join(tmpDir, 'mig02.db');
+  try {
+    const s1 = new StorageClass(dbFile);
+    s1.close();
+    const s2 = new StorageClass(dbFile);
+    s2.close();
+
+    const db = new Database(dbFile);
+    const count = db.prepare('SELECT COUNT(*) as count FROM migration_log').get();
+    assert(count.count === 1, `Expected 1 migration_log row, got: ${count.count}`);
+    db.close();
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// MIG-03: future schema_version aborts Storage construction
+test('MIG-03 future schema_version aborts', () => {
+  const dbFile = path.join(tmpDir, 'mig03.db');
+  try {
+    const db = new Database(dbFile);
+    db.exec(`
+      CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      INSERT INTO schema_meta (key, value) VALUES ('schema_version', '999');
+    `);
+    db.close();
+
+    let threw = false;
+    try {
+      const storage = new StorageClass(dbFile);
+      storage.close();
+    } catch (err) {
+      threw = true;
+      assert(
+        err.name === 'MigrationError' || err.message.includes('999'),
+        `Expected MigrationError about version 999, got: ${err.message}`
+      );
+    }
+    assert(threw, 'Expected Storage constructor to throw on future schema_version');
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// MIG-04: legacy DB (no schema_meta) migrates cleanly and preserves existing data
+test('MIG-04 legacy DB without schema_meta migrates cleanly', () => {
+  const dbFile = path.join(tmpDir, 'mig04.db');
+  try {
+    const db = new Database(dbFile);
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS file_index (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        path TEXT UNIQUE NOT NULL,
+        mtime INTEGER NOT NULL,
+        sha256 TEXT NOT NULL,
+        parsed_at INTEGER NOT NULL DEFAULT (unixepoch())
+      );
+      CREATE TABLE IF NOT EXISTS nodes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        module TEXT NOT NULL DEFAULT '',
+        inputs TEXT NOT NULL DEFAULT '[]',
+        outputs TEXT NOT NULL DEFAULT '[]',
+        deps TEXT NOT NULL DEFAULT '[]',
+        effects TEXT NOT NULL DEFAULT '[]',
+        complexity INTEGER NOT NULL DEFAULT 1,
+        file TEXT NOT NULL,
+        line INTEGER NOT NULL DEFAULT 0,
+        sha256 TEXT NOT NULL DEFAULT '',
+        UNIQUE(name, file, line)
+      );
+      INSERT INTO nodes (type, name, module, inputs, outputs, deps, effects, complexity, file, line, sha256)
+      VALUES ('function', 'legacyNode', 'legacy', '[]', '[]', '[]', '[]', 1, 'legacy.ts', 1, 'abc123');
+    `);
+    db.close();
+
+    const storage = new StorageClass(dbFile);
+    storage.close();
+
+    const db2 = new Database(dbFile);
+    const versionRow = db2.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'").get();
+    assert(versionRow && versionRow.value === '1', `Expected schema_version=1, got: ${JSON.stringify(versionRow)}`);
+
+    const logRow = db2.prepare('SELECT * FROM migration_log WHERE version = 1').get();
+    assert(logRow, 'Expected migration_log row for version 1');
+
+    const nodeRow = db2.prepare("SELECT * FROM nodes WHERE name = 'legacyNode'").get();
+    assert(nodeRow, 'Expected legacyNode to still exist after migration');
+    assert(nodeRow.name === 'legacyNode', `Expected legacyNode, got: ${nodeRow.name}`);
+    db2.close();
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
 });
 
 // AC5: MCP server — tools/list + nca_ask + nca_insights in a single spawn
