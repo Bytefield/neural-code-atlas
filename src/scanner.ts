@@ -65,7 +65,8 @@ export class Scanner {
           continue;
         }
 
-        const sha256 = hashFile(filePath);
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const sha256 = hashContent(content);
 
         if (record && record.sha256 === sha256) {
           // mtime changed but content same — update mtime only
@@ -76,7 +77,7 @@ export class Scanner {
 
         // File is new or changed — per-node diff to avoid full FTS churn
         const oldChecksums = this.storage.getCellChecksums(filePath);
-        const nodes = this.parser.parseFile(filePath, sha256, rootPath);
+        const nodes = this.parser.parseFile(filePath, sha256, rootPath, content);
         const currentKeys = new Set(nodes.map(n => `${n.name}@${n.line}`));
 
         const changed = nodes.filter(n => oldChecksums.get(n.name) !== n.sha256);
@@ -133,7 +134,8 @@ export class Scanner {
         return result;
       }
 
-      const sha256 = hashFile(filePath);
+      const content = fs.readFileSync(filePath, 'utf-8');
+      const sha256 = hashContent(content);
 
       if (record && record.sha256 === sha256) {
         this.storage.upsertFileRecord(filePath, mtime, sha256);
@@ -143,7 +145,7 @@ export class Scanner {
       }
 
       const oldChecksums = this.storage.getCellChecksums(filePath);
-      const nodes = this.parser.parseFile(filePath, sha256, rootPath);
+      const nodes = this.parser.parseFile(filePath, sha256, rootPath, content);
       const currentKeys = new Set(nodes.map(n => `${n.name}@${n.line}`));
 
       const changed = nodes.filter(n => oldChecksums.get(n.name) !== n.sha256);
@@ -211,7 +213,6 @@ export class Scanner {
   }
 }
 
-function hashFile(filePath: string): string {
-  const buf = fs.readFileSync(filePath);
-  return crypto.createHash('sha256').update(buf).digest('hex');
+function hashContent(content: string): string {
+  return crypto.createHash('sha256').update(content).digest('hex');
 }

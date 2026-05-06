@@ -492,6 +492,49 @@ test('BNB-01 rankWithBoost uses a single batched query for boosts', () => {
   }
 });
 
+// SRS-01: scanner reads each file exactly once per scan
+test('SRS-01 scanner reads each file exactly once per scan', () => {
+  const testDir = path.join(os.tmpdir(), `nca-srs-${Date.now()}`);
+  fs.mkdirSync(testDir, { recursive: true });
+  const tmpFile = path.join(testDir, 'fixture.ts');
+  const tmpDb = path.join(testDir, 'srs.db');
+
+  try {
+    fs.writeFileSync(tmpFile, 'export function alpha() { return 1; }\nexport function beta() { return 2; }\n');
+
+    const { Scanner } = require(path.join(ROOT, 'dist', 'scanner.js'));
+    const storage = new StorageClass(tmpDb);
+    const scanner = new Scanner(storage);
+
+    // Monkey-patch fs.readFileSync to count reads of our fixture file.
+    // Must use direct Scanner API (not run/execSync) so the patch applies
+    // in the same process as the scan call.
+    const originalReadFileSync = fs.readFileSync;
+    let readCount = 0;
+    fs.readFileSync = function (filepath, ...args) {
+      if (typeof filepath === 'string' && path.resolve(filepath) === path.resolve(tmpFile)) {
+        readCount++;
+      }
+      return originalReadFileSync(filepath, ...args);
+    };
+
+    try {
+      scanner.scan(testDir);
+
+      // After fix: exactly 1 read per file (scanner reads once, passes content to parser).
+      // Before fix: 2 reads (hashFile reads as buffer; parseFile reads again as utf-8).
+      assert(readCount === 1,
+        `Expected exactly 1 fs.readFileSync call for the fixture file, got ${readCount} (double-read bug)`);
+    } finally {
+      fs.readFileSync = originalReadFileSync;
+    }
+
+    storage.close();
+  } finally {
+    try { fs.rmSync(testDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
 // AC5: MCP server — tools/list + nca_ask + nca_insights in a single spawn
 // Using a promise-based helper so assertions land inside the test() try/catch
 let mcpTestError = null;
