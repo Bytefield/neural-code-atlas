@@ -70,15 +70,12 @@ export class Evolver {
     }
 
     // R005 Deep dependency chains
-    const chains = findLongChains(
-      snap.forward as unknown as Map<string, Set<string>>,
-      cfg.maxChainDepth
-    );
+    const chains = findLongChains(snap, cfg.maxChainDepth);
     for (const chain of chains) {
       warnings.push({
         rule_id: 'R005',
         node_id: chain[0],
-        detail: `chain_depth=${chain.length} path=${chain.slice(0, 4).join('->')}...`,
+        detail: chain[1],
       });
     }
 
@@ -115,29 +112,50 @@ export class Evolver {
   }
 }
 
-// Intentionally preserved as-is — buggy memoisation to be fixed in a separate commit.
-function findLongChains(graph: Map<string, Set<string>>, maxDepth: number): string[][] {
+/**
+ * Find chains in the dependency graph whose depth exceeds maxDepth.
+ *
+ * Cycle members are excluded from descent: if a node is part of a cycle
+ * (per snap.cycleNodes), longestPath(that node) returns 0 and traversal
+ * does not enter it. A non-cycle node depending on a cycle node still
+ * counts the cycle node as length 1 but does not descend further into it.
+ * This implements design decision C: "cycle node counts as terminal of
+ * length 1, descent stops there".
+ *
+ * The remaining subgraph (with cycle members excluded) is a DAG, so the
+ * per-node memo is correct: longestPath(node) is independent of the
+ * traversal path that reached it.
+ */
+export function findLongChains(snap: GraphSnapshot, maxDepth: number): string[][] {
   const long: string[][] = [];
   const memo = new Map<string, number>();
+  const { forward, cycleNodes } = snap;
 
-  function longestPath(node: string, visited: Set<string>): number {
-    if (memo.has(node)) return memo.get(node)!;
-    if (visited.has(node)) return 0;
+  function longestPath(node: string): number {
+    // A cycle node contributes 0 — it is excluded from chain measurement.
+    if (cycleNodes.has(node)) return 0;
+    const cached = memo.get(node);
+    if (cached !== undefined) return cached;
 
-    visited.add(node);
-    const deps = graph.get(node) ?? new Set();
+    const deps = forward.get(node) ?? new Set();
     let max = 0;
     for (const dep of deps) {
-      const len = longestPath(dep, new Set(visited));
-      if (len > max) max = len;
+      let depLen: number;
+      if (cycleNodes.has(dep)) {
+        // Decision C: dep is a cycle node. Count it as length 1, stop descent.
+        depLen = 1;
+      } else {
+        depLen = longestPath(dep);
+      }
+      if (depLen > max) max = depLen;
     }
     const result = max + 1;
     memo.set(node, result);
     return result;
   }
 
-  for (const node of graph.keys()) {
-    const depth = longestPath(node, new Set());
+  for (const node of forward.keys()) {
+    const depth = longestPath(node);
     if (depth > maxDepth) {
       long.push([node, `depth=${depth}`]);
     }
