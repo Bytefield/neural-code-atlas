@@ -333,6 +333,90 @@ test('LMD-01 line-move does not create duplicate nodes', () => {
   }
 });
 
+// CAC-01: findLongChains is correct in graphs with cycles
+test('CAC-01 findLongChains is correct in graphs with cycles', () => {
+  const { GraphSnapshot } = require(path.join(ROOT, 'dist', 'graph.js'));
+  const findLongChains = require(path.join(ROOT, 'dist', 'evolve.js')).findLongChains;
+
+  // If findLongChains is not exported, this test will fail with a clear message.
+  // The fix step will export it for testability.
+  assert(typeof findLongChains === 'function',
+    'findLongChains must be exported from evolve.js for this test');
+
+  function mkNode(name, deps) {
+    return {
+      type: 'function', name, module: '', inputs: [], outputs: [],
+      deps, effects: [], complexity: 1, file: 'test.ts', line: 0, sha256: ''
+    };
+  }
+
+  // Scenario 1: Pure linear chain a → b → c → d → e (length 5)
+  {
+    const nodes = [
+      mkNode('a', ['b']), mkNode('b', ['c']), mkNode('c', ['d']),
+      mkNode('d', ['e']), mkNode('e', []),
+    ];
+    const forward = new Map([
+      ['a', new Set(['b'])], ['b', new Set(['c'])], ['c', new Set(['d'])],
+      ['d', new Set(['e'])], ['e', new Set()],
+    ]);
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const chains = findLongChains(snap, 3);  // threshold 3 means depth > 3 is "long"
+    // a→b→c→d→e is depth 5, b→c→d→e is depth 4, both should be flagged
+    assert(chains.some(c => c[0] === 'a'),
+      `S1: expected 'a' flagged as long chain, got: ${JSON.stringify(chains)}`);
+  }
+
+  // Scenario 2: Graph with a cycle b → c → b. The chain a → b → ??? must NOT loop forever
+  // and must NOT report inflated depth from cycling through b/c repeatedly.
+  {
+    const nodes = [
+      mkNode('a', ['b']), mkNode('b', ['c']), mkNode('c', ['b']), mkNode('d', []),
+    ];
+    const forward = new Map([
+      ['a', new Set(['b'])], ['b', new Set(['c'])], ['c', new Set(['b'])], ['d', new Set()],
+    ]);
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const chains = findLongChains(snap, 1);  // even threshold 1 should not blow up
+    // a depends on b which is a cycle node. By design decision C:
+    //   longestPath(a) = 1 (for a itself) + 1 (for b as terminal cycle node) = 2
+    //   longestPath(b) = 0 (b is in a cycle, excluded)
+    //   longestPath(c) = 0 (c is in a cycle, excluded)
+    //   longestPath(d) = 1
+    // So chains with depth > 1: only 'a' with depth 2
+    const aChain = chains.find(c => c[0] === 'a');
+    assert(aChain, `S2: expected 'a' to be reported, got: ${JSON.stringify(chains)}`);
+    assert(aChain[1] === 'depth=2',
+      `S2: expected 'a' depth=2, got: ${aChain[1]}`);
+    assert(!chains.some(c => c[0] === 'b'),
+      `S2: 'b' should NOT be in long chains (it is a cycle node)`);
+    assert(!chains.some(c => c[0] === 'c'),
+      `S2: 'c' should NOT be in long chains (it is a cycle node)`);
+  }
+
+  // Scenario 3: Diamond DAG. a → {b, c}, b → d, c → d. Memoisation must be correct.
+  // Without the bug fix, depending on traversal order, longestPath(d) might be cached
+  // as 1 from one path and reused incorrectly elsewhere. Here we just verify the
+  // longest path is reported correctly.
+  {
+    const nodes = [
+      mkNode('a', ['b', 'c']), mkNode('b', ['d']), mkNode('c', ['d']),
+      mkNode('d', ['e']), mkNode('e', []),
+    ];
+    const forward = new Map([
+      ['a', new Set(['b', 'c'])], ['b', new Set(['d'])], ['c', new Set(['d'])],
+      ['d', new Set(['e'])], ['e', new Set()],
+    ]);
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const chains = findLongChains(snap, 3);
+    // a→b→d→e or a→c→d→e — depth 4. Threshold 3 → flagged.
+    const aChain = chains.find(c => c[0] === 'a');
+    assert(aChain, `S3: expected 'a' to be reported, got: ${JSON.stringify(chains)}`);
+    assert(aChain[1] === 'depth=4',
+      `S3: expected 'a' depth=4, got: ${aChain[1]}`);
+  }
+});
+
 // AC5: MCP server — tools/list + nca_ask + nca_insights in a single spawn
 // Using a promise-based helper so assertions land inside the test() try/catch
 let mcpTestError = null;
