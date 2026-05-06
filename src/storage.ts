@@ -2,6 +2,7 @@ import BetterSqlite3 from 'better-sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { runMigrations, MigrationError, getMigrationStatus } from './migrations/index.js';
 
 export interface NCNode {
   id?: number;
@@ -39,89 +40,6 @@ export interface FileRecord {
   parsed_at: number;
 }
 
-const SCHEMA = `
-PRAGMA journal_mode=WAL;
-PRAGMA foreign_keys=ON;
-PRAGMA synchronous=NORMAL;
-
-CREATE TABLE IF NOT EXISTS file_index (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  path       TEXT    UNIQUE NOT NULL,
-  mtime      INTEGER NOT NULL,
-  sha256     TEXT    NOT NULL,
-  parsed_at  INTEGER NOT NULL DEFAULT (unixepoch())
-);
-
-CREATE TABLE IF NOT EXISTS nodes (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  type       TEXT    NOT NULL,
-  name       TEXT    NOT NULL,
-  module     TEXT    NOT NULL DEFAULT '',
-  inputs     TEXT    NOT NULL DEFAULT '[]',
-  outputs    TEXT    NOT NULL DEFAULT '[]',
-  deps       TEXT    NOT NULL DEFAULT '[]',
-  effects    TEXT    NOT NULL DEFAULT '[]',
-  complexity INTEGER NOT NULL DEFAULT 1,
-  file       TEXT    NOT NULL,
-  line       INTEGER NOT NULL DEFAULT 0,
-  sha256     TEXT    NOT NULL DEFAULT '',
-  UNIQUE(name, file, line)
-);
-
-CREATE TABLE IF NOT EXISTS flows (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  name       TEXT    UNIQUE NOT NULL,
-  steps      TEXT    NOT NULL DEFAULT '[]',
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-
-CREATE TABLE IF NOT EXISTS warnings (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  rule_id    TEXT    NOT NULL,
-  node_id    TEXT    NOT NULL,
-  detail     TEXT    NOT NULL,
-  created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
-
-CREATE VIRTUAL TABLE IF NOT EXISTS nodes_fts USING fts5(
-  name, module, inputs, outputs, deps, effects, file,
-  content='nodes', content_rowid='id'
-);
-
-CREATE TRIGGER IF NOT EXISTS nodes_ai AFTER INSERT ON nodes BEGIN
-  INSERT INTO nodes_fts(rowid, name, module, inputs, outputs, deps, effects, file)
-  VALUES (new.id, new.name, new.module, new.inputs, new.outputs, new.deps, new.effects, new.file);
-END;
-
-CREATE TRIGGER IF NOT EXISTS nodes_ad AFTER DELETE ON nodes BEGIN
-  INSERT INTO nodes_fts(nodes_fts, rowid, name, module, inputs, outputs, deps, effects, file)
-  VALUES ('delete', old.id, old.name, old.module, old.inputs, old.outputs, old.deps, old.effects, old.file);
-END;
-
-CREATE TRIGGER IF NOT EXISTS nodes_au AFTER UPDATE ON nodes BEGIN
-  INSERT INTO nodes_fts(nodes_fts, rowid, name, module, inputs, outputs, deps, effects, file)
-  VALUES ('delete', old.id, old.name, old.module, old.inputs, old.outputs, old.deps, old.effects, old.file);
-  INSERT INTO nodes_fts(rowid, name, module, inputs, outputs, deps, effects, file)
-  VALUES (new.id, new.name, new.module, new.inputs, new.outputs, new.deps, new.effects, new.file);
-END;
-
-CREATE INDEX IF NOT EXISTS idx_nodes_file_name ON nodes(file, name);
-CREATE INDEX IF NOT EXISTS idx_nodes_module    ON nodes(module);
-
-CREATE TABLE IF NOT EXISTS query_log (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  query       TEXT    NOT NULL,
-  matched_ids TEXT,
-  ts          INTEGER NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS node_scores (
-  cell_id      TEXT    PRIMARY KEY,
-  query_count  INTEGER DEFAULT 0,
-  last_queried INTEGER,
-  score_boost  REAL    DEFAULT 0.0
-);
-`;
 
 export class Storage {
   private db: BetterSqlite3.Database;
@@ -160,8 +78,28 @@ export class Storage {
       fs.mkdirSync(dir, { recursive: true });
     }
     this.db = new BetterSqlite3(dbPath);
-    this.db.exec(SCHEMA);
+    // Connection-level pragmas must be set outside any transaction.
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('foreign_keys = ON');
+    this.db.pragma('synchronous = NORMAL');
+    try {
+      const result = runMigrations(this.db);
+      if (result.applied.length > 0) {
+        process.stderr.write(
+          `NCA|migrate|from:${result.from}|to:${result.to}|applied:${result.applied.join(',')}\n`
+        );
+      }
+    } catch (err) {
+      if (err instanceof MigrationError) {
+        process.stderr.write(`NCA|fatal|migration_failed|v${err.version}|${err.migrationName}|${err.message}\n`);
+      }
+      throw err;
+    }
     this.prepareStatements();
+  }
+
+  getMigrationStatus(): { currentVersion: number; targetVersion: number; pending: { version: number; name: string }[] } {
+    return getMigrationStatus(this.db);
   }
 
   private prepareStatements(): void {
