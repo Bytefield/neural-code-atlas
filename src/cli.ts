@@ -367,4 +367,37 @@ program
     storage.close();
   });
 
+// ─── migrate ──────────────────────────────────────────────────────────────────
+program
+  .command('migrate')
+  .description('Manage schema migrations')
+  .option('-p, --path <path>', 'project root path (defaults to cwd)')
+  .option('--status', 'Show migration status without applying')
+  .option('--apply', 'Force migration run (already runs at startup; use to migrate explicitly)')
+  .action((opts: { path?: string; status?: boolean; apply?: boolean }) => {
+    if (!opts.status && !opts.apply) {
+      process.stderr.write(`NCA|error|migrate requires --status or --apply\n`);
+      process.exit(1);
+    }
+
+    const rootPath = path.resolve(opts.path ?? process.cwd());
+    const dbPath = resolveDbPath(rootPath);
+    // Storage constructor already runs pending migrations.
+    const storage = new Storage(dbPath);
+
+    if (opts.status) {
+      const status = storage.getMigrationStatus();
+      process.stdout.write(
+        `NCA|migrate_status|current:${status.currentVersion}|target:${status.targetVersion}|pending:${status.pending.length}\n`
+      );
+      for (const p of status.pending) {
+        process.stdout.write(`NCA|migrate_pending|v${p.version}|${p.name}\n`);
+      }
+    } else if (opts.apply) {
+      process.stdout.write(`NCA|migrate_complete\n`);
+    }
+
+    storage.close();
+  });
+
 program.parse(process.argv);
