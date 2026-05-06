@@ -694,6 +694,13 @@ test('status shows DB info', () => {
   assert(out.includes('nodes:'), 'Expected nodes count');
 });
 
+// FMT-01: CLI output includes ANSI colour codes
+test('FMT-01 CLI output includes color codes', () => {
+  const output = run('status');
+  assert(output.includes('\x1b[36m'), 'Status output should include cyan color codes');
+  assert(output.includes('\x1b[0m'), 'Status output should include reset codes');
+});
+
 // Cleanup
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}

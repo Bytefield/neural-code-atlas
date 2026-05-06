@@ -9,6 +9,7 @@ import { Linker } from './linker.js';
 import { ContextExpander, buildQueryJSON } from './context.js';
 import { FlowDetector } from './flow.js';
 import { Evolver } from './evolve.js';
+import { separator, header, formatField, formatStatus, colors } from './format.js';
 
 const program = new Command();
 
@@ -51,9 +52,19 @@ program
     detector.detectAll();
 
     const stats = storage.stats();
-    process.stdout.write(
-      `NCA|scan_complete|files:${stats.files}|nodes:${stats.nodes}|flows:${stats.flows}|ms:${result.durationMs}\n`
-    );
+    const scanTag = `NCA|scan_complete|files:${stats.files}|nodes:${stats.nodes}|flows:${stats.flows}|ms:${result.durationMs}`;
+    const scanLines = [
+      formatStatus(scanTag),
+      separator(),
+      '  ' + header('SCAN COMPLETE'),
+      separator(),
+      '  ' + formatField('nodes', stats.nodes),
+      '  ' + formatField('files', stats.files),
+      '  ' + formatField('flows', stats.flows),
+      '  ' + formatField('duration', `${result.durationMs}ms`),
+      separator(),
+    ];
+    process.stdout.write(scanLines.join('\n') + '\n');
 
     storage.close();
   });
@@ -164,7 +175,43 @@ program
         JSON.stringify({ timestamp: Date.now(), warnings: result.warnings }, null, 2) + '\n'
       );
     } else {
-      process.stdout.write(result.summary + '\n');
+      const RULE_NAMES: Record<string, string> = {
+        R001: 'High complexity',
+        R002: 'Long dependency chain',
+        R003: 'Missing return type',
+        R004: 'Circular dependency',
+        R005: 'Deep call chain',
+        R006: 'Isolated node',
+      };
+      const evolveTag = `NCA|evolve|t:${Date.now()}`;
+      const evolveLines: string[] = [
+        formatStatus(evolveTag),
+        separator(),
+        '  ' + header('ANALYSIS WARNINGS [W]'),
+        separator(),
+      ];
+      if (result.warnings.length === 0) {
+        evolveLines.push('');
+        evolveLines.push('  ' + colors.green + '(no warnings)' + colors.reset);
+      } else {
+        const groups = new Map<string, typeof result.warnings>();
+        for (const w of result.warnings) {
+          const group = groups.get(w.rule_id) ?? [];
+          group.push(w);
+          groups.set(w.rule_id, group);
+        }
+        for (const [ruleId, ws] of groups) {
+          const name = RULE_NAMES[ruleId] ?? ruleId;
+          evolveLines.push('');
+          evolveLines.push('  ' + header(`${name} (${ruleId}):`));
+          for (const w of ws) {
+            evolveLines.push(`    • ${w.node_id} — ${w.detail}`);
+          }
+        }
+      }
+      evolveLines.push('');
+      evolveLines.push(separator());
+      process.stdout.write(evolveLines.join('\n') + '\n');
     }
 
     storage.close();
@@ -205,12 +252,21 @@ program
         }, null, 2) + '\n'
       );
     } else {
-      const lines = [
-        `NCA|status|t:${ts}`,
-        `files:${stats.files}|nodes:${stats.nodes}|flows:${stats.flows}|warnings:${stats.warnings}`,
-        `db:${dbPath}|size:${stats.dbSize}`,
+      const sizeKb = (stats.dbSize / 1024).toFixed(0);
+      const statusLines = [
+        formatStatus(`NCA|status|t:${ts}`),
+        separator(),
+        '  ' + header('NCA STATUS'),
+        separator(),
+        '  ' + formatField('nodes', stats.nodes),
+        '  ' + formatField('files', stats.files),
+        '  ' + formatField('flows', stats.flows),
+        '  ' + formatField('warnings', stats.warnings),
+        '  ' + formatField('db', dbPath),
+        '  ' + formatField('size', `${sizeKb} KB`),
+        separator(),
       ];
-      process.stdout.write(lines.join('\n') + '\n');
+      process.stdout.write(statusLines.join('\n') + '\n');
     }
 
     storage.close();
@@ -389,12 +445,27 @@ program
 
     if (opts.status) {
       const status = storage.getMigrationStatus();
-      process.stdout.write(
-        `NCA|migrate_status|current:${status.currentVersion}|target:${status.targetVersion}|pending:${status.pending.length}\n`
-      );
-      for (const p of status.pending) {
-        process.stdout.write(`NCA|migrate_pending|v${p.version}|${p.name}\n`);
+      const migrateTag = `NCA|migrate_status|current:${status.currentVersion}|target:${status.targetVersion}|pending:${status.pending.length}`;
+      const migrateLines = [
+        formatStatus(migrateTag),
+        separator(),
+        '  ' + header('MIGRATION STATUS'),
+        separator(),
+        '  ' + formatField('current', status.currentVersion),
+        '  ' + formatField('target', status.targetVersion),
+        '  ' + formatField('pending', status.pending.length),
+        '',
+      ];
+      if (status.pending.length === 0) {
+        migrateLines.push('  ' + colors.green + 'Database is up to date.' + colors.reset);
+      } else {
+        migrateLines.push('  ' + colors.yellow + 'Pending migrations:' + colors.reset);
+        for (const p of status.pending) {
+          migrateLines.push(`    • v${p.version} — ${p.name}`);
+        }
       }
+      migrateLines.push(separator());
+      process.stdout.write(migrateLines.join('\n') + '\n');
     } else if (opts.apply) {
       process.stdout.write(`NCA|migrate_complete\n`);
     }
