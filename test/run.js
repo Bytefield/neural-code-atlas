@@ -113,11 +113,18 @@ test('MIG-01 fresh DB applies all migrations', () => {
 
     const db = new Database(dbFile);
     const versionRow = db.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'").get();
-    assert(versionRow && versionRow.value === '1', `Expected schema_version=1, got: ${JSON.stringify(versionRow)}`);
+    assert(versionRow && versionRow.value === '2', `Expected schema_version=2, got: ${JSON.stringify(versionRow)}`);
 
-    const logRow = db.prepare('SELECT * FROM migration_log WHERE version = 1').get();
-    assert(logRow, 'Expected migration_log row for version 1');
-    assert(logRow.name === 'init_schema', `Expected name=init_schema, got: ${logRow.name}`);
+    const logCount = db.prepare('SELECT COUNT(*) as count FROM migration_log').get();
+    assert(logCount.count === 2, `Expected 2 migration_log rows, got: ${logCount.count}`);
+
+    const logRow1 = db.prepare('SELECT * FROM migration_log WHERE version = 1').get();
+    assert(logRow1, 'Expected migration_log row for version 1');
+    assert(logRow1.name === 'init_schema', `Expected name=init_schema, got: ${logRow1.name}`);
+
+    const logRow2 = db.prepare('SELECT * FROM migration_log WHERE version = 2').get();
+    assert(logRow2, 'Expected migration_log row for version 2');
+    assert(logRow2.name === 'repair_line_move_duplicates', `Expected name=repair_line_move_duplicates, got: ${logRow2.name}`);
     db.close();
   } finally {
     try { fs.unlinkSync(dbFile); } catch {}
@@ -135,7 +142,7 @@ test('MIG-02 already-migrated DB applies nothing', () => {
 
     const db = new Database(dbFile);
     const count = db.prepare('SELECT COUNT(*) as count FROM migration_log').get();
-    assert(count.count === 1, `Expected 1 migration_log row, got: ${count.count}`);
+    assert(count.count === 2, `Expected 2 migration_log rows (one per migration), got: ${count.count}`);
     db.close();
   } finally {
     try { fs.unlinkSync(dbFile); } catch {}
@@ -208,10 +215,10 @@ test('MIG-04 legacy DB without schema_meta migrates cleanly', () => {
 
     const db2 = new Database(dbFile);
     const versionRow = db2.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'").get();
-    assert(versionRow && versionRow.value === '1', `Expected schema_version=1, got: ${JSON.stringify(versionRow)}`);
+    assert(versionRow && versionRow.value === '2', `Expected schema_version=2, got: ${JSON.stringify(versionRow)}`);
 
-    const logRow = db2.prepare('SELECT * FROM migration_log WHERE version = 1').get();
-    assert(logRow, 'Expected migration_log row for version 1');
+    const logCount = db2.prepare('SELECT COUNT(*) as count FROM migration_log').get();
+    assert(logCount.count === 2, `Expected 2 migration_log rows, got: ${logCount.count}`);
 
     const nodeRow = db2.prepare("SELECT * FROM nodes WHERE name = 'legacyNode'").get();
     assert(nodeRow, 'Expected legacyNode to still exist after migration');
@@ -219,6 +226,110 @@ test('MIG-04 legacy DB without schema_meta migrates cleanly', () => {
     db2.close();
   } finally {
     try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// MIG-05: migration 002 repairs line-move duplicates in existing DBs
+test('MIG-05 migration 002 repairs line-move duplicates', () => {
+  const tmpDb = path.join(os.tmpdir(), `nca-mig05-${Date.now()}.db`);
+  const Database = require('better-sqlite3');
+
+  try {
+    // Phase 1: use StorageClass to create a fully-initialised DB (v2 schema).
+    // This gives us a complete schema including nodes_fts, triggers, etc.
+    const initStorage = new StorageClass(tmpDb);
+    initStorage.close();
+
+    // Phase 2: roll back to v1 and inject artificial line-move duplicates.
+    // UNIQUE(name, file, line) allows two rows for the same name@file at different lines.
+    const setupDb = new Database(tmpDb);
+    setupDb.pragma('foreign_keys = OFF');
+    setupDb.prepare(`UPDATE schema_meta SET value='1' WHERE key='schema_version'`).run();
+    setupDb.prepare(`DELETE FROM migration_log WHERE version=2`).run();
+    setupDb.prepare(`INSERT INTO file_index (path, mtime, sha256, parsed_at) VALUES ('/fake/a.ts', 1, 'x', 100)`).run();
+    // Disable FTS triggers while seeding stale rows so nodes_fts stays clean
+    setupDb.exec(`
+      INSERT INTO nodes (type, name, file, line) VALUES ('function', 'alpha', '/fake/a.ts', 0);
+      INSERT INTO nodes (type, name, file, line) VALUES ('function', 'alpha', '/fake/a.ts', 5);
+      INSERT INTO nodes (type, name, file, line) VALUES ('function', 'beta',  '/fake/a.ts', 1);
+      INSERT INTO nodes (type, name, file, line) VALUES ('function', 'beta',  '/fake/a.ts', 6);
+    `);
+    setupDb.close();
+
+    // Phase 3: construct Storage — migration 002 must auto-run and repair duplicates.
+    const storage = new StorageClass(tmpDb);
+    storage.close();
+
+    // Phase 4: verify repair results.
+    const db = new Database(tmpDb);
+    try {
+      const count = db.prepare(`SELECT COUNT(*) AS n FROM nodes`).get().n;
+      assert(count === 2, `Expected 2 nodes after repair, got ${count}`);
+
+      const ver = db.prepare(`SELECT value FROM schema_meta WHERE key='schema_version'`).get();
+      assert(ver.value === '2', `Expected schema_version=2, got ${ver.value}`);
+
+      const logRow = db.prepare(`SELECT version, name, result FROM migration_log WHERE version=2`).get();
+      assert(logRow, 'Expected migration_log row for v2');
+      assert(logRow.name === 'repair_line_move_duplicates',
+        `Expected name 'repair_line_move_duplicates', got '${logRow.name}'`);
+
+      const info = JSON.parse(logRow.result);
+      assert(info.groups_repaired === 2, `Expected 2 groups repaired, got ${info.groups_repaired}`);
+      assert(info.rows_removed === 2, `Expected 2 rows removed, got ${info.rows_removed}`);
+      assert(Array.isArray(info.ambiguous_groups), 'ambiguous_groups must be an array');
+    } finally {
+      db.close();
+    }
+  } finally {
+    try { fs.unlinkSync(tmpDb); } catch {}
+  }
+});
+
+// LMD-01: line-move does not create duplicate nodes
+test('LMD-01 line-move does not create duplicate nodes', () => {
+  const lmdDir = path.join(os.tmpdir(), `nca-lmd-${Date.now()}`);
+  fs.mkdirSync(lmdDir, { recursive: true });
+  const tmpFile = path.join(lmdDir, 'fixture.ts');
+  const tmpDb = path.join(lmdDir, 'lmd.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    // Step 1: write fixture, scan, expect 2 nodes
+    fs.writeFileSync(tmpFile, 'export function alpha() { return 1; }\nexport function beta() { return 2; }\n');
+    run(`scan ${lmdDir}`);
+
+    let nodes = JSON.parse(run(`status --json`)).nodes;
+    assert(nodes === 2, `Initial scan: expected 2 nodes, got ${nodes}`);
+
+    // Step 2: insert 5 blank lines BEFORE alpha (line-move, no body change)
+    const movedContent = '\n\n\n\n\n' + fs.readFileSync(tmpFile, 'utf-8');
+    fs.writeFileSync(tmpFile, movedContent);
+    run(`scan ${lmdDir}`);
+
+    nodes = JSON.parse(run(`status --json`)).nodes;
+    assert(nodes === 2, `After line-move: expected 2 nodes, got ${nodes} (line-move duplicate bug)`);
+
+    // Step 3: verify line numbers were updated, not duplicated
+    const Database = require('better-sqlite3');
+    const db = new Database(tmpDb);
+    try {
+      const rows = db.prepare(
+        `SELECT name, line FROM nodes WHERE file = ? ORDER BY name`
+      ).all(tmpFile);
+      assert(rows.length === 2, `DB row count: expected 2, got ${rows.length}`);
+      const alpha = rows.find(r => r.name === 'alpha');
+      const beta  = rows.find(r => r.name === 'beta');
+      assert(alpha && alpha.line === 5, `alpha line: expected 5, got ${alpha?.line}`);
+      assert(beta  && beta.line  === 6, `beta line: expected 6, got ${beta?.line}`);
+    } finally {
+      db.close();
+    }
+  } finally {
+    try { fs.rmSync(lmdDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
   }
 });
 
@@ -286,7 +397,7 @@ test('AC8 re-scan after no file changes skips all nodes', () => {
 });
 
 // AC8b: per-node diff — modified file doesn't inflate node count
-test('AC8b per-node diff keeps node count stable after file content change', () => {
+test('AC8b structural identity stable across body refactor (same signature)', () => {
   // Write a modified version of a fixture to a temp file in fixtures dir
   const tmpFile = path.join(FIXTURES, '_tmp_test.ts');
   const before = JSON.parse(run(`status --json`));

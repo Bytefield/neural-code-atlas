@@ -1,6 +1,7 @@
 import type { Database } from 'better-sqlite3';
 import type { Migration } from './types.js';
 import { migration001 } from './001_init_schema.js';
+import { migration002 } from './002_repair_line_move_duplicates.js';
 
 /**
  * All migrations in order. Future migrations append here.
@@ -8,6 +9,7 @@ import { migration001 } from './001_init_schema.js';
  */
 const ALL_MIGRATIONS: readonly Migration[] = [
   migration001,
+  migration002,
 ];
 
 /**
