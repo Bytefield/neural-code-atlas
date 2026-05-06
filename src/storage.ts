@@ -42,8 +42,10 @@ export interface FileRecord {
 
 
 export class Storage {
-  private db: BetterSqlite3.Database;
-  private stmts!: {
+  /** @internal — not public API; exposed for testing only. */
+  db: BetterSqlite3.Database;
+  /** @internal — not public API; exposed for testing only. */
+  stmts!: {
     upsertNode: BetterSqlite3.Statement;
     deleteNodesForFile: BetterSqlite3.Statement;
     getNode: BetterSqlite3.Statement;
@@ -64,7 +66,7 @@ export class Storage {
     getNodeDeps: BetterSqlite3.Statement;
     insertQueryLog: BetterSqlite3.Statement;
     upsertNodeScore: BetterSqlite3.Statement;
-    getNodeBoost: BetterSqlite3.Statement;
+    getNodeBoosts: BetterSqlite3.Statement;
     getCellChecksums: BetterSqlite3.Statement;
     topNodeScores: BetterSqlite3.Statement;
   };
@@ -154,7 +156,11 @@ export class Storage {
           last_queried = excluded.last_queried,
           score_boost = MIN(score_boost + 0.05, 0.5)
       `),
-      getNodeBoost: this.db.prepare(`SELECT score_boost FROM node_scores WHERE cell_id = ?`),
+      getNodeBoosts: this.db.prepare(`
+        SELECT cell_id, score_boost
+        FROM node_scores
+        WHERE cell_id IN (SELECT value FROM json_each(?))
+      `),
       getCellChecksums: this.db.prepare(`SELECT name, sha256 FROM nodes WHERE file = ?`),
       topNodeScores: this.db.prepare(`
         SELECT ns.cell_id, ns.query_count, ns.score_boost, n.name, n.module, n.file
@@ -284,9 +290,18 @@ export class Storage {
     tx();
   }
 
-  getNodeBoost(cellId: string): number {
-    const row = this.stmts.getNodeBoost.get(cellId) as { score_boost: number } | undefined;
-    return row?.score_boost ?? 0;
+  /**
+   * Batch lookup of score_boost for multiple node ids.
+   * Returns a Map keyed by cell_id (string). Missing ids are simply absent.
+   * Uses a single SQL query via SQLite's json_each, regardless of input size.
+   */
+  getNodeBoosts(cellIds: readonly string[]): Map<string, number> {
+    const result = new Map<string, number>();
+    if (cellIds.length === 0) return result;
+    const rows = this.stmts.getNodeBoosts.all(JSON.stringify(cellIds)) as
+      { cell_id: string; score_boost: number }[];
+    for (const row of rows) result.set(row.cell_id, row.score_boost);
+    return result;
   }
 
   getCellChecksums(file: string): Map<string, string> {

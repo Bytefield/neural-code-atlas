@@ -71,6 +71,11 @@ export class ContextExpander {
    */
   rankWithBoost(nodes: NCNode[], query: string): NCNode[] {
     const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+    // Single batch lookup of boosts for all nodes that have an id.
+    const ids = nodes
+      .filter(n => n.id !== undefined)
+      .map(n => String(n.id));
+    const boosts = this.storage.getNodeBoosts(ids);
 
     return nodes
       .map(n => {
@@ -83,7 +88,7 @@ export class ContextExpander {
         score += Math.min(n.complexity, 10);
         score += Math.min(n.deps.length, 5);
         if (n.id !== undefined) {
-          score += this.storage.getNodeBoost(String(n.id)) * 100;
+          score += (boosts.get(String(n.id)) ?? 0) * 100;
         }
         return { node: n, score };
       })
