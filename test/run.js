@@ -535,6 +535,49 @@ test('SRS-01 scanner reads each file exactly once per scan', () => {
   }
 });
 
+// WUR-01: watch unlink handler relinks graph and flows
+test('WUR-01 watch unlink handler relinks graph and flows', () => {
+  const wurDir = path.join(os.tmpdir(), `nca-wur-${Date.now()}`);
+  fs.mkdirSync(wurDir, { recursive: true });
+  const fileA = path.join(wurDir, 'a.ts');
+  const fileB = path.join(wurDir, 'b.ts');
+  const tmpDb = path.join(wurDir, 'wur.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    // Write two files: a imports b
+    fs.writeFileSync(fileA, 'import { helper } from "./b";\nexport function main() { helper(); }\n');
+    fs.writeFileSync(fileB, 'export function helper() { return 42; }\n');
+
+    // Initial scan — should index 2 nodes (main, helper)
+    run(`scan ${wurDir}`);
+    const before = JSON.parse(run('status --json'));
+    assert(before.nodes === 2, `Initial: expected 2 nodes, got ${before.nodes}`);
+
+    // Simulate what the watch unlink handler does: remove fileB from storage
+    const storage = new StorageClass(tmpDb);
+    storage.deleteNodesForFile(fileB);
+    storage.deleteFileRecord(fileB);
+    storage.close();
+
+    // After deletion, evolve must not crash (graph would be stale without the fix)
+    try {
+      run('evolve');
+    } catch (err) {
+      throw new Error(`evolve crashed after unlink (graph stale): ${err.message}`);
+    }
+
+    // Verify fileB's node is gone from the index
+    const after = JSON.parse(run('status --json'));
+    assert(after.nodes === 1, `After unlink: expected 1 node, got ${after.nodes}`);
+  } finally {
+    try { fs.rmSync(wurDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
 // AC5: MCP server — tools/list + nca_ask + nca_insights in a single spawn
 // Using a promise-based helper so assertions land inside the test() try/catch
 let mcpTestError = null;

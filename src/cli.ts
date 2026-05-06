@@ -270,15 +270,17 @@ program
       }
 
       // Re-index only the files that changed
-      if (changed.length > 0) {
-        let totalParsed = 0;
-        let totalMs = 0;
-        for (const fp of changed) {
-          const r = scanner.scanFile(fp, rootPath);
-          totalParsed += r.parsed;
-          totalMs += r.durationMs;
-          if (opts.verbose) process.stdout.write(`NCA|watch_reindex_file|${fp}|parsed:${r.parsed}|ms:${r.durationMs}\n`);
-        }
+      let totalParsed = 0;
+      let totalMs = 0;
+      for (const fp of changed) {
+        const r = scanner.scanFile(fp, rootPath);
+        totalParsed += r.parsed;
+        totalMs += r.durationMs;
+        if (opts.verbose) process.stdout.write(`NCA|watch_reindex_file|${fp}|parsed:${r.parsed}|ms:${r.durationMs}\n`);
+      }
+
+      // Relink and redetect whenever anything changed — symmetric for both changes and deletions
+      if (deleted.length > 0 || changed.length > 0) {
         new Linker(storage).link(rootPath);
         new FlowDetector(storage).detectAll();
         const stats = storage.stats();
