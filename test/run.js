@@ -579,7 +579,8 @@ test('WUR-01 watch unlink handler relinks graph and flows', () => {
 });
 
 // AC5: MCP server — tools/list + nca_ask + nca_insights in a single spawn
-// Using a promise-based helper so assertions land inside the test() try/catch
+// Timing on Windows: 500ms init delay + 3s response window + 1s graceful drain.
+// Results timer (below) fires at 4500ms, after all three phases complete.
 let mcpTestError = null;
 let mcpTestDone = false;
 
@@ -593,14 +594,21 @@ let mcpTestDone = false;
   let mcpOutput = '';
   child.stdout.on('data', (d) => { mcpOutput += d.toString(); });
 
-  child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) + '\n');
-  child.stdin.write(JSON.stringify({
-    jsonrpc: '2.0', id: 2, method: 'tools/call',
-    params: { name: 'nca_insights', arguments: {} },
-  }) + '\n');
-
+  // Wait 500ms for MCP server to initialise on Windows before sending requests
   setTimeout(() => {
-    child.kill();
+    child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) + '\n');
+    child.stdin.write(JSON.stringify({
+      jsonrpc: '2.0', id: 2, method: 'tools/call',
+      params: { name: 'nca_insights', arguments: {} },
+    }) + '\n');
+  }, 500);
+
+  // Evaluate at T=3000ms (500ms init + up to 2.5s for responses to arrive)
+  setTimeout(() => {
+    // Graceful shutdown: signal EOF so the server exits cleanly; force kill after 1s
+    child.stdin.end();
+    setTimeout(() => { if (!child.killed) child.kill(); }, 1000);
+
     try {
       const lines = mcpOutput.trim().split('\n').filter(Boolean);
       assert(lines.length >= 2, `Expected ≥2 MCP response lines, got ${lines.length}:\n${mcpOutput.slice(0, 300)}`);
@@ -620,7 +628,7 @@ let mcpTestDone = false;
       mcpTestError = err;
     }
     mcpTestDone = true;
-  }, 1000);
+  }, 3000);
 }
 
 // AC7: insights command
@@ -691,7 +699,7 @@ process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
 });
 
-// Results — wait for MCP async test (1000ms timeout above)
+// Results — wait for MCP async test (3000ms timeout above + 500ms init + 1000ms drain window)
 setTimeout(() => {
   // Flush MCP test result into the pass/fail counters
   const mcpName = 'AC5 MCP server (tools/list + nca_insights)';
@@ -711,4 +719,4 @@ setTimeout(() => {
 
   console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed\n`);
   process.exit(failed > 0 ? 1 : 0);
-}, 1200);
+}, 4500);
