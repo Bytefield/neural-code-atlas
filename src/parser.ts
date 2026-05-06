@@ -109,9 +109,15 @@ export class NCAParser {
     }
   }
 
-  parseFile(filePath: string, sha256: string, rootPath: string): NCNode[] {
+  /**
+   * Parse a source file and extract function/class nodes.
+   * @param content - Optional pre-read file content. If omitted, reads from disk.
+   *                  Pass this when the caller already has the content to avoid a
+   *                  redundant read.
+   */
+  parseFile(filePath: string, sha256: string, rootPath: string, content?: string): NCNode[] {
     const ext = path.extname(filePath).slice(1).toLowerCase();
-    const content = fs.readFileSync(filePath, 'utf-8');
+    const code = content ?? fs.readFileSync(filePath, 'utf-8');
     const module = fileToModule(filePath, rootPath);
 
     let raws: RawNode[] = [];
@@ -119,15 +125,15 @@ export class NCAParser {
     const parser = this.parsers.get(ext);
     if (parser) {
       try {
-        const tree = parser.parse(content);
+        const tree = parser.parse(code);
         raws = ext === 'py'
-          ? this.extractPython(tree.rootNode, content)
-          : this.extractTS(tree.rootNode, content);
+          ? this.extractPython(tree.rootNode, code)
+          : this.extractTS(tree.rootNode, code);
       } catch {
-        raws = this.regexFallback(content, ext);
+        raws = this.regexFallback(code, ext);
       }
     } else {
-      raws = this.regexFallback(content, ext);
+      raws = this.regexFallback(code, ext);
     }
 
     return raws.map(r => ({
