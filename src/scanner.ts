@@ -77,13 +77,13 @@ export class Scanner {
         // File is new or changed — per-node diff to avoid full FTS churn
         const oldChecksums = this.storage.getCellChecksums(filePath);
         const nodes = this.parser.parseFile(filePath, sha256, rootPath);
-        const currentNames = new Set(nodes.map(n => n.name));
+        const currentKeys = new Set(nodes.map(n => `${n.name}@${n.line}`));
 
         const changed = nodes.filter(n => oldChecksums.get(n.name) !== n.sha256);
         if (changed.length > 0) {
           this.storage.upsertNodes(changed);
         }
-        this.storage.deleteRemovedCells(filePath, currentNames);
+        this.storage.deleteRemovedCells(filePath, currentKeys);
         this.storage.upsertFileRecord(filePath, mtime, sha256);
         result.parsed++;
       } catch (err) {
@@ -144,13 +144,13 @@ export class Scanner {
 
       const oldChecksums = this.storage.getCellChecksums(filePath);
       const nodes = this.parser.parseFile(filePath, sha256, rootPath);
-      const currentNames = new Set(nodes.map(n => n.name));
+      const currentKeys = new Set(nodes.map(n => `${n.name}@${n.line}`));
 
       const changed = nodes.filter(n => oldChecksums.get(n.name) !== n.sha256);
       if (changed.length > 0) {
         this.storage.upsertNodes(changed);
       }
-      this.storage.deleteRemovedCells(filePath, currentNames);
+      this.storage.deleteRemovedCells(filePath, currentKeys);
       this.storage.upsertFileRecord(filePath, mtime, sha256);
       result.parsed++;
     } catch (err) {

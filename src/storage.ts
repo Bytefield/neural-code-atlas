@@ -296,9 +296,16 @@ export class Storage {
     return map;
   }
 
-  deleteRemovedCells(file: string, currentNames: Set<string>): void {
+  /**
+   * Delete nodes from `file` that are not in `currentKeys`.
+   * Keys are formatted as `${name}@${line}` so a node moving from line N
+   * to line M is treated as a delete-of-old + insert-of-new at the storage
+   * layer, preventing stale duplicates after refactors that shift code up
+   * or down within a file.
+   */
+  deleteRemovedCells(file: string, currentKeys: Set<string>): void {
     const existing = this.getNodesByFile(file);
-    const toDelete = existing.filter(n => !currentNames.has(n.name));
+    const toDelete = existing.filter(n => !currentKeys.has(`${n.name}@${n.line}`));
     if (toDelete.length === 0) return;
     const del = this.db.prepare(`DELETE FROM nodes WHERE id = ?`);
     const tx = this.db.transaction(() => {
