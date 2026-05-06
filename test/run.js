@@ -417,6 +417,81 @@ test('CAC-01 findLongChains is correct in graphs with cycles', () => {
   }
 });
 
+// BNB-01: rankWithBoost uses a single batched query for boosts
+test('BNB-01 rankWithBoost uses a single batched query for boosts', () => {
+  const tmpDb = path.join(os.tmpdir(), `nca-bnb-${Date.now()}.db`);
+
+  try {
+    // Create DB via StorageClass to get the full migrated schema.
+    const storage = new StorageClass(tmpDb);
+
+    // Insert 10 nodes via the public API.
+    for (let i = 0; i < 10; i++) {
+      storage.upsertNode({
+        type: 'function', name: `fn${i}`, module: '', inputs: [], outputs: [],
+        deps: [], effects: [], complexity: 1, file: '/test.ts', line: i, sha256: `hash${i}`,
+      });
+    }
+    const allNodes = storage.getAllNodes();
+    assert(allNodes.length === 10, `Expected 10 nodes, got ${allNodes.length}`);
+
+    // Boost fn0, fn3, fn7 via raw DB access.
+    // TypeScript `private` is unenforced in compiled JS — accessible for testing.
+    const rawDb = storage.db;
+    const insertBoost = rawDb.prepare(
+      `INSERT INTO node_scores (cell_id, query_count, last_queried, score_boost)
+       VALUES (?, 1, 0, ?)
+       ON CONFLICT(cell_id) DO UPDATE SET score_boost = excluded.score_boost`
+    );
+    const fn0 = allNodes.find(n => n.name === 'fn0');
+    const fn3 = allNodes.find(n => n.name === 'fn3');
+    const fn7 = allNodes.find(n => n.name === 'fn7');
+    insertBoost.run(String(fn0.id), 1.0);
+    insertBoost.run(String(fn3.id), 0.5);
+    insertBoost.run(String(fn7.id), 2.0);
+
+    // --- Behavioural check ---
+    const { ContextExpander } = require(path.join(ROOT, 'dist', 'context.js'));
+    const ctx = new ContextExpander(storage);
+    const ranked = ctx.rankWithBoost(allNodes, 'fn');
+    assert(ranked.length === 10, `Expected 10 ranked, got ${ranked.length}`);
+
+    // fn0 (boost=1.0×100=+100), fn3 (boost=0.5×100=+50), fn7 (boost=2.0×100=+200)
+    // must all outrank the unboosted nodes.
+    const top3Names = new Set(ranked.slice(0, 3).map(n => n.name));
+    assert(top3Names.has('fn0') && top3Names.has('fn3') && top3Names.has('fn7'),
+      `Top 3 should be fn0, fn3, fn7. Got: ${[...top3Names].join(',')}`);
+
+    // --- Query-count regression guard ---
+    // Patch whichever statement exists: getNodeBoost (before fix) or getNodeBoosts (after fix).
+    const stmts = storage.stmts;
+    let nodeScoresQueryCount = 0;
+
+    if (stmts && stmts.getNodeBoost) {
+      const orig = stmts.getNodeBoost;
+      const origGet = orig.get.bind(orig);
+      orig.get = function (...args) { nodeScoresQueryCount++; return origGet(...args); };
+    }
+    if (stmts && stmts.getNodeBoosts) {
+      const orig = stmts.getNodeBoosts;
+      const origAll = orig.all.bind(orig);
+      orig.all = function (...args) { nodeScoresQueryCount++; return origAll(...args); };
+    }
+
+    ctx.rankWithBoost(allNodes, 'fn');
+
+    // After fix: exactly 1 query (batched). Before fix: 10 queries (one per node).
+    assert(nodeScoresQueryCount === 1,
+      `Expected exactly 1 node_scores query for 10 nodes, got ${nodeScoresQueryCount} (N+1 regression)`);
+
+    storage.close();
+  } finally {
+    try { fs.unlinkSync(tmpDb); } catch {}
+    try { fs.unlinkSync(tmpDb + '-wal'); } catch {}
+    try { fs.unlinkSync(tmpDb + '-shm'); } catch {}
+  }
+});
+
 // AC5: MCP server — tools/list + nca_ask + nca_insights in a single spawn
 // Using a promise-based helper so assertions land inside the test() try/catch
 let mcpTestError = null;
