@@ -10,6 +10,7 @@ import { ContextExpander, buildQueryJSON } from './context.js';
 import { FlowDetector } from './flow.js';
 import { Evolver } from './evolve.js';
 import { separator, header, formatField, formatStatus, colors } from './format.js';
+import { registerProject } from './registry.js';
 
 const program = new Command();
 
@@ -67,6 +68,7 @@ program
     process.stdout.write(scanLines.join('\n') + '\n');
 
     storage.close();
+    registerProject(rootPath);
   });
 
 // ─── ask ─────────────────────────────────────────────────────────────────────

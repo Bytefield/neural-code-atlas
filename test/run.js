@@ -701,6 +701,146 @@ test('FMT-01 CLI output includes color codes', () => {
   assert(output.includes('\x1b[0m'), 'Status output should include reset codes');
 });
 
+// ── Multi-project support (MP) tests ─────────────────────────────────────────
+{
+  const { registerProject, listProjects: listProj, findProject } =
+    require(path.join(ROOT, 'dist', 'registry.js'));
+  const { resolveAndGetStorage, getStorage: getCached, getCacheSize, forceSetLastUsed, closeAll: cacheCloseAll } =
+    require(path.join(ROOT, 'dist', 'db-cache.js'));
+
+  /** Create a temp project root with an initialised .nca/nca.db. */
+  function makeTempProject(label) {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), `nca-mp-${label}-`));
+    fs.mkdirSync(path.join(root, '.nca'), { recursive: true });
+    const db = new StorageClass(path.join(root, '.nca', 'nca.db'));
+    db.close();
+    return root;
+  }
+
+  test('MP-01 explicit project param wins over NCA_DB_PATH', () => {
+    cacheCloseAll();
+    const proj = makeTempProject('p01');
+    try {
+      const storage = resolveAndGetStorage(proj);
+      assert(
+        storage.dbPath === path.join(proj, '.nca', 'nca.db'),
+        `Expected proj dbPath, got: ${storage.dbPath}`
+      );
+      assert(
+        storage.dbPath !== path.resolve(process.env.NCA_DB_PATH),
+        'Expected different DB from NCA_DB_PATH'
+      );
+    } finally {
+      cacheCloseAll();
+      try { fs.rmSync(proj, { recursive: true }); } catch {}
+    }
+  });
+
+  test('MP-02 NCA_DB_PATH used when project omitted', () => {
+    cacheCloseAll();
+    const storage = resolveAndGetStorage();
+    assert(
+      storage.dbPath === path.resolve(process.env.NCA_DB_PATH),
+      `Expected NCA_DB_PATH, got: ${storage.dbPath}`
+    );
+  });
+
+  test('MP-03 throws clear error when no DB found', () => {
+    cacheCloseAll();
+    const missing = path.join(os.tmpdir(), `nca-mp-missing-${Date.now()}`);
+    let threw = false;
+    try {
+      resolveAndGetStorage(missing);
+    } catch (err) {
+      threw = true;
+      assert(
+        err.message.includes('No NCA index found'),
+        `Expected "No NCA index found" in error, got: ${err.message}`
+      );
+    }
+    assert(threw, 'Expected resolveAndGetStorage to throw for missing DB');
+  });
+
+  test('MP-04 registry: register/list/upsert; no duplicates; NCA_REGISTRY_PATH override', () => {
+    const regFile = path.join(os.tmpdir(), `nca-reg-${Date.now()}.json`);
+    const savedReg = process.env.NCA_REGISTRY_PATH;
+    process.env.NCA_REGISTRY_PATH = regFile;
+    try {
+      const root1 = path.join(os.tmpdir(), 'nca-reg-proj1');
+      const root2 = path.join(os.tmpdir(), 'nca-reg-proj2');
+      registerProject(root1);
+      registerProject(root2);
+      registerProject(root1); // duplicate — must be ignored
+      const list = listProj();
+      assert(list.length === 2, `Expected 2 projects, got ${list.length}`);
+      assert(list.some(p => p.root === path.resolve(root1)), 'root1 missing from registry');
+      assert(list.some(p => p.root === path.resolve(root2)), 'root2 missing from registry');
+    } finally {
+      if (savedReg === undefined) delete process.env.NCA_REGISTRY_PATH;
+      else process.env.NCA_REGISTRY_PATH = savedReg;
+      try { fs.unlinkSync(regFile); } catch {}
+    }
+  });
+
+  test('MP-05 findProject resolves by name and partial root substring', () => {
+    const regFile = path.join(os.tmpdir(), `nca-reg-${Date.now()}.json`);
+    const savedReg = process.env.NCA_REGISTRY_PATH;
+    process.env.NCA_REGISTRY_PATH = regFile;
+    try {
+      const root = path.join(os.tmpdir(), 'nca-find-myproject');
+      registerProject(root);
+      const byName = findProject('myproject');
+      assert(byName !== undefined, 'Expected to find project by name');
+      assert(byName.root === path.resolve(root), 'Name match returned wrong root');
+      const byPartial = findProject('nca-find-myproj');
+      assert(byPartial !== undefined, 'Expected to find project by partial path');
+      assert(byPartial.root === path.resolve(root), 'Partial match returned wrong root');
+    } finally {
+      if (savedReg === undefined) delete process.env.NCA_REGISTRY_PATH;
+      else process.env.NCA_REGISTRY_PATH = savedReg;
+      try { fs.unlinkSync(regFile); } catch {}
+    }
+  });
+
+  test('MP-06 cache returns identical Storage instance for same dbPath', () => {
+    cacheCloseAll();
+    const proj = makeTempProject('p06');
+    try {
+      const dbPath = path.join(proj, '.nca', 'nca.db');
+      const s1 = getCached(dbPath);
+      const s2 = getCached(dbPath);
+      assert(s1 === s2, 'Expected same Storage instance (identity) for repeated call');
+      assert(getCacheSize() === 1, `Expected cache size 1, got ${getCacheSize()}`);
+    } finally {
+      cacheCloseAll();
+      try { fs.rmSync(proj, { recursive: true }); } catch {}
+    }
+  });
+
+  test('MP-07 LRU evicts oldest entry when cache exceeds MAX (5)', () => {
+    cacheCloseAll();
+    const projects = [];
+    try {
+      for (let i = 0; i < 6; i++) projects.push(makeTempProject(`p07-${i}`));
+      const dbPaths = projects.map(r => path.join(r, '.nca', 'nca.db'));
+
+      // Fill cache to MAX=5
+      for (let i = 0; i < 5; i++) getCached(dbPaths[i]);
+      assert(getCacheSize() === 5, `Expected size 5, got ${getCacheSize()}`);
+
+      // Mark first entry as LRU (just under TTL so idle eviction does not fire)
+      forceSetLastUsed(dbPaths[0], Date.now() - 59000);
+
+      // Opening 6th triggers LRU eviction of dbPaths[0]
+      getCached(dbPaths[5]);
+      assert(getCacheSize() === 5, `Expected size 5 after LRU eviction, got ${getCacheSize()}`);
+    } finally {
+      cacheCloseAll();
+      for (const p of projects) try { fs.rmSync(p, { recursive: true }); } catch {}
+    }
+  });
+}
+
 // Cleanup
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
