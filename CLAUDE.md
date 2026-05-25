@@ -58,7 +58,11 @@ Aplica la tabla global con estos matices:
 - **Branch naming:** `fix/<descripción>`, `perf/<descripción>`, `feat/<descripción>`
 - **No auto-merge** de PRs — el usuario hace merge desde la UI de GitHub
 
-## Estado del proyecto (bugs pendientes)
+## Estado del proyecto (auditoría de 7 bugs — actualizado 2026-05-25)
 
-De la auditoría original de 7 bugs, quedan por resolver: bugs 2, 5, 6, 7.
-Bugs 1 (LMD), 3 (CAC), 4 (BNB) ya mergeados en main.
+De la auditoría original de 7 bugs:
+- **Resueltos y mergeados:** 1 (LMD), 3 (CAC), 4 (BNB), 5 (SRS), 6 (WUR), 7 (AC5) ✅
+- **Pendiente sin documentación:** 2 (desconocido) ⚠️
+
+Auditoría completa → `../../Papi_Obsidian_Vault/02-Projects/nca/AUDITORIA-BUGS.md`
+Tests: 31/31 pasando (100%)

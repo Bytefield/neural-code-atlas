@@ -788,6 +788,176 @@ test('FMT-01 CLI output includes color codes', () => {
   });
 }
 
+// PFE-01: Parser handles advanced TypeScript without creating duplicates
+test('PFE-01 parser handles complex TS (generics, type guards, arrow generics)', () => {
+  const pfeDir = path.join(os.tmpdir(), `nca-pfe-${Date.now()}`);
+  fs.mkdirSync(pfeDir, { recursive: true });
+  const tmpFile = path.join(pfeDir, 'complex.ts');
+  const tmpDb = path.join(pfeDir, 'pfe.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    fs.writeFileSync(tmpFile, [
+      'type IsArray<T> = T extends unknown[] ? true : false;',
+      '',
+      'interface Repository<T extends { id: number }> {',
+      '  find(id: number): T | undefined;',
+      '  save(entity: Omit<T, "id">): T;',
+      '}',
+      '',
+      'export class UserService<T extends { id: number; name: string }> {',
+      '  constructor(private repo: Repository<T>) {}',
+      '  findById(id: number): T | undefined { return this.repo.find(id); }',
+      '  create(data: Omit<T, "id">): T { return this.repo.save(data); }',
+      '}',
+      '',
+      'export function isNonEmpty<T>(arr: T[]): arr is [T, ...T[]] {',
+      '  return arr.length > 0;',
+      '}',
+      '',
+      'export const formatUser = <T extends { name: string }>(user: T): string => {',
+      '  return `User: ${user.name}`;',
+      '};',
+    ].join('\n'));
+
+    run(`scan ${pfeDir}`);
+
+    const storage = new StorageClass(tmpDb);
+    const allNodes = storage.getAllNodes().filter(n => n.file === tmpFile);
+    storage.close();
+
+    const names = allNodes.map(n => n.name);
+    const unique = [...new Set(names)];
+    assert(names.length === unique.length,
+      `Parser created duplicate nodes: ${JSON.stringify(names.filter((n, i) => names.indexOf(n) !== i))}`);
+
+    assert(allNodes.length >= 3,
+      `Expected ≥3 nodes from complex TS, got ${allNodes.length}: ${names.join(', ')}`);
+  } finally {
+    try { fs.rmSync(pfeDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
+// FCS-01: rescan after file delete+recreate leaves no stale nodes
+test('FCS-01 rescan after file delete+recreate has no stale nodes', () => {
+  const fcsDir = path.join(os.tmpdir(), `nca-fcs-${Date.now()}`);
+  fs.mkdirSync(fcsDir, { recursive: true });
+  const tmpFile = path.join(fcsDir, 'churn.ts');
+  const tmpDb = path.join(fcsDir, 'fcs.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    // Step 1: scan with 3 functions
+    fs.writeFileSync(tmpFile, [
+      'export function alpha() { return 1; }',
+      'export function beta() { return 2; }',
+      'export function gamma() { return 3; }',
+    ].join('\n'));
+    run(`scan ${fcsDir}`);
+
+    const s1 = new StorageClass(tmpDb);
+    const count1 = s1.getAllNodes().filter(n => n.file === tmpFile).length;
+    s1.close();
+    assert(count1 === 3, `Initial scan: expected 3 nodes, got ${count1}`);
+
+    // Step 2: delete file and rescan — nodes must be removed
+    fs.unlinkSync(tmpFile);
+    run(`scan ${fcsDir}`);
+
+    const s2 = new StorageClass(tmpDb);
+    const count2 = s2.getAllNodes().filter(n => n.file === tmpFile).length;
+    s2.close();
+    assert(count2 === 0, `After delete: expected 0 stale nodes, got ${count2}`);
+
+    // Step 3: recreate with 2 different functions
+    fs.writeFileSync(tmpFile, [
+      'export function delta() { return 4; }',
+      'export function epsilon() { return 5; }',
+    ].join('\n'));
+    run(`scan ${fcsDir}`);
+
+    const s3 = new StorageClass(tmpDb);
+    const nodesAfter = s3.getAllNodes().filter(n => n.file === tmpFile);
+    s3.close();
+    const names = nodesAfter.map(n => n.name);
+
+    assert(nodesAfter.length === 2,
+      `After recreate: expected 2 nodes, got ${nodesAfter.length}: ${names.join(', ')}`);
+    assert(!names.some(n => ['alpha', 'beta', 'gamma'].includes(n)),
+      `Stale nodes from deleted version still present: ${names.join(', ')}`);
+    assert(names.includes('delta') && names.includes('epsilon'),
+      `Expected delta+epsilon, got: ${names.join(', ')}`);
+  } finally {
+    try { fs.rmSync(fcsDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
+// PFP-01: Python parser handles decorators without duplicating methods
+test('PFP-01 Python parser handles decorators without duplicating nodes', () => {
+  const pfpDir = path.join(os.tmpdir(), `nca-pfp-${Date.now()}`);
+  fs.mkdirSync(pfpDir, { recursive: true });
+  const tmpFile = path.join(pfpDir, 'decorated.py');
+  const tmpDb = path.join(pfpDir, 'pfp.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    fs.writeFileSync(tmpFile, [
+      'from functools import lru_cache',
+      'from typing import Optional',
+      '',
+      'def validate(fn):',
+      '    def wrapper(*args, **kwargs):',
+      '        return fn(*args, **kwargs)',
+      '    return wrapper',
+      '',
+      '@validate',
+      'def process_data(data: dict) -> Optional[dict]:',
+      '    if not data:',
+      '        return None',
+      '    return {k: v.strip() for k, v in data.items() if isinstance(v, str)}',
+      '',
+      'class Repository:',
+      '    def __init__(self, db_path: str):',
+      '        self.db_path = db_path',
+      '',
+      '    @staticmethod',
+      '    def connect(path: str) -> "Repository":',
+      '        return Repository(path)',
+      '',
+      '    @lru_cache(maxsize=128)',
+      '    def get(self, key: str) -> Optional[str]:',
+      '        return None',
+    ].join('\n'));
+
+    run(`scan ${pfpDir}`);
+
+    const storage = new StorageClass(tmpDb);
+    const allNodes = storage.getAllNodes().filter(n => n.file === tmpFile);
+    storage.close();
+
+    const names = allNodes.map(n => n.name);
+    const unique = [...new Set(names)];
+    assert(names.length === unique.length,
+      `Parser created duplicate nodes for decorated Python: ${JSON.stringify(
+        names.filter((n, i) => names.indexOf(n) !== i)
+      )}`);
+
+    assert(allNodes.length >= 3,
+      `Expected ≥3 nodes from decorated Python, got ${allNodes.length}: ${names.join(', ')}`);
+  } finally {
+    try { fs.rmSync(pfpDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
 // Cleanup
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
