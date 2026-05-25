@@ -81,6 +81,12 @@ nca watch [path] -v          # verbose watch output
 
 ---
 
+## Keeping the index up to date
+
+- After meaningful code changes: run `nca scan .` (or `nca scan <project-root>`).
+- During active development: run `nca watch .` in the background to keep the DB fresh.
+- If you query multiple projects in one Claude session: use the MCP tool param `project` (or run `nca_projects` to discover indexed roots) to avoid hitting the wrong DB.
+
 ## MCP Server (Claude Code integration)
 
 Add to your Claude Code config (`~/.claude/settings.json`):
