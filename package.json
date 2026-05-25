@@ -1,5 +1,5 @@
 {
-  "name": "neural-code-atlas",
+  "name": "@bytefield/neural-code-atlas",
   "version": "1.0.1",
   "description": "Local semantic index layer for codebases. Structural code intelligence via tree-sitter + SQLite, with MCP server for Claude Code.",
   "main": "dist/cli.js",
@@ -12,8 +12,7 @@
     "README.md",
     "LICENSE",
     "INSTALL.md",
-    "MCP_SETUP.md",
-    "CLAUDE.md"
+    "MCP_SETUP.md"
   ],
   "scripts": {
     "build": "tsc",
