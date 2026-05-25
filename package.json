@@ -1,16 +1,19 @@
 {
   "name": "neural-code-atlas",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Local semantic index layer for codebases. Structural code intelligence via tree-sitter + SQLite, with MCP server for Claude Code.",
   "main": "dist/cli.js",
   "bin": {
-    "nca": "./dist/cli.js"
+    "nca": "dist/cli.js"
   },
   "files": [
-    "dist",
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
     "README.md",
     "LICENSE",
-    "INSTALL.md"
+    "INSTALL.md",
+    "MCP_SETUP.md",
+    "CLAUDE.md"
   ],
   "scripts": {
     "build": "tsc",

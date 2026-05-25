@@ -578,59 +578,6 @@ test('WUR-01 watch unlink handler relinks graph and flows', () => {
   }
 });
 
-// AC5: MCP server — tools/list + nca_ask + nca_insights in a single spawn
-// Timing on Windows: 500ms init delay + 3s response window + 1s graceful drain.
-// Results timer (below) fires at 4500ms, after all three phases complete.
-let mcpTestError = null;
-let mcpTestDone = false;
-
-{
-  const MCP = path.join(ROOT, 'dist', 'mcp.js');
-  const child = spawn('node', [MCP], {
-    env: { ...process.env, NCA_DB_PATH: dbPath },
-    stdio: ['pipe', 'pipe', 'pipe'],
-  });
-
-  let mcpOutput = '';
-  child.stdout.on('data', (d) => { mcpOutput += d.toString(); });
-
-  // Wait 500ms for MCP server to initialise on Windows before sending requests
-  setTimeout(() => {
-    child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) + '\n');
-    child.stdin.write(JSON.stringify({
-      jsonrpc: '2.0', id: 2, method: 'tools/call',
-      params: { name: 'nca_insights', arguments: {} },
-    }) + '\n');
-  }, 500);
-
-  // Evaluate at T=3000ms (500ms init + up to 2.5s for responses to arrive)
-  setTimeout(() => {
-    // Graceful shutdown: signal EOF so the server exits cleanly; force kill after 1s
-    child.stdin.end();
-    setTimeout(() => { if (!child.killed) child.kill(); }, 1000);
-
-    try {
-      const lines = mcpOutput.trim().split('\n').filter(Boolean);
-      assert(lines.length >= 2, `Expected ≥2 MCP response lines, got ${lines.length}:\n${mcpOutput.slice(0, 300)}`);
-
-      const listResp = JSON.parse(lines[0]);
-      const toolNames = listResp.result?.tools?.map((t) => t.name) ?? [];
-      assert(toolNames.includes('nca_ask'), 'Expected nca_ask tool');
-      assert(toolNames.includes('nca_flow'), 'Expected nca_flow tool');
-      assert(toolNames.includes('nca_status'), 'Expected nca_status tool');
-      assert(toolNames.includes('nca_evolve'), 'Expected nca_evolve tool');
-      assert(toolNames.includes('nca_insights'), 'Expected nca_insights tool');
-
-      const insightsResp = JSON.parse(lines[1]);
-      assert(insightsResp.result?.content?.[0]?.text?.includes('NCA|insights'),
-        `Expected NCA|insights in response, got: ${JSON.stringify(insightsResp).slice(0, 200)}`);
-    } catch (err) {
-      mcpTestError = err;
-    }
-    mcpTestDone = true;
-  }, 3000);
-}
-
 // AC7: insights command
 test('AC7 insights returns hot nodes after ask', () => {
   // Ask twice to build query history
@@ -845,6 +792,59 @@ test('FMT-01 CLI output includes color codes', () => {
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
 });
+
+// AC5: MCP server — tools/list + nca_ask + nca_insights in a single spawn
+// Timing on Windows: 500ms init delay + 3s response window + 1s graceful drain.
+// Results timer (below) fires at 4500ms, after all three phases complete.
+let mcpTestError = null;
+let mcpTestDone = false;
+
+{
+  const MCP = path.join(ROOT, 'dist', 'mcp.js');
+  const child = spawn('node', [MCP], {
+    env: { ...process.env, NCA_DB_PATH: dbPath },
+    stdio: ['pipe', 'pipe', 'pipe'],
+  });
+
+  let mcpOutput = '';
+  child.stdout.on('data', (d) => { mcpOutput += d.toString(); });
+
+  // Wait 500ms for MCP server to initialise on Windows before sending requests
+  setTimeout(() => {
+    child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) + '\n');
+    child.stdin.write(JSON.stringify({
+      jsonrpc: '2.0', id: 2, method: 'tools/call',
+      params: { name: 'nca_insights', arguments: {} },
+    }) + '\n');
+  }, 500);
+
+  // Evaluate at T=3000ms (500ms init + up to 2.5s for responses to arrive)
+  setTimeout(() => {
+    // Graceful shutdown: signal EOF so the server exits cleanly; force kill after 1s
+    child.stdin.end();
+    setTimeout(() => { if (!child.killed) child.kill(); }, 1000);
+
+    try {
+      const lines = mcpOutput.trim().split('\n').filter(Boolean);
+      assert(lines.length >= 2, `Expected ≥2 MCP response lines, got ${lines.length}:\n${mcpOutput.slice(0, 300)}`);
+
+      const listResp = JSON.parse(lines[0]);
+      const toolNames = listResp.result?.tools?.map((t) => t.name) ?? [];
+      assert(toolNames.includes('nca_ask'), 'Expected nca_ask tool');
+      assert(toolNames.includes('nca_flow'), 'Expected nca_flow tool');
+      assert(toolNames.includes('nca_status'), 'Expected nca_status tool');
+      assert(toolNames.includes('nca_evolve'), 'Expected nca_evolve tool');
+      assert(toolNames.includes('nca_insights'), 'Expected nca_insights tool');
+
+      const insightsResp = JSON.parse(lines[1]);
+      assert(insightsResp.result?.content?.[0]?.text?.includes('NCA|insights'),
+        `Expected NCA|insights in response, got: ${JSON.stringify(insightsResp).slice(0, 200)}`);
+    } catch (err) {
+      mcpTestError = err;
+    }
+    mcpTestDone = true;
+  }, 3000);
+}
 
 // Results — wait for MCP async test (3000ms timeout above + 500ms init + 1000ms drain window)
 setTimeout(() => {

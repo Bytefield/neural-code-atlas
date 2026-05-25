@@ -17,7 +17,15 @@ const program = new Command();
 program
   .name('nca')
   .description('Neural Code Atlas — local semantic index for codebases')
-  .version('1.0.0');
+  .version('1.0.1');
+
+// ─── mcp ────────────────────────────────────────────────────────────────────
+program
+  .command('mcp')
+  .description('Run MCP server (stdio JSON-RPC) for Claude Code integration')
+  .action(() => {
+    require('./mcp.js');
+  });
 
 // ─── scan ────────────────────────────────────────────────────────────────────
 program
