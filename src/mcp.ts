@@ -20,7 +20,8 @@ import { FlowDetector } from './flow.js';
 import { Evolver } from './evolve.js';
 
 const PROTOCOL_VERSION = '2024-11-05';
-const SERVER_INFO = { name: 'nca', version: '1.0.1' };
+const { version: PKG_VERSION } = require('../package.json') as { version: string };
+const SERVER_INFO = { name: 'nca', version: PKG_VERSION };
 
 const PROJECT_PARAM = {
   project: {

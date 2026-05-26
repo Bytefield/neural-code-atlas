@@ -12,12 +12,15 @@ import { Evolver } from './evolve.js';
 import { separator, header, formatField, formatStatus, colors } from './format.js';
 import { registerProject } from './registry.js';
 
+// Read version from package.json so it never needs manual updates
+const { version: PKG_VERSION } = require('../package.json') as { version: string };
+
 const program = new Command();
 
 program
   .name('nca')
   .description('Neural Code Atlas — local semantic index for codebases')
-  .version('1.0.1');
+  .version(PKG_VERSION);
 
 // ─── mcp ────────────────────────────────────────────────────────────────────
 program

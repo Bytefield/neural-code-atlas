@@ -18,7 +18,7 @@ It’s local-first: no cloud indexing required.
 ## Install
 
 ```bash
-npm i -g neural-code-atlas
+npm i -g @synio-es/neural-code-atlas
 nca --help
 ```
 
@@ -59,21 +59,27 @@ After installing NCA, configure Claude Code to run the MCP server:
   "mcpServers": {
     "nca": {
       "command": "nca",
-      "args": ["mcp"],
-      "env": {
-        "NCA_DB_PATH": "/path/to/your-project/.nca/nca.db"
-      }
+      "args": ["mcp"]
     }
   }
 }
 ```
 
+NCA autodetects the project from the working directory. To target a specific project
+per-call, pass the optional `project` parameter to any tool:
+
+```
+nca_ask(query="handler", project="/mnt/c/dev/synio")
+nca_status(project="synio")
+```
+
 Tools exposed by the MCP server:
-- `nca_ask`
-- `nca_flow`
-- `nca_status`
-- `nca_evolve`
-- `nca_insights`
+- `nca_ask` — query nodes by name or keyword
+- `nca_flow` — trace execution flow from an entry point
+- `nca_status` — show index stats
+- `nca_evolve` — run architectural heuristics
+- `nca_insights` — show frequently queried nodes
+- `nca_projects` — list all indexed projects
 
 ## Configuration (`.nca/config.json`)
 
@@ -121,6 +127,17 @@ Re-index automatically after each commit:
 cp .git-hooks/post-commit .git/hooks/post-commit
 chmod +x .git/hooks/post-commit
 ```
+
+## What's new in 1.1.0
+
+- **Node identity fix**: functions with the same name in different files are now correctly
+  treated as separate nodes. Previously they were merged, creating false dependencies and
+  corrupted analysis results.
+- **Multi-project support**: MCP tools accept an optional `project` parameter. No need to
+  configure `NCA_DB_PATH` — autodetects from the working directory.
+- **`nca_projects` tool**: list all indexed projects via MCP.
+- **Stale node cleanup**: deleted files are now properly purged from the index on rescan.
+- **Stale index warnings**: tool responses warn if the index is more than 7 days old.
 
 ## License
 
