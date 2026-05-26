@@ -3,7 +3,7 @@
 ## Quickstart (npm)
 
 ```bash
-npm i -g neural-code-atlas
+npm i -g @synio-es/neural-code-atlas
 nca --help
 
 nca scan .
