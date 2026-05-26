@@ -12,7 +12,8 @@
     "README.md",
     "LICENSE",
     "INSTALL.md",
-    "MCP_SETUP.md"
+    "MCP_SETUP.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "build": "tsc",
