@@ -958,6 +958,113 @@ test('PFP-01 Python parser handles decorators without duplicating nodes', () => 
   }
 });
 
+// NID-01: same-name functions in different files are separate graph nodes
+const NCA_ROOT = ROOT;
+test('NID-01 same-name functions in different files are separate graph nodes', () => {
+  const tmpDir2 = path.join(os.tmpdir(), `nca-nid-${Date.now()}`);
+  fs.mkdirSync(tmpDir2, { recursive: true });
+  const fileA = path.join(tmpDir2, 'auth.ts');
+  const fileB = path.join(tmpDir2, 'api.ts');
+  const tmpDb2 = path.join(tmpDir2, 'nid.db');
+
+  try {
+    fs.writeFileSync(fileA, 'export function handler() { return "auth"; }\n');
+    fs.writeFileSync(fileB, 'export function handler() { return "api"; }\n');
+
+    const prevDb = process.env.NCA_DB_PATH;
+    process.env.NCA_DB_PATH = tmpDb2;
+    try {
+      run(`scan ${tmpDir2}`);
+
+      const Database2 = require('better-sqlite3');
+      const db2 = new Database2(tmpDb2);
+      try {
+        const nodes2 = db2.prepare('SELECT name, file FROM nodes ORDER BY file').all();
+        assert(nodes2.length === 2,
+          `Expected 2 nodes (one per file), got ${nodes2.length}`);
+        assert(nodes2[0].name === 'handler', `Node 0 name should be handler`);
+        assert(nodes2[1].name === 'handler', `Node 1 name should be handler`);
+        assert(nodes2[0].file !== nodes2[1].file, `Nodes should be in different files`);
+
+        const { GraphSnapshot } = require(path.join(NCA_ROOT, 'dist', 'graph.js'));
+        const StorageClass2 = require(path.join(NCA_ROOT, 'dist', 'storage.js')).Storage;
+        const storage2 = new StorageClass2(tmpDb2);
+        const snap = GraphSnapshot.build(storage2);
+
+        const keys = [...snap.forward.keys()];
+        assert(keys.length >= 2,
+          `Graph should have at least 2 separate keys for 2 handler functions, got ${keys.length}: ${keys.join(', ')}`);
+
+        for (const [key, deps] of snap.forward) {
+          if (key.includes('handler')) {
+            for (const dep of deps) {
+              assert(!dep.includes('handler'),
+                `handler in ${key} should NOT depend on handler in another file. Found dep: ${dep}`);
+            }
+          }
+        }
+        storage2.close();
+      } finally {
+        db2.close();
+      }
+    } finally {
+      if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+      else process.env.NCA_DB_PATH = prevDb;
+    }
+  } finally {
+    try { fs.rmSync(tmpDir2, { recursive: true, force: true }); } catch {}
+  }
+});
+
+// NID-02: dep resolves correctly via global-unique strategy when only one function
+// has the target name. Import-based resolution is not implemented at graph level
+// because the linker already replaces relative import paths with bare names before
+// persisting to the DB (the original file context is lost). The global-unique
+// strategy is the correct fallback for non-ambiguous deps.
+test('NID-02 deps resolve correctly via global-unique when dep name is unambiguous', () => {
+  const tmpDir3 = path.join(os.tmpdir(), `nca-nid2-${Date.now()}`);
+  fs.mkdirSync(tmpDir3, { recursive: true });
+  const fileA = path.join(tmpDir3, 'auth.ts');
+  const fileB = path.join(tmpDir3, 'main.ts');
+  const tmpDb3 = path.join(tmpDir3, 'nid2.db');
+
+  try {
+    // Only auth.ts defines "validate" — global unique, so main's dep should resolve to it
+    fs.writeFileSync(fileA, 'export function validate() { return true; }\n');
+    fs.writeFileSync(fileB,
+      'import { validate } from "./auth";\nexport function main() { validate(); }\n');
+
+    const prevDb = process.env.NCA_DB_PATH;
+    process.env.NCA_DB_PATH = tmpDb3;
+    try {
+      run(`scan ${tmpDir3}`);
+
+      const { GraphSnapshot } = require(path.join(NCA_ROOT, 'dist', 'graph.js'));
+      const StorageClass3 = require(path.join(NCA_ROOT, 'dist', 'storage.js')).Storage;
+      const storage3 = new StorageClass3(tmpDb3);
+      const snap = GraphSnapshot.build(storage3);
+
+      const mainKey = [...snap.forward.keys()].find(k => k.includes('main'));
+      assert(mainKey, `Expected to find main in graph keys. Keys: ${[...snap.forward.keys()].join(', ')}`);
+
+      const mainDeps = snap.forward.get(mainKey);
+      assert(mainDeps, `main should have dependencies`);
+
+      const depsArray = [...mainDeps];
+      const authDep = depsArray.find(d => d.includes('auth') && d.includes('validate'));
+      assert(authDep,
+        `main should depend on auth:validate (global unique resolution). Deps: ${depsArray.join(', ')}`);
+
+      storage3.close();
+    } finally {
+      if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+      else process.env.NCA_DB_PATH = prevDb;
+    }
+  } finally {
+    try { fs.rmSync(tmpDir3, { recursive: true, force: true }); } catch {}
+  }
+});
+
 // Cleanup
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}

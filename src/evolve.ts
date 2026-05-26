@@ -1,5 +1,5 @@
 import { Storage, NCNode, NCWarning } from './storage.js';
-import { GraphSnapshot } from './graph.js';
+import { GraphSnapshot, nodeKey } from './graph.js';
 import { FlowDetector } from './flow.js';
 import { loadEvolveConfig } from './nca.config.js';
 
@@ -50,7 +50,7 @@ export class Evolver {
 
     // R003 Too many dependencies
     for (const n of snap.nodes) {
-      const deps = snap.forward.get(n.name) ?? new Set();
+      const deps = snap.forward.get(nodeKey(n.file, n.name)) ?? new Set();
       if (deps.size > cfg.maxDepsThreshold) {
         warnings.push({
           rule_id: 'R003',
@@ -81,8 +81,9 @@ export class Evolver {
 
     // R006 Isolated nodes (no callers, no deps, not a top-level export)
     for (const n of snap.nodes) {
-      const callers = snap.reverse.get(n.name) ?? new Set();
-      const deps = snap.forward.get(n.name) ?? new Set();
+      const key = nodeKey(n.file, n.name);
+      const callers = snap.reverse.get(key) ?? new Set();
+      const deps = snap.forward.get(key) ?? new Set();
       if (callers.size === 0 && deps.size === 0 && n.type !== 'class') {
         warnings.push({
           rule_id: 'R006',
