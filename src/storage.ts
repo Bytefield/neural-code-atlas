@@ -69,6 +69,7 @@ export class Storage {
     getNodeBoosts: BetterSqlite3.Statement;
     getCellChecksums: BetterSqlite3.Statement;
     topNodeScores: BetterSqlite3.Statement;
+    getTrackedFilesUnder: BetterSqlite3.Statement;
   };
 
   readonly dbPath: string;
@@ -162,6 +163,7 @@ export class Storage {
         WHERE cell_id IN (SELECT value FROM json_each(?))
       `),
       getCellChecksums: this.db.prepare(`SELECT name, sha256 FROM nodes WHERE file = ?`),
+      getTrackedFilesUnder: this.db.prepare(`SELECT path FROM file_index WHERE path LIKE ?`),
       topNodeScores: this.db.prepare(`
         SELECT ns.cell_id, ns.query_count, ns.score_boost, n.name, n.module, n.file
         FROM node_scores ns
@@ -302,6 +304,12 @@ export class Storage {
       { cell_id: string; score_boost: number }[];
     for (const row of rows) result.set(row.cell_id, row.score_boost);
     return result;
+  }
+
+  getTrackedFilesUnder(rootPath: string): string[] {
+    const sep = rootPath.endsWith(path.sep) ? '' : path.sep;
+    const rows = this.stmts.getTrackedFilesUnder.all(rootPath + sep + '%') as { path: string }[];
+    return rows.map(r => r.path);
   }
 
   getCellChecksums(file: string): Map<string, string> {

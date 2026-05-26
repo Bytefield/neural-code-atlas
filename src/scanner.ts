@@ -52,6 +52,7 @@ export class Scanner {
     const config = loadConfig(rootPath);
     const files = this.collectFiles(rootPath, config);
     result.scanned = files.length;
+    const currentFilePaths = new Set(files);
 
     for (const filePath of files) {
       try {
@@ -90,6 +91,14 @@ export class Scanner {
       } catch (err) {
         result.errors++;
         process.stderr.write(`NCA|parse_error|${filePath}|${(err as Error).message}\n`);
+      }
+    }
+
+    // Purge nodes for files that were tracked but no longer exist on disk.
+    for (const trackedPath of this.storage.getTrackedFilesUnder(rootPath)) {
+      if (!currentFilePaths.has(trackedPath)) {
+        this.storage.deleteNodesForFile(trackedPath);
+        this.storage.deleteFileRecord(trackedPath);
       }
     }
 
