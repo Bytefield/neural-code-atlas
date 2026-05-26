@@ -99,6 +99,20 @@ Create `.nca/config.json` in your project root:
 - JavaScript (`.js`, `.jsx`, `.mjs`, `.cjs`)
 - Python (`.py`)
 
+## Keeping the index up to date
+
+`nca scan` is not free — run it deliberately, not on every save.
+
+| Situation | Action |
+|-----------|--------|
+| First time on a repo | `nca scan <root>` once |
+| Moved/renamed modules, large refactor, changed imports/exports | `nca scan <root>` |
+| Small edits (bug fix, adding a function) | Not needed; only if results look stale |
+| Long iterative session | `nca watch <root>` — auto-reindexes on save |
+| Before using NCA after a gap (days/weeks) | `nca status` first — rescan if index looks old |
+
+**Rule of thumb for AI agents:** run `nca status` before querying. If the index is missing or the last scan predates significant changes, run `nca scan`. Never scan unconditionally on every invocation.
+
 ## Git hook (optional)
 
 Re-index automatically after each commit:
