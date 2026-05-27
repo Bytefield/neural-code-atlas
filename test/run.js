@@ -113,10 +113,10 @@ test('MIG-01 fresh DB applies all migrations', () => {
 
     const db = new Database(dbFile);
     const versionRow = db.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'").get();
-    assert(versionRow && versionRow.value === '2', `Expected schema_version=2, got: ${JSON.stringify(versionRow)}`);
+    assert(versionRow && versionRow.value === '3', `Expected schema_version=3, got: ${JSON.stringify(versionRow)}`);
 
     const logCount = db.prepare('SELECT COUNT(*) as count FROM migration_log').get();
-    assert(logCount.count === 2, `Expected 2 migration_log rows, got: ${logCount.count}`);
+    assert(logCount.count === 3, `Expected 3 migration_log rows, got: ${logCount.count}`);
 
     const logRow1 = db.prepare('SELECT * FROM migration_log WHERE version = 1').get();
     assert(logRow1, 'Expected migration_log row for version 1');
@@ -125,6 +125,10 @@ test('MIG-01 fresh DB applies all migrations', () => {
     const logRow2 = db.prepare('SELECT * FROM migration_log WHERE version = 2').get();
     assert(logRow2, 'Expected migration_log row for version 2');
     assert(logRow2.name === 'repair_line_move_duplicates', `Expected name=repair_line_move_duplicates, got: ${logRow2.name}`);
+
+    const logRow3 = db.prepare('SELECT * FROM migration_log WHERE version = 3').get();
+    assert(logRow3, 'Expected migration_log row for version 3');
+    assert(logRow3.name === 'vault_schema', `Expected name=vault_schema, got: ${logRow3.name}`);
     db.close();
   } finally {
     try { fs.unlinkSync(dbFile); } catch {}
@@ -142,7 +146,7 @@ test('MIG-02 already-migrated DB applies nothing', () => {
 
     const db = new Database(dbFile);
     const count = db.prepare('SELECT COUNT(*) as count FROM migration_log').get();
-    assert(count.count === 2, `Expected 2 migration_log rows (one per migration), got: ${count.count}`);
+    assert(count.count === 3, `Expected 3 migration_log rows (one per migration), got: ${count.count}`);
     db.close();
   } finally {
     try { fs.unlinkSync(dbFile); } catch {}
@@ -215,10 +219,10 @@ test('MIG-04 legacy DB without schema_meta migrates cleanly', () => {
 
     const db2 = new Database(dbFile);
     const versionRow = db2.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'").get();
-    assert(versionRow && versionRow.value === '2', `Expected schema_version=2, got: ${JSON.stringify(versionRow)}`);
+    assert(versionRow && versionRow.value === '3', `Expected schema_version=3, got: ${JSON.stringify(versionRow)}`);
 
     const logCount = db2.prepare('SELECT COUNT(*) as count FROM migration_log').get();
-    assert(logCount.count === 2, `Expected 2 migration_log rows, got: ${logCount.count}`);
+    assert(logCount.count === 3, `Expected 3 migration_log rows, got: ${logCount.count}`);
 
     const nodeRow = db2.prepare("SELECT * FROM nodes WHERE name = 'legacyNode'").get();
     assert(nodeRow, 'Expected legacyNode to still exist after migration');
@@ -245,7 +249,7 @@ test('MIG-05 migration 002 repairs line-move duplicates', () => {
     const setupDb = new Database(tmpDb);
     setupDb.pragma('foreign_keys = OFF');
     setupDb.prepare(`UPDATE schema_meta SET value='1' WHERE key='schema_version'`).run();
-    setupDb.prepare(`DELETE FROM migration_log WHERE version=2`).run();
+    setupDb.prepare(`DELETE FROM migration_log WHERE version >= 2`).run();
     setupDb.prepare(`INSERT INTO file_index (path, mtime, sha256, parsed_at) VALUES ('/fake/a.ts', 1, 'x', 100)`).run();
     // Disable FTS triggers while seeding stale rows so nodes_fts stays clean
     setupDb.exec(`
@@ -267,7 +271,7 @@ test('MIG-05 migration 002 repairs line-move duplicates', () => {
       assert(count === 2, `Expected 2 nodes after repair, got ${count}`);
 
       const ver = db.prepare(`SELECT value FROM schema_meta WHERE key='schema_version'`).get();
-      assert(ver.value === '2', `Expected schema_version=2, got ${ver.value}`);
+      assert(ver.value === '3', `Expected schema_version=3, got ${ver.value}`);
 
       const logRow = db.prepare(`SELECT version, name, result FROM migration_log WHERE version=2`).get();
       assert(logRow, 'Expected migration_log row for v2');
@@ -577,6 +581,129 @@ test('WUR-01 watch unlink handler relinks graph and flows', () => {
     else process.env.NCA_DB_PATH = prevDb;
   }
 });
+
+// PARSER tests — vault note parsing
+// Uses parse-note-sync.js helper via execSync to call the async parseNote in sync context.
+{
+  const HELPER = path.join(ROOT, 'test', 'helpers', 'parse-note-sync.js');
+  const FIXTURES_VAULT = path.join(ROOT, 'src', 'vault', '__fixtures__');
+
+  function parseSync(fixtureName) {
+    const fp = path.join(FIXTURES_VAULT, fixtureName);
+    const raw = execSync(`node "${HELPER}" "${fp}"`, { encoding: 'utf-8' });
+    return JSON.parse(raw);
+  }
+
+  // PARSER-01: complete.md — all frontmatter fields parsed correctly
+  test('PARSER-01 complete.md parses all frontmatter fields', () => {
+    const r = parseSync('complete.md');
+    assert(r.id === 'test-complete-note', `Expected id='test-complete-note', got '${r.id}'`);
+    assert(r.type === 'arquitectura', `Expected type='arquitectura', got '${r.type}'`);
+    assert(r.status === 'vigente', `Expected status='vigente', got '${r.status}'`);
+    assert(r.area === 'backend', `Expected area='backend', got '${r.area}'`);
+    assert(r.summary === 'Complete note with all frontmatter fields', `Wrong summary: '${r.summary}'`);
+    assert(r.updated === '2026-05-26', `Expected updated='2026-05-26', got '${r.updated}'`);
+    assert(typeof r.contentHash === 'string' && r.contentHash.length === 64,
+      `Expected 64-char hex hash, got '${r.contentHash}'`);
+    assert(Array.isArray(r.bodyChunks) && r.bodyChunks.length > 0, 'Expected non-empty bodyChunks');
+  });
+
+  // PARSER-02: no-frontmatter.md — id derived from filename, status='vigente', optionals undefined
+  test('PARSER-02 no-frontmatter.md: id derived, status vigente, no optional fields', () => {
+    const r = parseSync('no-frontmatter.md');
+    assert(r.id === 'no-frontmatter', `Expected id='no-frontmatter', got '${r.id}'`);
+    assert(r.status === 'vigente', `Expected status='vigente', got '${r.status}'`);
+    assert(r.type === undefined || r.type === null,
+      `Expected type=undefined, got '${r.type}'`);
+    assert(r.area === undefined || r.area === null,
+      `Expected area=undefined, got '${r.area}'`);
+    assert(r.summary === undefined || r.summary === null,
+      `Expected summary=undefined, got '${r.summary}'`);
+    assert(typeof r.contentHash === 'string' && r.contentHash.length === 64,
+      `Expected 64-char hex hash, got '${r.contentHash}'`);
+  });
+
+  // PARSER-03: malformed-yaml.md — does not throw, returns status='vigente'
+  test('PARSER-03 malformed-yaml.md: no exception, status vigente', () => {
+    let r;
+    try {
+      r = parseSync('malformed-yaml.md');
+    } catch (err) {
+      throw new Error(`parseNote threw on malformed YAML (expected graceful handling): ${err.message}`);
+    }
+    assert(r.status === 'vigente', `Expected status='vigente', got '${r.status}'`);
+    assert(typeof r.contentHash === 'string' && r.contentHash.length === 64,
+      `Expected valid hash, got '${r.contentHash}'`);
+  });
+
+  // PARSER-04: long.md — >=5 chunks, overlap verified between consecutive chunks
+  test('PARSER-04 long.md: >=5 chunks, consecutive chunks share overlap paragraph', () => {
+    const r = parseSync('long.md');
+    assert(r.bodyChunks.length >= 5,
+      `Expected >=5 chunks, got ${r.bodyChunks.length}`);
+    // Verify overlap: last paragraph of chunk[i] == first paragraph of chunk[i+1]
+    for (let i = 0; i < r.bodyChunks.length - 1; i++) {
+      const curParas = r.bodyChunks[i].split(/\n\n+/).filter(p => p.trim());
+      const nextParas = r.bodyChunks[i + 1].split(/\n\n+/).filter(p => p.trim());
+      const lastOfCur = curParas[curParas.length - 1].trim();
+      const firstOfNext = nextParas[0].trim();
+      assert(lastOfCur === firstOfNext,
+        `Overlap violated at chunk ${i}→${i + 1}: last='${lastOfCur.slice(0, 40)}…' vs first='${firstOfNext.slice(0, 40)}…'`);
+    }
+  });
+
+  // PARSER-05: empty.md — no exception, bodyChunks=[]
+  test('PARSER-05 empty.md: no exception, bodyChunks empty', () => {
+    let r;
+    try {
+      r = parseSync('empty.md');
+    } catch (err) {
+      throw new Error(`parseNote threw on empty file: ${err.message}`);
+    }
+    assert(Array.isArray(r.bodyChunks) && r.bodyChunks.length === 0,
+      `Expected bodyChunks=[], got ${JSON.stringify(r.bodyChunks)}`);
+  });
+
+  // PARSER-06: determinism — same input yields same hash (run twice)
+  test('PARSER-06 determinism: same input same hash', () => {
+    const r1 = parseSync('complete.md');
+    const r2 = parseSync('complete.md');
+    assert(r1.contentHash === r2.contentHash,
+      `Hash not deterministic: '${r1.contentHash}' vs '${r2.contentHash}'`);
+  });
+
+  // PARSER-07: body mutation changes hash; frontmatter mutation does NOT
+  test('PARSER-07 hash covers body only: body change changes hash, frontmatter change does not', () => {
+    const tmpDir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-parser-'));
+    try {
+      const orig = fs.readFileSync(path.join(FIXTURES_VAULT, 'complete.md'), 'utf-8');
+
+      // Baseline
+      const base = path.join(tmpDir2, 'base.md');
+      fs.writeFileSync(base, orig);
+      const rBase = JSON.parse(execSync(`node "${HELPER}" "${base}"`, { encoding: 'utf-8' }));
+
+      // Mutate body: change one char in body (after second ---)
+      const fmEnd = orig.indexOf('---', 3) + 3;
+      const mutatedBody = orig.slice(0, fmEnd) + orig.slice(fmEnd).replace('T', 'X');
+      const bodyMut = path.join(tmpDir2, 'body-mut.md');
+      fs.writeFileSync(bodyMut, mutatedBody);
+      const rBodyMut = JSON.parse(execSync(`node "${HELPER}" "${bodyMut}"`, { encoding: 'utf-8' }));
+      assert(rBase.contentHash !== rBodyMut.contentHash,
+        'Body mutation must change contentHash');
+
+      // Mutate frontmatter only: change area field
+      const fmMutated = orig.replace('area: backend', 'area: frontend');
+      const fmMut = path.join(tmpDir2, 'fm-mut.md');
+      fs.writeFileSync(fmMut, fmMutated);
+      const rFmMut = JSON.parse(execSync(`node "${HELPER}" "${fmMut}"`, { encoding: 'utf-8' }));
+      assert(rBase.contentHash === rFmMut.contentHash,
+        `Frontmatter mutation must NOT change contentHash (base=${rBase.contentHash.slice(0, 8)}, fm=${rFmMut.contentHash.slice(0, 8)})`);
+    } finally {
+      try { fs.rmSync(tmpDir2, { recursive: true, force: true }); } catch {}
+    }
+  });
+}
 
 // AC7: insights command
 test('AC7 insights returns hot nodes after ask', () => {
@@ -1062,6 +1189,287 @@ test('NID-02 deps resolve correctly via global-unique when dep name is unambiguo
     }
   } finally {
     try { fs.rmSync(tmpDir3, { recursive: true, force: true }); } catch {}
+  }
+});
+
+// MIG-06: vault schema tables, triggers and indexes created
+test('MIG-06 migration 003 creates vault tables, FTS, triggers and indexes', () => {
+  const dbFile = path.join(tmpDir, 'mig06.db');
+  try {
+    const storage = new StorageClass(dbFile);
+    storage.close();
+
+    const db = new Database(dbFile);
+    try {
+      // Tables
+      const tableNames = db.prepare(
+        `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`
+      ).all().map(r => r.name);
+      assert(tableNames.includes('notes'), `Expected 'notes' table, got: ${tableNames.join(', ')}`);
+      assert(tableNames.includes('note_chunks'), `Expected 'note_chunks' table, got: ${tableNames.join(', ')}`);
+
+      // FTS virtual table
+      const vtNames = db.prepare(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='note_chunks_fts'`
+      ).all().map(r => r.name);
+      assert(vtNames.includes('note_chunks_fts'), `Expected 'note_chunks_fts' virtual table`);
+
+      // Triggers
+      const trigNames = db.prepare(
+        `SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'note_chunks_%' ORDER BY name`
+      ).all().map(r => r.name);
+      assert(trigNames.includes('note_chunks_ai'), `Expected trigger note_chunks_ai`);
+      assert(trigNames.includes('note_chunks_ad'), `Expected trigger note_chunks_ad`);
+      assert(trigNames.includes('note_chunks_au'), `Expected trigger note_chunks_au`);
+
+      // Indexes
+      const idxNames = db.prepare(
+        `SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_notes_%' ORDER BY name`
+      ).all().map(r => r.name);
+      assert(idxNames.includes('idx_notes_status'), `Expected idx_notes_status`);
+      assert(idxNames.includes('idx_notes_area'), `Expected idx_notes_area`);
+      assert(idxNames.includes('idx_notes_type'), `Expected idx_notes_type`);
+
+      // Schema version
+      const ver = db.prepare(`SELECT value FROM schema_meta WHERE key='schema_version'`).get();
+      assert(ver && ver.value === '3', `Expected schema_version=3, got: ${JSON.stringify(ver)}`);
+    } finally {
+      db.close();
+    }
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// MIG-07: FTS5 smoke — insert note + chunks, SELECT MATCH returns result
+test('MIG-07 FTS5 smoke: insert note+chunks, MATCH query returns result', () => {
+  const dbFile = path.join(tmpDir, 'mig07.db');
+  try {
+    const storage = new StorageClass(dbFile);
+    storage.close();
+
+    const db = new Database(dbFile);
+    try {
+      db.pragma('foreign_keys = ON');
+      db.prepare(
+        `INSERT INTO notes (id, path, content_hash, indexed_at)
+         VALUES ('n1', '/vault/test.md', 'abc123', datetime('now'))`
+      ).run();
+      db.prepare(
+        `INSERT INTO note_chunks (note_id, chunk_idx, text)
+         VALUES ('n1', 0, 'El proyecto SYNIO usa arquitectura hexagonal')`
+      ).run();
+      db.prepare(
+        `INSERT INTO note_chunks (note_id, chunk_idx, text)
+         VALUES ('n1', 1, 'Los tests unitarios cubren el 90% del codigo')`
+      ).run();
+
+      const rows = db.prepare(
+        `SELECT nc.note_id, nc.text
+         FROM note_chunks_fts fts
+         JOIN note_chunks nc ON nc.rowid = fts.rowid
+         WHERE note_chunks_fts MATCH 'arquitectura'`
+      ).all();
+      assert(rows.length === 1, `Expected 1 FTS match for 'arquitectura', got ${rows.length}`);
+      assert(rows[0].note_id === 'n1', `Expected note_id='n1', got: ${rows[0].note_id}`);
+
+      const rows2 = db.prepare(
+        `SELECT nc.note_id FROM note_chunks_fts fts
+         JOIN note_chunks nc ON nc.rowid = fts.rowid
+         WHERE note_chunks_fts MATCH 'synio'`
+      ).all();
+      assert(rows2.length === 1, `Expected 1 FTS match for 'synio' (diacritics removed), got ${rows2.length}`);
+    } finally {
+      db.close();
+    }
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// MIG-08: notes.status default 'vigente' when omitted on insert
+test("MIG-08 notes.status defaults to 'vigente' when not specified", () => {
+  const dbFile = path.join(tmpDir, 'mig08.db');
+  try {
+    const storage = new StorageClass(dbFile);
+    storage.close();
+
+    const db = new Database(dbFile);
+    try {
+      db.prepare(
+        `INSERT INTO notes (id, path, content_hash, indexed_at)
+         VALUES ('n2', '/vault/default-status.md', 'def456', datetime('now'))`
+      ).run();
+      const row = db.prepare(`SELECT status FROM notes WHERE id = 'n2'`).get();
+      assert(row, `Expected row for id='n2'`);
+      assert(row.status === 'vigente', `Expected status='vigente', got: '${row.status}'`);
+    } finally {
+      db.close();
+    }
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// VAULT tests
+// VAULT-01: first scan indexes notes
+test('VAULT-01 first scan indexes notes', () => {
+  const vaultTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vault-test-'));
+  const vaultDbPath = path.join(vaultTmpDir, 'nca.db');
+  const vaultRoot = path.join(vaultTmpDir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    // Create 3 test notes
+    fs.writeFileSync(path.join(vaultRoot, 'note1.md'), '# Note 1\n\nContent of note 1.');
+    fs.writeFileSync(path.join(vaultRoot, 'note2.md'), '# Note 2\n\nContent of note 2.');
+    fs.writeFileSync(path.join(vaultRoot, 'note3.md'), '# Note 3\n\nContent of note 3.');
+
+    // Scan
+    const out = execSync(`node ${CLI} vault scan ${vaultRoot}`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    assert(out.includes('[OK]'), `Expected [OK], got: ${out}`);
+    assert(out.includes('Indexed:   3'), `Expected Indexed: 3, got: ${out}`);
+    assert(out.includes('Updated:   0'), `Expected Updated: 0, got: ${out}`);
+    assert(out.includes('Unchanged: 0'), `Expected Unchanged: 0, got: ${out}`);
+  } finally {
+    try { fs.rmSync(vaultTmpDir, { recursive: true }); } catch {}
+  }
+});
+
+// VAULT-02: second scan is idempotent (no changes)
+test('VAULT-02 second scan is idempotent', () => {
+  const vaultTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vault-test-'));
+  const vaultDbPath = path.join(vaultTmpDir, 'nca.db');
+  const vaultRoot = path.join(vaultTmpDir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'note1.md'), '# Note 1\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, 'note2.md'), '# Note 2\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, 'note3.md'), '# Note 3\n\nContent.');
+
+    // First scan
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    // Second scan — should be idempotent
+    const out = execSync(`node ${CLI} vault scan ${vaultRoot}`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    assert(out.includes('Indexed:   0'), `Expected Indexed: 0, got: ${out}`);
+    assert(out.includes('Updated:   0'), `Expected Updated: 0, got: ${out}`);
+    assert(out.includes('Unchanged: 3'), `Expected Unchanged: 3, got: ${out}`);
+  } finally {
+    try { fs.rmSync(vaultTmpDir, { recursive: true }); } catch {}
+  }
+});
+
+// VAULT-03: modifying a note is detected
+test('VAULT-03 modified note is detected', () => {
+  const vaultTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vault-test-'));
+  const vaultDbPath = path.join(vaultTmpDir, 'nca.db');
+  const vaultRoot = path.join(vaultTmpDir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    const note1Path = path.join(vaultRoot, 'note1.md');
+    fs.writeFileSync(note1Path, '# Note 1\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, 'note2.md'), '# Note 2\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, 'note3.md'), '# Note 3\n\nContent.');
+
+    // First scan
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    // Modify note1
+    fs.writeFileSync(note1Path, '# Note 1\n\nModified content here.');
+
+    // Second scan
+    const out = execSync(`node ${CLI} vault scan ${vaultRoot}`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    assert(out.includes('Updated:   1'), `Expected Updated: 1, got: ${out}`);
+    assert(out.includes('Unchanged: 2'), `Expected Unchanged: 2, got: ${out}`);
+  } finally {
+    try { fs.rmSync(vaultTmpDir, { recursive: true }); } catch {}
+  }
+});
+
+// VAULT-04: .obsidian directory is excluded
+test('VAULT-04 .obsidian directory excluded', () => {
+  const vaultTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vault-test-'));
+  const vaultDbPath = path.join(vaultTmpDir, 'nca.db');
+  const vaultRoot = path.join(vaultTmpDir, 'vault');
+  fs.mkdirSync(vaultRoot);
+  fs.mkdirSync(path.join(vaultRoot, '.obsidian'));
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'note1.md'), '# Note 1\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, 'note2.md'), '# Note 2\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, 'note3.md'), '# Note 3\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, '.obsidian', 'config.md'), '# Hidden note\n\nShould not be indexed.');
+
+    // Scan
+    const out = execSync(`node ${CLI} vault scan ${vaultRoot}`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    // Should only see 3 notes, not 4
+    assert(out.includes('Indexed:   3'), `Expected Indexed: 3 (not 4), got: ${out}`);
+  } finally {
+    try { fs.rmSync(vaultTmpDir, { recursive: true }); } catch {}
+  }
+});
+
+// VAULT-05: --dry-run does not write to DB
+test('VAULT-05 --dry-run does not write to DB', () => {
+  const vaultTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vault-test-'));
+  const vaultDbPath = path.join(vaultTmpDir, 'nca.db');
+  const vaultRoot = path.join(vaultTmpDir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'note1.md'), '# Note 1\n\nContent.');
+
+    // Create DB with migrations
+    const storage = new StorageClass(vaultDbPath);
+    storage.close();
+
+    // Count notes before dry-run
+    const dbBefore = new Database(vaultDbPath);
+    const countBefore = dbBefore.prepare('SELECT COUNT(*) as count FROM notes').get();
+    dbBefore.close();
+
+    // Dry-run scan
+    execSync(`node ${CLI} vault scan ${vaultRoot} --dry-run`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    // Count notes after dry-run — should be unchanged
+    const dbAfter = new Database(vaultDbPath);
+    const countAfter = dbAfter.prepare('SELECT COUNT(*) as count FROM notes').get();
+    dbAfter.close();
+
+    assert(
+      countBefore.count === countAfter.count,
+      `Expected same note count (dry-run should not write), before: ${countBefore.count}, after: ${countAfter.count}`
+    );
+  } finally {
+    try { fs.rmSync(vaultTmpDir, { recursive: true }); } catch {}
   }
 });
 
