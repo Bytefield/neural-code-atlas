@@ -582,6 +582,129 @@ test('WUR-01 watch unlink handler relinks graph and flows', () => {
   }
 });
 
+// PARSER tests — vault note parsing
+// Uses parse-note-sync.js helper via execSync to call the async parseNote in sync context.
+{
+  const HELPER = path.join(ROOT, 'test', 'helpers', 'parse-note-sync.js');
+  const FIXTURES_VAULT = path.join(ROOT, 'src', 'vault', '__fixtures__');
+
+  function parseSync(fixtureName) {
+    const fp = path.join(FIXTURES_VAULT, fixtureName);
+    const raw = execSync(`node "${HELPER}" "${fp}"`, { encoding: 'utf-8' });
+    return JSON.parse(raw);
+  }
+
+  // PARSER-01: complete.md — all frontmatter fields parsed correctly
+  test('PARSER-01 complete.md parses all frontmatter fields', () => {
+    const r = parseSync('complete.md');
+    assert(r.id === 'test-complete-note', `Expected id='test-complete-note', got '${r.id}'`);
+    assert(r.type === 'arquitectura', `Expected type='arquitectura', got '${r.type}'`);
+    assert(r.status === 'vigente', `Expected status='vigente', got '${r.status}'`);
+    assert(r.area === 'backend', `Expected area='backend', got '${r.area}'`);
+    assert(r.summary === 'Complete note with all frontmatter fields', `Wrong summary: '${r.summary}'`);
+    assert(r.updated === '2026-05-26', `Expected updated='2026-05-26', got '${r.updated}'`);
+    assert(typeof r.contentHash === 'string' && r.contentHash.length === 64,
+      `Expected 64-char hex hash, got '${r.contentHash}'`);
+    assert(Array.isArray(r.bodyChunks) && r.bodyChunks.length > 0, 'Expected non-empty bodyChunks');
+  });
+
+  // PARSER-02: no-frontmatter.md — id derived from filename, status='vigente', optionals undefined
+  test('PARSER-02 no-frontmatter.md: id derived, status vigente, no optional fields', () => {
+    const r = parseSync('no-frontmatter.md');
+    assert(r.id === 'no-frontmatter', `Expected id='no-frontmatter', got '${r.id}'`);
+    assert(r.status === 'vigente', `Expected status='vigente', got '${r.status}'`);
+    assert(r.type === undefined || r.type === null,
+      `Expected type=undefined, got '${r.type}'`);
+    assert(r.area === undefined || r.area === null,
+      `Expected area=undefined, got '${r.area}'`);
+    assert(r.summary === undefined || r.summary === null,
+      `Expected summary=undefined, got '${r.summary}'`);
+    assert(typeof r.contentHash === 'string' && r.contentHash.length === 64,
+      `Expected 64-char hex hash, got '${r.contentHash}'`);
+  });
+
+  // PARSER-03: malformed-yaml.md — does not throw, returns status='vigente'
+  test('PARSER-03 malformed-yaml.md: no exception, status vigente', () => {
+    let r;
+    try {
+      r = parseSync('malformed-yaml.md');
+    } catch (err) {
+      throw new Error(`parseNote threw on malformed YAML (expected graceful handling): ${err.message}`);
+    }
+    assert(r.status === 'vigente', `Expected status='vigente', got '${r.status}'`);
+    assert(typeof r.contentHash === 'string' && r.contentHash.length === 64,
+      `Expected valid hash, got '${r.contentHash}'`);
+  });
+
+  // PARSER-04: long.md — >=5 chunks, overlap verified between consecutive chunks
+  test('PARSER-04 long.md: >=5 chunks, consecutive chunks share overlap paragraph', () => {
+    const r = parseSync('long.md');
+    assert(r.bodyChunks.length >= 5,
+      `Expected >=5 chunks, got ${r.bodyChunks.length}`);
+    // Verify overlap: last paragraph of chunk[i] == first paragraph of chunk[i+1]
+    for (let i = 0; i < r.bodyChunks.length - 1; i++) {
+      const curParas = r.bodyChunks[i].split(/\n\n+/).filter(p => p.trim());
+      const nextParas = r.bodyChunks[i + 1].split(/\n\n+/).filter(p => p.trim());
+      const lastOfCur = curParas[curParas.length - 1].trim();
+      const firstOfNext = nextParas[0].trim();
+      assert(lastOfCur === firstOfNext,
+        `Overlap violated at chunk ${i}→${i + 1}: last='${lastOfCur.slice(0, 40)}…' vs first='${firstOfNext.slice(0, 40)}…'`);
+    }
+  });
+
+  // PARSER-05: empty.md — no exception, bodyChunks=[]
+  test('PARSER-05 empty.md: no exception, bodyChunks empty', () => {
+    let r;
+    try {
+      r = parseSync('empty.md');
+    } catch (err) {
+      throw new Error(`parseNote threw on empty file: ${err.message}`);
+    }
+    assert(Array.isArray(r.bodyChunks) && r.bodyChunks.length === 0,
+      `Expected bodyChunks=[], got ${JSON.stringify(r.bodyChunks)}`);
+  });
+
+  // PARSER-06: determinism — same input yields same hash (run twice)
+  test('PARSER-06 determinism: same input same hash', () => {
+    const r1 = parseSync('complete.md');
+    const r2 = parseSync('complete.md');
+    assert(r1.contentHash === r2.contentHash,
+      `Hash not deterministic: '${r1.contentHash}' vs '${r2.contentHash}'`);
+  });
+
+  // PARSER-07: body mutation changes hash; frontmatter mutation does NOT
+  test('PARSER-07 hash covers body only: body change changes hash, frontmatter change does not', () => {
+    const tmpDir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-parser-'));
+    try {
+      const orig = fs.readFileSync(path.join(FIXTURES_VAULT, 'complete.md'), 'utf-8');
+
+      // Baseline
+      const base = path.join(tmpDir2, 'base.md');
+      fs.writeFileSync(base, orig);
+      const rBase = JSON.parse(execSync(`node "${HELPER}" "${base}"`, { encoding: 'utf-8' }));
+
+      // Mutate body: change one char in body (after second ---)
+      const fmEnd = orig.indexOf('---', 3) + 3;
+      const mutatedBody = orig.slice(0, fmEnd) + orig.slice(fmEnd).replace('T', 'X');
+      const bodyMut = path.join(tmpDir2, 'body-mut.md');
+      fs.writeFileSync(bodyMut, mutatedBody);
+      const rBodyMut = JSON.parse(execSync(`node "${HELPER}" "${bodyMut}"`, { encoding: 'utf-8' }));
+      assert(rBase.contentHash !== rBodyMut.contentHash,
+        'Body mutation must change contentHash');
+
+      // Mutate frontmatter only: change area field
+      const fmMutated = orig.replace('area: backend', 'area: frontend');
+      const fmMut = path.join(tmpDir2, 'fm-mut.md');
+      fs.writeFileSync(fmMut, fmMutated);
+      const rFmMut = JSON.parse(execSync(`node "${HELPER}" "${fmMut}"`, { encoding: 'utf-8' }));
+      assert(rBase.contentHash === rFmMut.contentHash,
+        `Frontmatter mutation must NOT change contentHash (base=${rBase.contentHash.slice(0, 8)}, fm=${rFmMut.contentHash.slice(0, 8)})`);
+    } finally {
+      try { fs.rmSync(tmpDir2, { recursive: true, force: true }); } catch {}
+    }
+  });
+}
+
 // AC7: insights command
 test('AC7 insights returns hot nodes after ask', () => {
   // Ask twice to build query history
