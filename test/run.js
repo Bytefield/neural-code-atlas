@@ -1311,6 +1311,168 @@ test("MIG-08 notes.status defaults to 'vigente' when not specified", () => {
   }
 });
 
+// VAULT tests
+// VAULT-01: first scan indexes notes
+test('VAULT-01 first scan indexes notes', () => {
+  const vaultTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vault-test-'));
+  const vaultDbPath = path.join(vaultTmpDir, 'nca.db');
+  const vaultRoot = path.join(vaultTmpDir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    // Create 3 test notes
+    fs.writeFileSync(path.join(vaultRoot, 'note1.md'), '# Note 1\n\nContent of note 1.');
+    fs.writeFileSync(path.join(vaultRoot, 'note2.md'), '# Note 2\n\nContent of note 2.');
+    fs.writeFileSync(path.join(vaultRoot, 'note3.md'), '# Note 3\n\nContent of note 3.');
+
+    // Scan
+    const out = execSync(`node ${CLI} vault scan ${vaultRoot}`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    assert(out.includes('[OK]'), `Expected [OK], got: ${out}`);
+    assert(out.includes('Indexed:   3'), `Expected Indexed: 3, got: ${out}`);
+    assert(out.includes('Updated:   0'), `Expected Updated: 0, got: ${out}`);
+    assert(out.includes('Unchanged: 0'), `Expected Unchanged: 0, got: ${out}`);
+  } finally {
+    try { fs.rmSync(vaultTmpDir, { recursive: true }); } catch {}
+  }
+});
+
+// VAULT-02: second scan is idempotent (no changes)
+test('VAULT-02 second scan is idempotent', () => {
+  const vaultTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vault-test-'));
+  const vaultDbPath = path.join(vaultTmpDir, 'nca.db');
+  const vaultRoot = path.join(vaultTmpDir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'note1.md'), '# Note 1\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, 'note2.md'), '# Note 2\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, 'note3.md'), '# Note 3\n\nContent.');
+
+    // First scan
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    // Second scan — should be idempotent
+    const out = execSync(`node ${CLI} vault scan ${vaultRoot}`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    assert(out.includes('Indexed:   0'), `Expected Indexed: 0, got: ${out}`);
+    assert(out.includes('Updated:   0'), `Expected Updated: 0, got: ${out}`);
+    assert(out.includes('Unchanged: 3'), `Expected Unchanged: 3, got: ${out}`);
+  } finally {
+    try { fs.rmSync(vaultTmpDir, { recursive: true }); } catch {}
+  }
+});
+
+// VAULT-03: modifying a note is detected
+test('VAULT-03 modified note is detected', () => {
+  const vaultTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vault-test-'));
+  const vaultDbPath = path.join(vaultTmpDir, 'nca.db');
+  const vaultRoot = path.join(vaultTmpDir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    const note1Path = path.join(vaultRoot, 'note1.md');
+    fs.writeFileSync(note1Path, '# Note 1\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, 'note2.md'), '# Note 2\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, 'note3.md'), '# Note 3\n\nContent.');
+
+    // First scan
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    // Modify note1
+    fs.writeFileSync(note1Path, '# Note 1\n\nModified content here.');
+
+    // Second scan
+    const out = execSync(`node ${CLI} vault scan ${vaultRoot}`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    assert(out.includes('Updated:   1'), `Expected Updated: 1, got: ${out}`);
+    assert(out.includes('Unchanged: 2'), `Expected Unchanged: 2, got: ${out}`);
+  } finally {
+    try { fs.rmSync(vaultTmpDir, { recursive: true }); } catch {}
+  }
+});
+
+// VAULT-04: .obsidian directory is excluded
+test('VAULT-04 .obsidian directory excluded', () => {
+  const vaultTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vault-test-'));
+  const vaultDbPath = path.join(vaultTmpDir, 'nca.db');
+  const vaultRoot = path.join(vaultTmpDir, 'vault');
+  fs.mkdirSync(vaultRoot);
+  fs.mkdirSync(path.join(vaultRoot, '.obsidian'));
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'note1.md'), '# Note 1\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, 'note2.md'), '# Note 2\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, 'note3.md'), '# Note 3\n\nContent.');
+    fs.writeFileSync(path.join(vaultRoot, '.obsidian', 'config.md'), '# Hidden note\n\nShould not be indexed.');
+
+    // Scan
+    const out = execSync(`node ${CLI} vault scan ${vaultRoot}`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    // Should only see 3 notes, not 4
+    assert(out.includes('Indexed:   3'), `Expected Indexed: 3 (not 4), got: ${out}`);
+  } finally {
+    try { fs.rmSync(vaultTmpDir, { recursive: true }); } catch {}
+  }
+});
+
+// VAULT-05: --dry-run does not write to DB
+test('VAULT-05 --dry-run does not write to DB', () => {
+  const vaultTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vault-test-'));
+  const vaultDbPath = path.join(vaultTmpDir, 'nca.db');
+  const vaultRoot = path.join(vaultTmpDir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'note1.md'), '# Note 1\n\nContent.');
+
+    // Create DB with migrations
+    const storage = new StorageClass(vaultDbPath);
+    storage.close();
+
+    // Count notes before dry-run
+    const dbBefore = new Database(vaultDbPath);
+    const countBefore = dbBefore.prepare('SELECT COUNT(*) as count FROM notes').get();
+    dbBefore.close();
+
+    // Dry-run scan
+    execSync(`node ${CLI} vault scan ${vaultRoot} --dry-run`, {
+      encoding: 'utf-8',
+      env: { ...process.env, NCA_DB_PATH: vaultDbPath },
+    });
+
+    // Count notes after dry-run — should be unchanged
+    const dbAfter = new Database(vaultDbPath);
+    const countAfter = dbAfter.prepare('SELECT COUNT(*) as count FROM notes').get();
+    dbAfter.close();
+
+    assert(
+      countBefore.count === countAfter.count,
+      `Expected same note count (dry-run should not write), before: ${countBefore.count}, after: ${countAfter.count}`
+    );
+  } finally {
+    try { fs.rmSync(vaultTmpDir, { recursive: true }); } catch {}
+  }
+});
+
 // Cleanup
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}

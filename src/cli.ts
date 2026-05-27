@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import * as path from 'path';
 import * as fs from 'fs';
+import BetterSqlite3 from 'better-sqlite3';
 import { Storage, resolveDbPath } from './storage.js';
 import { Scanner } from './scanner.js';
 import { Linker } from './linker.js';
@@ -482,6 +483,33 @@ program
     } else if (opts.apply) {
       process.stdout.write(`NCA|migrate_complete\n`);
     }
+
+    storage.close();
+  });
+
+// ─── vault ────────────────────────────────────────────────────────────────────
+const vault = program.command('vault').description('Vault Obsidian operations');
+
+vault
+  .command('scan <root>')
+  .description('Index a Markdown vault into NCA')
+  .option('--dry-run', 'do not write to DB')
+  .option('--verbose', 'verbose output')
+  .action(async (root: string, opts: { dryRun?: boolean; verbose?: boolean }) => {
+    const rootPath = path.resolve(root);
+
+    if (!fs.existsSync(rootPath)) {
+      process.stderr.write(`Error: path not found: ${rootPath}\n`);
+      process.exit(1);
+    }
+
+    const { VaultScanner } = require('./vault/scanner.js') as typeof import('./vault/scanner.js');
+    const dbPath = resolveDbPath(rootPath);
+    const storage = new Storage(dbPath);
+    const db = storage.db;
+    const scanner = new VaultScanner(db);
+
+    await scanner.scan(rootPath, { dryRun: opts.dryRun, verbose: opts.verbose });
 
     storage.close();
   });
