@@ -128,6 +128,16 @@ cp .git-hooks/post-commit .git/hooks/post-commit
 chmod +x .git/hooks/post-commit
 ```
 
+## What's new in 1.1.1
+
+- **Vault scanning**: `nca vault scan <path>` indexes an Obsidian or Markdown vault with FTS5
+  full-text search. Notes are chunked (~1000 chars with paragraph overlap) for context-aware
+  retrieval.
+- **Frontmatter support**: YAML frontmatter fields (`id`, `type`, `status`, `area`, `summary`,
+  `updated`) are parsed and stored alongside note content.
+- **Incremental updates**: content is hashed (SHA-256) so only modified notes are re-indexed
+  on subsequent scans.
+
 ## What's new in 1.1.0
 
 - **Node identity fix**: functions with the same name in different files are now correctly

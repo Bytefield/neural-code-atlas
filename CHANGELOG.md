@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] — 2026-05-27
+
+### Added
+- **Vault scanning** (PR #18): `nca vault scan <path>` indexes Obsidian/Markdown vaults into
+  a dedicated SQLite schema with FTS5 full-text search. Notes are parsed for YAML frontmatter
+  (`id`, `type`, `status`, `area`, `summary`, `updated`) and body chunks (~1000 chars with
+  paragraph overlap for context-aware retrieval).
+- **Markdown parser** (PR #18): `src/vault/parser.ts` extracts frontmatter and splits body into
+  overlapping chunks; `src/vault/scanner.ts` walks the vault directory (excluding `.obsidian/`)
+  and detects modified notes via SHA-256 content hash.
+- **Vault schema** (PR #18): migration 3 adds `vault_notes`, `vault_chunks`, and
+  `vault_chunks_fts` (FTS5) tables.
+
+---
+
 ## [1.1.0] — 2026-05-26
 
 ### Fixed
