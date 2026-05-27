@@ -113,10 +113,10 @@ test('MIG-01 fresh DB applies all migrations', () => {
 
     const db = new Database(dbFile);
     const versionRow = db.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'").get();
-    assert(versionRow && versionRow.value === '2', `Expected schema_version=2, got: ${JSON.stringify(versionRow)}`);
+    assert(versionRow && versionRow.value === '3', `Expected schema_version=3, got: ${JSON.stringify(versionRow)}`);
 
     const logCount = db.prepare('SELECT COUNT(*) as count FROM migration_log').get();
-    assert(logCount.count === 2, `Expected 2 migration_log rows, got: ${logCount.count}`);
+    assert(logCount.count === 3, `Expected 3 migration_log rows, got: ${logCount.count}`);
 
     const logRow1 = db.prepare('SELECT * FROM migration_log WHERE version = 1').get();
     assert(logRow1, 'Expected migration_log row for version 1');
@@ -125,6 +125,10 @@ test('MIG-01 fresh DB applies all migrations', () => {
     const logRow2 = db.prepare('SELECT * FROM migration_log WHERE version = 2').get();
     assert(logRow2, 'Expected migration_log row for version 2');
     assert(logRow2.name === 'repair_line_move_duplicates', `Expected name=repair_line_move_duplicates, got: ${logRow2.name}`);
+
+    const logRow3 = db.prepare('SELECT * FROM migration_log WHERE version = 3').get();
+    assert(logRow3, 'Expected migration_log row for version 3');
+    assert(logRow3.name === 'vault_schema', `Expected name=vault_schema, got: ${logRow3.name}`);
     db.close();
   } finally {
     try { fs.unlinkSync(dbFile); } catch {}
@@ -142,7 +146,7 @@ test('MIG-02 already-migrated DB applies nothing', () => {
 
     const db = new Database(dbFile);
     const count = db.prepare('SELECT COUNT(*) as count FROM migration_log').get();
-    assert(count.count === 2, `Expected 2 migration_log rows (one per migration), got: ${count.count}`);
+    assert(count.count === 3, `Expected 3 migration_log rows (one per migration), got: ${count.count}`);
     db.close();
   } finally {
     try { fs.unlinkSync(dbFile); } catch {}
@@ -215,10 +219,10 @@ test('MIG-04 legacy DB without schema_meta migrates cleanly', () => {
 
     const db2 = new Database(dbFile);
     const versionRow = db2.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'").get();
-    assert(versionRow && versionRow.value === '2', `Expected schema_version=2, got: ${JSON.stringify(versionRow)}`);
+    assert(versionRow && versionRow.value === '3', `Expected schema_version=3, got: ${JSON.stringify(versionRow)}`);
 
     const logCount = db2.prepare('SELECT COUNT(*) as count FROM migration_log').get();
-    assert(logCount.count === 2, `Expected 2 migration_log rows, got: ${logCount.count}`);
+    assert(logCount.count === 3, `Expected 3 migration_log rows, got: ${logCount.count}`);
 
     const nodeRow = db2.prepare("SELECT * FROM nodes WHERE name = 'legacyNode'").get();
     assert(nodeRow, 'Expected legacyNode to still exist after migration');
@@ -245,7 +249,7 @@ test('MIG-05 migration 002 repairs line-move duplicates', () => {
     const setupDb = new Database(tmpDb);
     setupDb.pragma('foreign_keys = OFF');
     setupDb.prepare(`UPDATE schema_meta SET value='1' WHERE key='schema_version'`).run();
-    setupDb.prepare(`DELETE FROM migration_log WHERE version=2`).run();
+    setupDb.prepare(`DELETE FROM migration_log WHERE version >= 2`).run();
     setupDb.prepare(`INSERT INTO file_index (path, mtime, sha256, parsed_at) VALUES ('/fake/a.ts', 1, 'x', 100)`).run();
     // Disable FTS triggers while seeding stale rows so nodes_fts stays clean
     setupDb.exec(`
@@ -267,7 +271,7 @@ test('MIG-05 migration 002 repairs line-move duplicates', () => {
       assert(count === 2, `Expected 2 nodes after repair, got ${count}`);
 
       const ver = db.prepare(`SELECT value FROM schema_meta WHERE key='schema_version'`).get();
-      assert(ver.value === '2', `Expected schema_version=2, got ${ver.value}`);
+      assert(ver.value === '3', `Expected schema_version=3, got ${ver.value}`);
 
       const logRow = db.prepare(`SELECT version, name, result FROM migration_log WHERE version=2`).get();
       assert(logRow, 'Expected migration_log row for v2');
@@ -1062,6 +1066,125 @@ test('NID-02 deps resolve correctly via global-unique when dep name is unambiguo
     }
   } finally {
     try { fs.rmSync(tmpDir3, { recursive: true, force: true }); } catch {}
+  }
+});
+
+// MIG-06: vault schema tables, triggers and indexes created
+test('MIG-06 migration 003 creates vault tables, FTS, triggers and indexes', () => {
+  const dbFile = path.join(tmpDir, 'mig06.db');
+  try {
+    const storage = new StorageClass(dbFile);
+    storage.close();
+
+    const db = new Database(dbFile);
+    try {
+      // Tables
+      const tableNames = db.prepare(
+        `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`
+      ).all().map(r => r.name);
+      assert(tableNames.includes('notes'), `Expected 'notes' table, got: ${tableNames.join(', ')}`);
+      assert(tableNames.includes('note_chunks'), `Expected 'note_chunks' table, got: ${tableNames.join(', ')}`);
+
+      // FTS virtual table
+      const vtNames = db.prepare(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name='note_chunks_fts'`
+      ).all().map(r => r.name);
+      assert(vtNames.includes('note_chunks_fts'), `Expected 'note_chunks_fts' virtual table`);
+
+      // Triggers
+      const trigNames = db.prepare(
+        `SELECT name FROM sqlite_master WHERE type='trigger' AND name LIKE 'note_chunks_%' ORDER BY name`
+      ).all().map(r => r.name);
+      assert(trigNames.includes('note_chunks_ai'), `Expected trigger note_chunks_ai`);
+      assert(trigNames.includes('note_chunks_ad'), `Expected trigger note_chunks_ad`);
+      assert(trigNames.includes('note_chunks_au'), `Expected trigger note_chunks_au`);
+
+      // Indexes
+      const idxNames = db.prepare(
+        `SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'idx_notes_%' ORDER BY name`
+      ).all().map(r => r.name);
+      assert(idxNames.includes('idx_notes_status'), `Expected idx_notes_status`);
+      assert(idxNames.includes('idx_notes_area'), `Expected idx_notes_area`);
+      assert(idxNames.includes('idx_notes_type'), `Expected idx_notes_type`);
+
+      // Schema version
+      const ver = db.prepare(`SELECT value FROM schema_meta WHERE key='schema_version'`).get();
+      assert(ver && ver.value === '3', `Expected schema_version=3, got: ${JSON.stringify(ver)}`);
+    } finally {
+      db.close();
+    }
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// MIG-07: FTS5 smoke — insert note + chunks, SELECT MATCH returns result
+test('MIG-07 FTS5 smoke: insert note+chunks, MATCH query returns result', () => {
+  const dbFile = path.join(tmpDir, 'mig07.db');
+  try {
+    const storage = new StorageClass(dbFile);
+    storage.close();
+
+    const db = new Database(dbFile);
+    try {
+      db.pragma('foreign_keys = ON');
+      db.prepare(
+        `INSERT INTO notes (id, path, content_hash, indexed_at)
+         VALUES ('n1', '/vault/test.md', 'abc123', datetime('now'))`
+      ).run();
+      db.prepare(
+        `INSERT INTO note_chunks (note_id, chunk_idx, text)
+         VALUES ('n1', 0, 'El proyecto SYNIO usa arquitectura hexagonal')`
+      ).run();
+      db.prepare(
+        `INSERT INTO note_chunks (note_id, chunk_idx, text)
+         VALUES ('n1', 1, 'Los tests unitarios cubren el 90% del codigo')`
+      ).run();
+
+      const rows = db.prepare(
+        `SELECT nc.note_id, nc.text
+         FROM note_chunks_fts fts
+         JOIN note_chunks nc ON nc.rowid = fts.rowid
+         WHERE note_chunks_fts MATCH 'arquitectura'`
+      ).all();
+      assert(rows.length === 1, `Expected 1 FTS match for 'arquitectura', got ${rows.length}`);
+      assert(rows[0].note_id === 'n1', `Expected note_id='n1', got: ${rows[0].note_id}`);
+
+      const rows2 = db.prepare(
+        `SELECT nc.note_id FROM note_chunks_fts fts
+         JOIN note_chunks nc ON nc.rowid = fts.rowid
+         WHERE note_chunks_fts MATCH 'synio'`
+      ).all();
+      assert(rows2.length === 1, `Expected 1 FTS match for 'synio' (diacritics removed), got ${rows2.length}`);
+    } finally {
+      db.close();
+    }
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// MIG-08: notes.status default 'vigente' when omitted on insert
+test("MIG-08 notes.status defaults to 'vigente' when not specified", () => {
+  const dbFile = path.join(tmpDir, 'mig08.db');
+  try {
+    const storage = new StorageClass(dbFile);
+    storage.close();
+
+    const db = new Database(dbFile);
+    try {
+      db.prepare(
+        `INSERT INTO notes (id, path, content_hash, indexed_at)
+         VALUES ('n2', '/vault/default-status.md', 'def456', datetime('now'))`
+      ).run();
+      const row = db.prepare(`SELECT status FROM notes WHERE id = 'n2'`).get();
+      assert(row, `Expected row for id='n2'`);
+      assert(row.status === 'vigente', `Expected status='vigente', got: '${row.status}'`);
+    } finally {
+      db.close();
+    }
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
   }
 });
 
