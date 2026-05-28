@@ -1895,6 +1895,74 @@ test('VAULT-05 --dry-run does not write to DB', () => {
   });
 }
 
+// ── AE: enriched context in nca_ask responses ─────────────────────────────────
+
+{
+  const { Storage } = require(path.join(ROOT, 'dist', 'storage.js'));
+  const { ContextExpander } = require(path.join(ROOT, 'dist', 'context.js'));
+
+  const aeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-ae-'));
+  const aeDb = path.join(aeDir, 'nca.db');
+  const aeStorage = new Storage(aeDb);
+
+  const mkNode = (name, filePath, line, deps = []) => ({
+    type: 'function', name, module: 'test',
+    inputs: [], outputs: [], deps, effects: [],
+    complexity: 1, file: filePath, line, sha256: name,
+  });
+
+  // hub: depended on by 20 callers (fanIn=20) and calls 2 deps (fanOut=2) → score=22
+  aeStorage.upsertNode(mkNode('hub', '/proj/src/hub.ts', 1, ['depA', 'depB']));
+  aeStorage.upsertNode(mkNode('depA', '/proj/src/hub.ts', 2));
+  aeStorage.upsertNode(mkNode('depB', '/proj/src/hub.ts', 3));
+  // 20 callers each depending on hub → gives hub fanIn=20
+  for (let i = 0; i < 20; i++) {
+    aeStorage.upsertNode(mkNode(`caller${i}`, '/proj/callers/c.ts', 10 + i, ['hub']));
+  }
+  // Total: 23 nodes. At p95, threshold = score of 22nd element = 1.
+  // hub score=22 > 1 → god node. callers score=1 → normal.
+
+  const aeCtx = new ContextExpander(aeStorage);
+  const ts = Date.now();
+  const noFlows = [];
+  const noWarnings = [];
+
+  // AE-01: god node → gn:yes(score)
+  test('AE-01 god node response includes gn:yes with score', () => {
+    const nodes = aeStorage.getAllNodes().filter(n => n.name === 'hub');
+    const out = aeCtx.formatFull({ query: 'hub', nodes, timestamp: ts }, noFlows, noWarnings);
+    const hubLine = out.split('\n').find(l => l.includes('@function.hub{'));
+    assert(hubLine, `Expected hub node line in output:\n${out.slice(0, 500)}`);
+    assert(hubLine.includes('gn:yes('), `Expected gn:yes(score) on hub line, got:\n${hubLine}`);
+  });
+
+  // AE-02: normal node → gn:no
+  test('AE-02 normal node response includes gn:no', () => {
+    const nodes = aeStorage.getAllNodes().filter(n => n.name === 'caller0');
+    const out = aeCtx.formatFull({ query: 'caller0', nodes, timestamp: ts }, noFlows, noWarnings);
+    const callerLine = out.split('\n').find(l => l.includes('@function.caller0{'));
+    assert(callerLine, `Expected caller0 node line in output:\n${out.slice(0, 500)}`);
+    assert(callerLine.includes('gn:no'), `Expected gn:no on caller0 line, got:\n${callerLine}`);
+  });
+
+  // AE-03: any node → pr:#N/T present
+  test('AE-03 response includes pagerank rank position', () => {
+    const nodes = aeStorage.getAllNodes().filter(n => n.name === 'hub');
+    const out = aeCtx.formatFull({ query: 'hub', nodes, timestamp: ts }, noFlows, noWarnings);
+    assert(/pr:#\d+\/\d+/.test(out), `Expected pr:#N/T in output:\n${out.slice(0, 500)}`);
+  });
+
+  // AE-04: response includes directory module from file path
+  test('AE-04 response includes directory module name', () => {
+    const nodes = aeStorage.getAllNodes().filter(n => n.name === 'hub');
+    const out = aeCtx.formatFull({ query: 'hub', nodes, timestamp: ts }, noFlows, noWarnings);
+    assert(out.includes('dir:src'), `Expected dir:src (from /proj/src/) in output:\n${out.slice(0, 500)}`);
+  });
+
+  aeStorage.close();
+  try { fs.rmSync(aeDir, { recursive: true }); } catch {}
+}
+
 // ── SK: SKILL.md generator ────────────────────────────────────────────────────
 
 const skillPath = dbPath.replace(/nca\.db$/, 'SKILL.md');
