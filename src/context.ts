@@ -1,4 +1,37 @@
+import * as path from 'path';
 import { Storage, NCNode } from './storage.js';
+import { GraphSnapshot, nodeKey } from './graph.js';
+import { pagerank } from './graph/pagerank.js';
+import { detectGodNodes } from './graph/god-nodes.js';
+
+interface EnrichmentCtx {
+  rankPositions: Map<string, number>; // nodeKey → 1-indexed position by PageRank
+  totalNodes: number;
+  godNodes: Map<string, number>;      // nodeKey → coupling score
+}
+
+function computeEnrichment(storage: Storage): EnrichmentCtx | null {
+  try {
+    const snap = GraphSnapshot.build(storage);
+    if (snap.nodes.length === 0) return null;
+
+    const ranks = pagerank(snap);
+    const sortedPairs = [...ranks.entries()].sort((a, b) => b[1] - a[1]);
+    const rankPositions = new Map<string, number>();
+    for (let i = 0; i < sortedPairs.length; i++) {
+      rankPositions.set(sortedPairs[i][0], i + 1);
+    }
+
+    const godNodes = new Map<string, number>();
+    for (const g of detectGodNodes(snap)) {
+      godNodes.set(g.nodeKey, g.score);
+    }
+
+    return { rankPositions, totalNodes: snap.nodes.length, godNodes };
+  } catch {
+    return null;
+  }
+}
 
 const APPROX_CHARS_PER_TOKEN = 4;
 const MAX_TOKENS = 600;
@@ -100,6 +133,7 @@ export class ContextExpander {
    * Format query result as the NCA output contract string.
    */
   format(result: QueryResult): string {
+    const enrichment = computeEnrichment(this.storage);
     const ranked = this.rankWithBoost(this.expand(result.nodes, 2), result.query);
     const lines: string[] = [];
 
@@ -108,7 +142,7 @@ export class ContextExpander {
 
     let nodeCount = 0;
     for (const n of ranked) {
-      const entry = formatNode(n);
+      const entry = formatNodeEnriched(n, enrichment);
       lines.push(entry);
       nodeCount++;
     }
@@ -145,12 +179,13 @@ export class ContextExpander {
     flows: Array<{ name: string; steps: string[] }>,
     warnings: Array<{ rule_id: string; node_id: string; detail: string }>
   ): string {
+    const enrichment = computeEnrichment(this.storage);
     const ranked = this.rankWithBoost(this.expand(result.nodes, 2), result.query);
     const lines: string[] = [];
 
     lines.push(`NCA|q:${result.query}|t:${result.timestamp}`);
     lines.push('[N]');
-    for (const n of ranked) lines.push(formatNode(n));
+    for (const n of ranked) lines.push(formatNodeEnriched(n, enrichment));
     if (ranked.length === 0) lines.push('(no results)');
 
     if (flows.length > 0) {
@@ -194,6 +229,29 @@ function formatNode(n: NCNode): string {
     .join(',');
   const e = n.effects.slice(0, 3).join(',');
   return `@${n.type}.${n.name}{m:${n.module}|i:${i}|o:${o}|d:${d}|e:${e}|cx:${n.complexity}|f:${n.file}:${n.line}}`;
+}
+
+function formatNodeEnriched(n: NCNode, enrichment: EnrichmentCtx | null): string {
+  const base = formatNode(n);
+  if (!enrichment) return base;
+
+  const key = nodeKey(n.file, n.name);
+
+  // Directory: immediate parent dir of the file (e.g. "src", "migrations")
+  const dir = path.basename(path.dirname(n.file)) || '(root)';
+
+  // PageRank position, 1-indexed among all nodes
+  const pos = enrichment.rankPositions.get(key);
+  const pr = pos !== undefined
+    ? `#${pos}/${enrichment.totalNodes}`
+    : `n/a/${enrichment.totalNodes}`;
+
+  // God node: flag with coupling score if detected
+  const godScore = enrichment.godNodes.get(key);
+  const gn = godScore !== undefined ? `yes(${godScore})` : 'no';
+
+  // Splice enrichment fields before the closing brace
+  return `${base.slice(0, -1)}|dir:${dir}|pr:${pr}|gn:${gn}}`;
 }
 
 function calcConfidence(n: NCNode, query: string): number {
