@@ -2,18 +2,27 @@
 
 > Local semantic index for codebases: tree-sitter + SQLite + CLI + MCP server.
 
-NCA scans your repo, builds a persistent SQLite index of structural nodes (functions, classes, modules), and lets you query it via CLI or via an MCP server so AI assistants can retrieve precise context without brute-force grep.
+NCA scans your repo, builds a persistent SQLite index of structural nodes (functions, classes, modules), and lets you query it via CLI or MCP server so AI assistants can retrieve precise context without brute-force grep.
 
 ## Why
 
-On medium/large codebases, “similarity search” often returns text that looks relevant but isn’t on the actual execution path. NCA is built for structural questions:
+On medium/large codebases, "similarity search" often returns text that looks relevant but isn't on the actual execution path. NCA is built for structural questions:
 
-- “Where does `handleRequest` go next?”
-- “What calls this function?”
-- “What are the hot nodes people keep querying?”
-- “Which modules are getting too coupled?”
+- "Where does `handleRequest` go next?"
+- "What calls this function?"
+- "What are the hot nodes people keep querying?"
+- "Which modules are getting too coupled?"
 
-It’s local-first: no cloud indexing required.
+Beyond point queries, NCA understands your codebase as a graph. Each scan computes:
+
+- **Community detection** (Louvain) — which files form natural modules based on coupling
+- **PageRank centrality** — which nodes are structurally important across the whole graph
+- **Betweenness centrality** — which nodes are bottlenecks that everything routes through
+- **God node detection** — which nodes have disproportionate coupling and are at risk of becoming liabilities
+
+This lets you ask architecture-level questions: which modules are drifting toward coupling, where are the load-bearing nodes, what does the dependency topology actually look like?
+
+It's local-first: no cloud indexing, no embeddings, no API calls.
 
 ## Install
 
@@ -29,26 +38,93 @@ If install fails, see `INSTALL.md` (native build tools for `better-sqlite3`/`tre
 ```bash
 cd your-project
 nca scan .
+# → builds index, writes SKILL.md at project root
 
 nca ask "authentication middleware"
+# → returns ranked nodes with module, PageRank position, god-node flag
 
 nca flow handleRequest
+# → traces execution path from entry point
+
+nca evolve
+# → emits architectural warnings (high complexity, cycles, deep chains, god nodes)
 
 nca status
+# → shows node/file/flow counts and DB location
 ```
+
+After scanning, `SKILL.md` is written to your project root. Drop it into your Claude Code context to give the AI an accurate structural map of the codebase before asking questions.
 
 ## Commands
 
-- `nca scan [path]` — build/update the index (defaults to cwd)
+- `nca scan [path]` — build/update the index; auto-generates `SKILL.md` (defaults to cwd)
 - `nca ask <query...>` — query the index (`--json` for structured output)
 - `nca flow <name>` — trace execution flow from an entry point (`--json` supported)
 - `nca evolve` — run architectural heuristics and emit warnings
 - `nca status` — show index stats
-- `nca watch [path]` — watch filesystem and auto reindex
+- `nca watch [path]` — watch filesystem and auto-reindex on change
 - `nca insights` — show the most frequently queried nodes
+- `nca vault scan <path>` — index an Obsidian/Markdown vault with FTS5 full-text search
+- `nca projects` — list all registered projects
 - `nca mcp` — run MCP server over stdio (Claude Code integration)
 
 Run `nca <command> --help` for options.
+
+## Graph Analytics
+
+Every `nca scan` runs a full graph analysis pass on the dependency graph. Results are stored in the index and surfaced automatically in `nca ask` output and `SKILL.md`.
+
+### Community detection (Louvain)
+
+Groups files into modules based on import/call coupling, without requiring you to define module boundaries. Useful for spotting when two areas of the codebase are more entangled than they should be.
+
+### PageRank centrality
+
+Scores every node by how many other important nodes depend on it. High-PageRank nodes are load-bearing — changes there ripple widely. Shown as `#N of M` in `nca ask` output.
+
+### Betweenness centrality (Brandes)
+
+Identifies nodes that sit on the most shortest paths between other nodes. High betweenness = structural bottleneck. Even a low-complexity function can be high-betweenness if everything routes through it.
+
+### God node detection
+
+Flags nodes whose coupling (in-degree + out-degree) exceeds the p95 threshold of the graph. These are the nodes that "know too much." Shown as `gn:yes|score:<n>` or `gn:no` in query results.
+
+```bash
+nca ask "storage layer"
+# example output includes:
+#   gn:yes|score:0.94   ← this node has disproportionate coupling
+#   rank:#3 of 224      ← 3rd by PageRank out of 224 nodes
+#   module:src/storage  ← directory-level module name
+```
+
+## SKILL.md
+
+`nca scan` writes a `SKILL.md` file to your project root (alongside `.nca/`). It is a structured, token-efficient codebase map that covers:
+
+- **Architecture summary** — module list with community assignments and coupling scores
+- **Hot nodes** — top nodes by query frequency (what gets asked about most)
+- **God nodes** — nodes flagged for disproportionate coupling
+- **Entry points** — functions/classes with no callers (likely public API surface)
+- **Key patterns** — recurring structural patterns detected across the graph
+
+### Using SKILL.md with Claude Code
+
+Add it to your project's context before asking architectural questions:
+
+```
+/add SKILL.md
+nca_ask(query="what handles auth")
+```
+
+Or reference it in your `CLAUDE.md`:
+
+```markdown
+Read SKILL.md before asking NCA questions — it gives accurate module boundaries
+and flags god nodes to avoid touching carelessly.
+```
+
+`SKILL.md` is regenerated on every scan and is safe to gitignore or commit — it contains no secrets, only structural metadata.
 
 ## MCP server (Claude Code integration)
 
@@ -65,8 +141,7 @@ After installing NCA, configure Claude Code to run the MCP server:
 }
 ```
 
-NCA autodetects the project from the working directory. To target a specific project
-per-call, pass the optional `project` parameter to any tool:
+NCA autodetects the project from the working directory. To target a specific project per-call, pass the optional `project` parameter:
 
 ```
 nca_ask(query="handler", project="/mnt/c/dev/synio")
@@ -74,12 +149,14 @@ nca_status(project="synio")
 ```
 
 Tools exposed by the MCP server:
-- `nca_ask` — query nodes by name or keyword
+
+- `nca_ask` — query nodes by name or keyword; returns module, PageRank rank, god-node flag
 - `nca_flow` — trace execution flow from an entry point
 - `nca_status` — show index stats
 - `nca_evolve` — run architectural heuristics
 - `nca_insights` — show frequently queried nodes
 - `nca_projects` — list all indexed projects
+- `nca_vault_scan` — index an Obsidian/Markdown vault
 
 ## Configuration (`.nca/config.json`)
 
@@ -128,26 +205,16 @@ cp .git-hooks/post-commit .git/hooks/post-commit
 chmod +x .git/hooks/post-commit
 ```
 
-## What's new in 1.1.1
+## Changelog
 
-- **Vault scanning**: `nca vault scan <path>` indexes an Obsidian or Markdown vault with FTS5
-  full-text search. Notes are chunked (~1000 chars with paragraph overlap) for context-aware
-  retrieval.
-- **Frontmatter support**: YAML frontmatter fields (`id`, `type`, `status`, `area`, `summary`,
-  `updated`) are parsed and stored alongside note content.
-- **Incremental updates**: content is hashed (SHA-256) so only modified notes are re-indexed
-  on subsequent scans.
+See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
-## What's new in 1.1.0
+Recent highlights:
 
-- **Node identity fix**: functions with the same name in different files are now correctly
-  treated as separate nodes. Previously they were merged, creating false dependencies and
-  corrupted analysis results.
-- **Multi-project support**: MCP tools accept an optional `project` parameter. No need to
-  configure `NCA_DB_PATH` — autodetects from the working directory.
-- **`nca_projects` tool**: list all indexed projects via MCP.
-- **Stale node cleanup**: deleted files are now properly purged from the index on rescan.
-- **Stale index warnings**: tool responses warn if the index is more than 7 days old.
+- **1.2.1** — canonical path resolution (`realpathSync`) prevents duplicate indexing across WSL/Windows/symlinks
+- **1.2.0** — graph analytics (Louvain, PageRank, betweenness, god nodes), SKILL.md, enriched `nca_ask` responses
+- **1.1.1** — vault scanning with FTS5, YAML frontmatter support, incremental updates
+- **1.1.0** — node identity fix (same-name functions across files), multi-project MCP, stale node cleanup
 
 ## License
 
