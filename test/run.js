@@ -1895,6 +1895,74 @@ test('VAULT-05 --dry-run does not write to DB', () => {
   });
 }
 
+// ── SK: SKILL.md generator ────────────────────────────────────────────────────
+
+const skillPath = dbPath.replace(/nca\.db$/, 'SKILL.md');
+
+// SK-01: scan produces SKILL.md with all 6 required sections
+test('SK-01 scan produces SKILL.md with all 6 sections', () => {
+  assert(fs.existsSync(skillPath), `SKILL.md not found at ${skillPath}`);
+  const content = fs.readFileSync(skillPath, 'utf-8');
+  assert(content.includes('# NCA SKILL'), 'Missing section 1: header');
+  assert(content.includes('## Modules'), 'Missing section 2: Modules');
+  assert(content.includes('## Top Nodes (PageRank)'), 'Missing section 3: Top Nodes');
+  assert(content.includes('## God Nodes'), 'Missing section 4: God Nodes');
+  assert(content.includes('## Issues'), 'Missing section 5: Issues');
+  assert(content.includes('## MCP Tools'), 'Missing section 6: MCP Tools');
+  assert(content.includes('nca_ask'), 'MCP tools section must mention nca_ask');
+});
+
+// SK-02: on NCA's own codebase, SKILL.md is under 8000 chars
+test('SK-02 NCA own codebase SKILL.md under 8000 chars', () => {
+  const tmpDir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-sk02-'));
+  const dbPath2 = path.join(tmpDir2, 'nca.db');
+  const skillPath2 = dbPath2.replace(/nca\.db$/, 'SKILL.md');
+  const savedDb = process.env.NCA_DB_PATH;
+  try {
+    process.env.NCA_DB_PATH = dbPath2;
+    run(`scan ${path.join(ROOT, 'src')}`);
+    assert(fs.existsSync(skillPath2), `SKILL.md not found at ${skillPath2}`);
+    const content = fs.readFileSync(skillPath2, 'utf-8');
+    assert(
+      content.length <= 8000,
+      `SKILL.md is ${content.length} chars, expected <= 8000`
+    );
+  } finally {
+    process.env.NCA_DB_PATH = savedDb;
+    try { fs.rmSync(tmpDir2, { recursive: true }); } catch {}
+  }
+});
+
+// SK-03: empty project (no nodes) → SKILL.md with zeros, no crash
+test('SK-03 empty project generates SKILL.md with zeros, no crash', () => {
+  const tmpDir3 = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-sk03-'));
+  const emptyDir = path.join(tmpDir3, 'empty');
+  const dbPath3 = path.join(tmpDir3, 'nca.db');
+  const skillPath3 = dbPath3.replace(/nca\.db$/, 'SKILL.md');
+  fs.mkdirSync(emptyDir);
+  const savedDb = process.env.NCA_DB_PATH;
+  try {
+    process.env.NCA_DB_PATH = dbPath3;
+    run(`scan ${emptyDir}`);
+    assert(fs.existsSync(skillPath3), `SKILL.md not found at ${skillPath3}`);
+    const content = fs.readFileSync(skillPath3, 'utf-8');
+    assert(content.includes('nodes:0'), `Expected nodes:0 in header, got: ${content.slice(0, 200)}`);
+    assert(content.includes('## Modules'), 'Expected Modules section even when empty');
+    assert(content.includes('## Issues'), 'Expected Issues section even when empty');
+  } finally {
+    process.env.NCA_DB_PATH = savedDb;
+    try { fs.rmSync(tmpDir3, { recursive: true }); } catch {}
+  }
+});
+
+// SK-04: scan twice → identical SKILL.md content (deterministic)
+test('SK-04 scan twice produces identical SKILL.md (deterministic)', () => {
+  const content1 = fs.readFileSync(skillPath, 'utf-8');
+  run(`scan ${FIXTURES}`);
+  const content2 = fs.readFileSync(skillPath, 'utf-8');
+  assert(content1 === content2, 'SKILL.md content differs between two scans of the same data');
+});
+
 // Cleanup
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}

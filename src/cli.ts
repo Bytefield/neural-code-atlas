@@ -12,6 +12,7 @@ import { FlowDetector } from './flow.js';
 import { Evolver } from './evolve.js';
 import { separator, header, formatField, formatStatus, colors } from './format.js';
 import { registerProject } from './registry.js';
+import { generateSkill } from './skill.js';
 
 // Read version from package.json so it never needs manual updates
 const { version: PKG_VERSION } = require('../package.json') as { version: string };
@@ -78,6 +79,10 @@ program
       separator(),
     ];
     process.stdout.write(scanLines.join('\n') + '\n');
+
+    const skillContent = generateSkill(dbPath);
+    const skillPath = path.join(path.dirname(dbPath), 'SKILL.md');
+    fs.writeFileSync(skillPath, skillContent, 'utf-8');
 
     storage.close();
     registerProject(rootPath);
@@ -357,6 +362,9 @@ program
         process.stdout.write(
           `NCA|watch_reindex|files:${totalParsed}|nodes:${stats.nodes}|ms:${totalMs}\n`
         );
+        const skillContent = generateSkill(dbPath);
+        const skillPath = path.join(path.dirname(dbPath), 'SKILL.md');
+        fs.writeFileSync(skillPath, skillContent, 'utf-8');
       }
     }
 
