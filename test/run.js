@@ -1489,6 +1489,7 @@ test('VAULT-05 --dry-run does not write to DB', () => {
   }
 });
 
+<<<<<<< HEAD
 // LOUVAIN tests — community detection
 {
   const { GraphSnapshot } = require(path.join(ROOT, 'dist', 'graph.js'));
@@ -1785,6 +1786,113 @@ test('VAULT-05 --dry-run does not write to DB', () => {
     assert(typeof betweenness === 'function', 'betweenness must be exported from dist/graph/betweenness.js');
     const bt = betweenness(GraphSnapshot.fromMaps([], new Map()));
     assert(bt instanceof Map && bt.size === 0, 'Expected empty Map');
+  });
+}
+
+// GOD-NODE tests
+{
+  const { GraphSnapshot } = require(path.join(ROOT, 'dist', 'graph.js'));
+  let detectGodNodes;
+  try {
+    detectGodNodes = require(path.join(ROOT, 'dist', 'graph', 'god-nodes.js')).detectGodNodes;
+  } catch (_) {
+    detectGodNodes = null;
+  }
+
+  function mkGnNode(name, file) {
+    return { type: 'function', name, module: '', inputs: [], outputs: [],
+             deps: [], effects: [], complexity: 1, file, line: 0, sha256: '' };
+  }
+
+  // GN-01: 1 hub with 20 deps among 50 low-coupling nodes → hub detected at p95
+  test('GN-01 obvious hub detected among low-coupling nodes', () => {
+    assert(typeof detectGodNodes === 'function',
+      'detectGodNodes must be exported from dist/graph/god-nodes.js');
+
+    // 50 leaf nodes: a0..a49 — each depends on one other leaf (score 1)
+    const N = 50;
+    const leafNames = Array.from({ length: N }, (_, i) => `a${i}`);
+    const hubName   = 'hub';
+    const allNames  = [...leafNames, hubName];
+    const nodes     = allNames.map(n => mkGnNode(n, 'f.ts'));
+
+    const forward = new Map();
+    // hub depends on all 50 leaves (fanOut=50) and nothing points to it (fanIn=0) → score 50
+    forward.set('f.ts:hub', new Set(leafNames.map(n => `f.ts:${n}`)));
+    // each leaf depends on the next (ring, so each has fanOut=1, fanIn=1) → score 2
+    for (let i = 0; i < N; i++) {
+      forward.set(`f.ts:a${i}`, new Set([`f.ts:a${(i + 1) % N}`]));
+    }
+
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const gods  = detectGodNodes(snap); // default p95
+
+    assert(Array.isArray(gods), 'Expected an array');
+    assert(gods.length >= 1, `Expected at least 1 god node, got ${gods.length}`);
+    assert(gods[0].nodeKey === 'f.ts:hub',
+      `Expected hub as top god node, got ${gods[0].nodeKey}`);
+    assert(gods[0].score > 2,
+      `Hub score (${gods[0].score}) should exceed leaf scores (~2)`);
+  });
+
+  // GN-02: all nodes have equal coupling → no god nodes
+  test('GN-02 equal-coupling graph: no god nodes', () => {
+    assert(typeof detectGodNodes === 'function',
+      'detectGodNodes must be exported from dist/graph/god-nodes.js');
+
+    // 10 nodes in a ring: each has fanIn=1, fanOut=1, score=2
+    const N = 10;
+    const nodes = Array.from({ length: N }, (_, i) => mkGnNode(`n${i}`, 'f.ts'));
+    const forward = new Map();
+    for (let i = 0; i < N; i++) {
+      forward.set(`f.ts:n${i}`, new Set([`f.ts:n${(i + 1) % N}`]));
+    }
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const gods  = detectGodNodes(snap);
+
+    assert(gods.length === 0,
+      `Expected 0 god nodes when all scores are equal, got ${gods.length}`);
+  });
+
+  // GN-03: empty graph → empty array
+  test('GN-03 empty graph: returns empty array', () => {
+    assert(typeof detectGodNodes === 'function',
+      'detectGodNodes must be exported from dist/graph/god-nodes.js');
+
+    const gods = detectGodNodes(GraphSnapshot.fromMaps([], new Map()));
+    assert(Array.isArray(gods) && gods.length === 0,
+      `Expected empty array, got ${JSON.stringify(gods)}`);
+  });
+
+  // GN-04: threshold is configurable — p90 catches more nodes than p99
+  test('GN-04 threshold configurable: p90 >= p99 result count', () => {
+    assert(typeof detectGodNodes === 'function',
+      'detectGodNodes must be exported from dist/graph/god-nodes.js');
+
+    // 18 nodes in a ring (score=2 each) + 1 isolated node (score=0) + 1 hub (fanOut=18, score=18)
+    // Score distribution: [0, 2,2,...,2(x18), 18]
+    // p90 threshold = sorted[floor(0.9*20)=18] = 2  → hub (18>2) detected
+    // p99 threshold = sorted[min(floor(0.99*20)=19,19)] = 18 → 18 NOT > 18 → 0 gods
+    const N = 18;
+    const ringNames = Array.from({ length: N }, (_, i) => `r${i}`);
+    const allNames  = [...ringNames, 'iso', 'hub'];
+    const nodes     = allNames.map(n => mkGnNode(n, 'f.ts'));
+    const forward   = new Map();
+    for (let i = 0; i < N; i++) {
+      forward.set(`f.ts:r${i}`, new Set([`f.ts:r${(i + 1) % N}`]));
+    }
+    forward.set('f.ts:iso', new Set());
+    forward.set('f.ts:hub', new Set(ringNames.map(n => `f.ts:${n}`)));
+
+    const snap    = GraphSnapshot.fromMaps(nodes, forward);
+    const gods90  = detectGodNodes(snap, 90);
+    const gods99  = detectGodNodes(snap, 99);
+
+    assert(gods90.length >= gods99.length,
+      `p90 (${gods90.length}) should catch at least as many nodes as p99 (${gods99.length})`);
+    assert(gods90.length > 0, `p90 should catch at least one god node, got 0`);
+    assert(gods90[0].nodeKey === 'f.ts:hub',
+      `p90 top god node should be hub, got ${gods90[0]?.nodeKey}`);
   });
 }
 
