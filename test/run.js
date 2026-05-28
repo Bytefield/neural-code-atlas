@@ -1489,7 +1489,6 @@ test('VAULT-05 --dry-run does not write to DB', () => {
   }
 });
 
-<<<<<<< HEAD
 // LOUVAIN tests — community detection
 {
   const { GraphSnapshot } = require(path.join(ROOT, 'dist', 'graph.js'));
