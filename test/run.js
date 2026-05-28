@@ -1689,6 +1689,105 @@ test('VAULT-05 --dry-run does not write to DB', () => {
   });
 }
 
+// BETWEENNESS tests
+{
+  const { GraphSnapshot } = require(path.join(ROOT, 'dist', 'graph.js'));
+  let betweenness;
+  try {
+    betweenness = require(path.join(ROOT, 'dist', 'graph', 'betweenness.js')).betweenness;
+  } catch (_) {
+    betweenness = null;
+  }
+
+  function mkBtNode(name, file) {
+    return { type: 'function', name, module: '', inputs: [], outputs: [],
+             deps: [], effects: [], complexity: 1, file, line: 0, sha256: '' };
+  }
+
+  // BT-01: chain A→B→C→D — B and C bridge, so they have highest betweenness
+  test('BT-01 chain A→B→C→D: B and C have highest betweenness', () => {
+    assert(typeof betweenness === 'function', 'betweenness must be exported from dist/graph/betweenness.js');
+    const nodes = ['a','b','c','d'].map(n => mkBtNode(n, 'f.ts'));
+    const forward = new Map([
+      ['f.ts:a', new Set(['f.ts:b'])], ['f.ts:b', new Set(['f.ts:c'])],
+      ['f.ts:c', new Set(['f.ts:d'])], ['f.ts:d', new Set()],
+    ]);
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const bt = betweenness(snap);
+    assert(bt instanceof Map, 'betweenness should return a Map');
+    assert(bt.size === 4, `Expected 4 entries, got ${bt.size}`);
+    const a = bt.get('f.ts:a'), b = bt.get('f.ts:b'), c = bt.get('f.ts:c'), d = bt.get('f.ts:d');
+    assert(b > a, `B(${b?.toFixed(4)}) should be > A(${a?.toFixed(4)})`);
+    assert(c > a, `C(${c?.toFixed(4)}) should be > A(${a?.toFixed(4)})`);
+    assert(b > d, `B(${b?.toFixed(4)}) should be > D(${d?.toFixed(4)})`);
+    assert(c > d, `C(${c?.toFixed(4)}) should be > D(${d?.toFixed(4)})`);
+  });
+
+  // BT-02: directed bottleneck B→A, C→A, A→D, A→E — A lies on all 4 cross paths
+  // (A directed star hub→leaves has no paths through it; we need sources→hub→sinks)
+  test('BT-02 directed bottleneck: A (hub) has highest betweenness', () => {
+    assert(typeof betweenness === 'function', 'betweenness must be exported from dist/graph/betweenness.js');
+    const nodes = ['a','b','c','d','e'].map(n => mkBtNode(n, 'f.ts'));
+    const forward = new Map([
+      ['f.ts:b', new Set(['f.ts:a'])], ['f.ts:c', new Set(['f.ts:a'])],
+      ['f.ts:a', new Set(['f.ts:d','f.ts:e'])],
+      ['f.ts:d', new Set()], ['f.ts:e', new Set()],
+    ]);
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const bt = betweenness(snap);
+    const a = bt.get('f.ts:a'), b = bt.get('f.ts:b'), d = bt.get('f.ts:d');
+    assert(a > b, `A(${a?.toFixed(4)}) should be > B(${b?.toFixed(4)})`);
+    assert(a > d, `A(${a?.toFixed(4)}) should be > D(${d?.toFixed(4)})`);
+    const scores = [...bt.values()].sort((x, y) => y - x);
+    assert(Math.abs(a - scores[0]) < 1e-9, `A should have the highest betweenness`);
+  });
+
+  // BT-03: two clusters with one bridge node — bridge has highest score
+  test('BT-03 two clusters with bridge: bridge node has highest betweenness', () => {
+    assert(typeof betweenness === 'function', 'betweenness must be exported from dist/graph/betweenness.js');
+    // Cluster 1: a→b, a→c; bridge: b→x; Cluster 2: x→d, x→e
+    const nodeNames = ['a','b','c','x','d','e'];
+    const nodes = nodeNames.map(n => mkBtNode(n, 'f.ts'));
+    const forward = new Map([
+      ['f.ts:a', new Set(['f.ts:b','f.ts:c'])],
+      ['f.ts:b', new Set(['f.ts:x'])],
+      ['f.ts:c', new Set()],
+      ['f.ts:x', new Set(['f.ts:d','f.ts:e'])],
+      ['f.ts:d', new Set()],
+      ['f.ts:e', new Set()],
+    ]);
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const bt = betweenness(snap);
+    const scores = [...bt.entries()].sort((p, q) => q[1] - p[1]);
+    const topKey = scores[0][0];
+    assert(
+      topKey === 'f.ts:x' || topKey === 'f.ts:b',
+      `Expected bridge node (f.ts:x or f.ts:b) to have highest betweenness, got ${topKey}`
+    );
+    const xScore = bt.get('f.ts:x') ?? 0;
+    const dScore = bt.get('f.ts:d') ?? 0;
+    const eScore = bt.get('f.ts:e') ?? 0;
+    assert(xScore > dScore, `Bridge x(${xScore.toFixed(4)}) should beat leaf d(${dScore.toFixed(4)})`);
+    assert(xScore > eScore, `Bridge x(${xScore.toFixed(4)}) should beat leaf e(${eScore.toFixed(4)})`);
+  });
+
+  // BT-04: single node → score 0
+  test('BT-04 single node: score is 0', () => {
+    assert(typeof betweenness === 'function', 'betweenness must be exported from dist/graph/betweenness.js');
+    const snap = GraphSnapshot.fromMaps([mkBtNode('x', 'f.ts')], new Map([['f.ts:x', new Set()]]));
+    const bt = betweenness(snap);
+    assert(bt.size === 1, `Expected 1 entry, got ${bt.size}`);
+    assert(bt.get('f.ts:x') === 0, `Expected score 0, got ${bt.get('f.ts:x')}`);
+  });
+
+  // BT-05: empty graph → empty Map
+  test('BT-05 empty graph: returns empty Map', () => {
+    assert(typeof betweenness === 'function', 'betweenness must be exported from dist/graph/betweenness.js');
+    const bt = betweenness(GraphSnapshot.fromMaps([], new Map()));
+    assert(bt instanceof Map && bt.size === 0, 'Expected empty Map');
+  });
+}
+
 // Cleanup
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
