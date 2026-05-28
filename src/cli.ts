@@ -38,12 +38,14 @@ program
   .description('Scan a directory and build/update the NCA index')
   .option('-v, --verbose', 'verbose output')
   .action((scanPath: string | undefined, opts: { verbose?: boolean }) => {
-    const rootPath = path.resolve(scanPath ?? process.cwd());
+    const rawPath = path.resolve(scanPath ?? process.cwd());
 
-    if (!fs.existsSync(rootPath)) {
-      process.stderr.write(`Error: path not found: ${rootPath}\n`);
+    if (!fs.existsSync(rawPath)) {
+      process.stderr.write(`Error: path not found: ${rawPath}\n`);
       process.exit(1);
     }
+
+    const rootPath = fs.realpathSync(rawPath);
 
     const dbPath = resolveDbPath(rootPath);
     const storage = new Storage(dbPath);
