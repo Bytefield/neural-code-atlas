@@ -73,10 +73,11 @@ function chunkBody(body: string): string[] {
 
     chunks.push(chunk);
 
-    // Overlap: the first paragraph of the next chunk is the last paragraph of current chunk
-    // Move back one paragraph so it's included in the next chunk
+    // Overlap: include last paragraph of this chunk as first of next.
+    // Use Math.max to guarantee forward progress when a single paragraph >= 1000 chars
+    // (in that case j - 1 === i, which would loop forever without the guard).
     if (j < paragraphs.length) {
-      i = j - 1;
+      i = Math.max(i + 1, j - 1);
     } else {
       break;
     }

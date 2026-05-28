@@ -703,6 +703,22 @@ test('WUR-01 watch unlink handler relinks graph and flows', () => {
       try { fs.rmSync(tmpDir2, { recursive: true, force: true }); } catch {}
     }
   });
+
+  // PARSER-08: oversized-paragraph.md — single paragraph >1000 chars becomes its own chunk,
+  // no infinite loop, no rejection; surrounding short paragraphs also chunked correctly.
+  test('PARSER-08 oversized-paragraph.md: paragraph >1000 chars yields finite chunks', () => {
+    let r;
+    try {
+      r = parseSync('oversized-paragraph.md');
+    } catch (err) {
+      throw new Error(`parseNote threw on oversized paragraph (expected graceful handling): ${err.message}`);
+    }
+    assert(Array.isArray(r.bodyChunks) && r.bodyChunks.length > 0,
+      `Expected at least 1 chunk, got ${r.bodyChunks.length}`);
+    const oversized = r.bodyChunks.filter(c => c.length >= 1000);
+    assert(oversized.length >= 1,
+      `Expected at least one chunk containing the oversized paragraph, got none`);
+  });
 }
 
 // AC7: insights command

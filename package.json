@@ -1,6 +1,6 @@
 {
   "name": "@synio-es/neural-code-atlas",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Local semantic index layer for codebases. Structural code intelligence via tree-sitter + SQLite, with MCP server for Claude Code.",
   "main": "dist/cli.js",
   "bin": {
