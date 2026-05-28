@@ -1489,6 +1489,122 @@ test('VAULT-05 --dry-run does not write to DB', () => {
   }
 });
 
+// LOUVAIN tests — community detection
+{
+  const { GraphSnapshot } = require(path.join(ROOT, 'dist', 'graph.js'));
+  let louvain;
+  try {
+    louvain = require(path.join(ROOT, 'dist', 'graph', 'louvain.js')).louvain;
+  } catch (_) {
+    louvain = null;
+  }
+
+  function mkLvNode(name, deps, file) {
+    return {
+      type: 'function', name, module: '', inputs: [], outputs: [],
+      deps, effects: [], complexity: 1, file, line: 0, sha256: ''
+    };
+  }
+
+  // LV-01: two fully-connected clusters with one bridge edge
+  test('LV-01 louvain detects obvious communities in a bipartite graph', () => {
+    assert(typeof louvain === 'function', 'louvain must be exported from dist/graph/louvain.js');
+
+    const nodes = [
+      mkLvNode('a1', ['a2', 'a3'], 'cluster_a.ts'),
+      mkLvNode('a2', ['a1', 'a3'], 'cluster_a.ts'),
+      mkLvNode('a3', ['a1', 'a2', 'b1'], 'cluster_a.ts'),
+      mkLvNode('b1', ['b2', 'b3'], 'cluster_b.ts'),
+      mkLvNode('b2', ['b1', 'b3'], 'cluster_b.ts'),
+      mkLvNode('b3', ['b1', 'b2'], 'cluster_b.ts'),
+    ];
+
+    const forward = new Map([
+      ['cluster_a.ts:a1', new Set(['cluster_a.ts:a2', 'cluster_a.ts:a3'])],
+      ['cluster_a.ts:a2', new Set(['cluster_a.ts:a1', 'cluster_a.ts:a3'])],
+      ['cluster_a.ts:a3', new Set(['cluster_a.ts:a1', 'cluster_a.ts:a2', 'cluster_b.ts:b1'])],
+      ['cluster_b.ts:b1', new Set(['cluster_b.ts:b2', 'cluster_b.ts:b3'])],
+      ['cluster_b.ts:b2', new Set(['cluster_b.ts:b1', 'cluster_b.ts:b3'])],
+      ['cluster_b.ts:b3', new Set(['cluster_b.ts:b1', 'cluster_b.ts:b2'])],
+    ]);
+
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const communities = louvain(snap);
+
+    assert(communities instanceof Map, 'louvain should return a Map');
+    assert(communities.size === 6, `Expected 6 entries, got ${communities.size}`);
+
+    const aCommunity = communities.get('cluster_a.ts:a1');
+    assert(aCommunity !== undefined, 'a1 should have a community');
+    assert(communities.get('cluster_a.ts:a2') === aCommunity, 'a2 should be in same community as a1');
+    assert(communities.get('cluster_a.ts:a3') === aCommunity, 'a3 should be in same community as a1');
+
+    const bCommunity = communities.get('cluster_b.ts:b1');
+    assert(bCommunity !== undefined, 'b1 should have a community');
+    assert(communities.get('cluster_b.ts:b2') === bCommunity, 'b2 should be in same community as b1');
+    assert(communities.get('cluster_b.ts:b3') === bCommunity, 'b3 should be in same community as b1');
+
+    assert(aCommunity !== bCommunity, 'Clusters A and B should be different communities');
+  });
+
+  // LV-02: connected component + 2 isolated nodes
+  test('LV-02 louvain handles disconnected nodes', () => {
+    assert(typeof louvain === 'function', 'louvain must be exported from dist/graph/louvain.js');
+
+    const nodes = [
+      mkLvNode('x', ['y'], 'a.ts'),
+      mkLvNode('y', ['x', 'z'], 'a.ts'),
+      mkLvNode('z', ['y'], 'a.ts'),
+      mkLvNode('isolated1', [], 'b.ts'),
+      mkLvNode('isolated2', [], 'b.ts'),
+    ];
+
+    const forward = new Map([
+      ['a.ts:x', new Set(['a.ts:y'])],
+      ['a.ts:y', new Set(['a.ts:x', 'a.ts:z'])],
+      ['a.ts:z', new Set(['a.ts:y'])],
+      ['b.ts:isolated1', new Set()],
+      ['b.ts:isolated2', new Set()],
+    ]);
+
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const communities = louvain(snap);
+
+    assert(communities.size === 5, `Expected 5 entries, got ${communities.size}`);
+
+    const xComm = communities.get('a.ts:x');
+    assert(communities.get('a.ts:y') === xComm, 'y should be with x');
+    assert(communities.get('a.ts:z') === xComm, 'z should be with x');
+
+    assert(communities.has('b.ts:isolated1'), 'isolated1 should have a community');
+    assert(communities.has('b.ts:isolated2'), 'isolated2 should have a community');
+  });
+
+  // LV-03: single node
+  test('LV-03 louvain handles single node graph', () => {
+    assert(typeof louvain === 'function', 'louvain must be exported from dist/graph/louvain.js');
+
+    const forward = new Map([['a.ts:solo', new Set()]]);
+    const nodes = [mkLvNode('solo', [], 'a.ts')];
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const communities = louvain(snap);
+
+    assert(communities.size === 1, 'Single node should have 1 community');
+    assert(communities.has('a.ts:solo'), 'Solo node should be assigned');
+  });
+
+  // LV-04: empty graph
+  test('LV-04 louvain handles empty graph', () => {
+    assert(typeof louvain === 'function', 'louvain must be exported from dist/graph/louvain.js');
+
+    const forward = new Map();
+    const snap = GraphSnapshot.fromMaps([], forward);
+    const communities = louvain(snap);
+
+    assert(communities.size === 0, 'Empty graph should return empty Map');
+  });
+}
+
 // Cleanup
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
