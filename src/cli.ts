@@ -81,7 +81,7 @@ program
     process.stdout.write(scanLines.join('\n') + '\n');
 
     const skillContent = generateSkill(dbPath);
-    const skillPath = dbPath.replace(/nca\.db$/, 'SKILL.md');
+    const skillPath = path.join(path.dirname(dbPath), 'SKILL.md');
     fs.writeFileSync(skillPath, skillContent, 'utf-8');
 
     storage.close();
@@ -363,7 +363,7 @@ program
           `NCA|watch_reindex|files:${totalParsed}|nodes:${stats.nodes}|ms:${totalMs}\n`
         );
         const skillContent = generateSkill(dbPath);
-        const skillPath = dbPath.replace(/nca\.db$/, 'SKILL.md');
+        const skillPath = path.join(path.dirname(dbPath), 'SKILL.md');
         fs.writeFileSync(skillPath, skillContent, 'utf-8');
       }
     }
