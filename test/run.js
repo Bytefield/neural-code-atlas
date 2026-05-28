@@ -1605,6 +1605,90 @@ test('VAULT-05 --dry-run does not write to DB', () => {
   });
 }
 
+// PAGERANK tests
+{
+  const { GraphSnapshot } = require(path.join(ROOT, 'dist', 'graph.js'));
+  let pagerank;
+  try {
+    pagerank = require(path.join(ROOT, 'dist', 'graph', 'pagerank.js')).pagerank;
+  } catch (_) {
+    pagerank = null;
+  }
+
+  function mkPrNode(name, file) {
+    return { type: 'function', name, module: '', inputs: [], outputs: [],
+             deps: [], effects: [], complexity: 1, file, line: 0, sha256: '' };
+  }
+
+  // PR-01: star graph A→B, A→C, A→D — source has lowest rank, leaves equal and higher
+  test('PR-01 star graph: source lowest, leaves equal and higher', () => {
+    assert(typeof pagerank === 'function', 'pagerank must be exported from dist/graph/pagerank.js');
+    const nodes = ['a','b','c','d'].map(n => mkPrNode(n, 'f.ts'));
+    const forward = new Map([
+      ['f.ts:a', new Set(['f.ts:b','f.ts:c','f.ts:d'])],
+      ['f.ts:b', new Set()], ['f.ts:c', new Set()], ['f.ts:d', new Set()],
+    ]);
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const pr = pagerank(snap);
+    assert(pr instanceof Map, 'pagerank should return a Map');
+    assert(pr.size === 4, `Expected 4 entries, got ${pr.size}`);
+    const a = pr.get('f.ts:a'), b = pr.get('f.ts:b'), c = pr.get('f.ts:c'), d = pr.get('f.ts:d');
+    assert(a < b, `A(${a?.toFixed(4)}) should be < B(${b?.toFixed(4)})`);
+    assert(a < c, `A(${a?.toFixed(4)}) should be < C(${c?.toFixed(4)})`);
+    assert(a < d, `A(${a?.toFixed(4)}) should be < D(${d?.toFixed(4)})`);
+    assert(Math.abs(b - c) < 1e-6, `B and C should be equal, got ${b?.toFixed(6)} vs ${c?.toFixed(6)}`);
+    assert(Math.abs(c - d) < 1e-6, `C and D should be equal, got ${c?.toFixed(6)} vs ${d?.toFixed(6)}`);
+  });
+
+  // PR-02: chain A→B→C→D — rank increases along chain
+  test('PR-02 chain: rank increases A→B→C→D', () => {
+    assert(typeof pagerank === 'function', 'pagerank must be exported from dist/graph/pagerank.js');
+    const nodes = ['a','b','c','d'].map(n => mkPrNode(n, 'f.ts'));
+    const forward = new Map([
+      ['f.ts:a', new Set(['f.ts:b'])], ['f.ts:b', new Set(['f.ts:c'])],
+      ['f.ts:c', new Set(['f.ts:d'])], ['f.ts:d', new Set()],
+    ]);
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const pr = pagerank(snap);
+    const a = pr.get('f.ts:a'), b = pr.get('f.ts:b'), c = pr.get('f.ts:c'), d = pr.get('f.ts:d');
+    assert(a < b, `A(${a?.toFixed(4)}) < B(${b?.toFixed(4)})`);
+    assert(b < c, `B(${b?.toFixed(4)}) < C(${c?.toFixed(4)})`);
+    assert(c < d, `C(${c?.toFixed(4)}) < D(${d?.toFixed(4)})`);
+  });
+
+  // PR-03: single node → score 1.0
+  test('PR-03 single node: score is 1.0', () => {
+    assert(typeof pagerank === 'function', 'pagerank must be exported from dist/graph/pagerank.js');
+    const snap = GraphSnapshot.fromMaps([mkPrNode('x', 'f.ts')], new Map([['f.ts:x', new Set()]]));
+    const pr = pagerank(snap);
+    assert(pr.size === 1, `Expected 1 entry, got ${pr.size}`);
+    assert(Math.abs(pr.get('f.ts:x') - 1.0) < 1e-6, `Expected score 1.0, got ${pr.get('f.ts:x')}`);
+  });
+
+  // PR-04: empty graph → empty Map
+  test('PR-04 empty graph: returns empty Map', () => {
+    assert(typeof pagerank === 'function', 'pagerank must be exported from dist/graph/pagerank.js');
+    const pr = pagerank(GraphSnapshot.fromMaps([], new Map()));
+    assert(pr instanceof Map && pr.size === 0, 'Expected empty Map');
+  });
+
+  // PR-05: disconnected components — all scores sum to 1
+  test('PR-05 disconnected components: scores sum to 1', () => {
+    assert(typeof pagerank === 'function', 'pagerank must be exported from dist/graph/pagerank.js');
+    const nodes = ['a','b','c','d'].map(n => mkPrNode(n, 'f.ts'));
+    const forward = new Map([
+      ['f.ts:a', new Set(['f.ts:b'])], ['f.ts:b', new Set()],
+      ['f.ts:c', new Set(['f.ts:d'])], ['f.ts:d', new Set()],
+    ]);
+    const snap = GraphSnapshot.fromMaps(nodes, forward);
+    const pr = pagerank(snap);
+    assert(pr.size === 4, `Expected 4 entries, got ${pr.size}`);
+    const total = [...pr.values()].reduce((s, v) => s + v, 0);
+    assert(Math.abs(total - 1.0) < 1e-4, `Scores should sum to 1.0, got ${total.toFixed(6)}`);
+    for (const [k, v] of pr) assert(v > 0, `Every node must have score > 0, ${k} has ${v}`);
+  });
+}
+
 // Cleanup
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
