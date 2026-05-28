@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] — 2026-05-28
+
+### Added
+- **Louvain community detection** (PR #26): custom implementation detects module communities in
+  the dependency graph; community IDs are stored per node and exposed in analysis output.
+- **PageRank centrality** (PR #26): custom iterative PageRank scores every node; rank position
+  (e.g. `#3 of 42`) is surfaced in `nca ask` responses.
+- **Betweenness centrality** (PR #26): Brandes algorithm computes betweenness for all nodes;
+  identifies structural bottlenecks in the dependency graph.
+- **God node detection** (PR #26): percentile-based heuristic (default p95) flags nodes with
+  disproportionate coupling; `gn:yes|score:<n>` or `gn:no` appears in `nca ask` output.
+- **SKILL.md auto-generated codebase map** (PR #25): `nca scan` produces a `SKILL.md` at the
+  project root summarising architecture, hot nodes, god nodes, community clusters, entry points,
+  and key patterns — ready for use as Claude Code context.
+- **Enriched `nca_ask` responses** (PR #27): each result now includes the directory-level module
+  name, PageRank position, and god node flag so callers get richer structural context without
+  extra round-trips.
+
+---
+
 ## [1.1.1] — 2026-05-27
 
 ### Added
