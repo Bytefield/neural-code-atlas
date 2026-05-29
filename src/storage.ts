@@ -344,14 +344,15 @@ export class Storage {
     return this.stmts.topNodeScores.all() as any[];
   }
 
-  stats(): { files: number; nodes: number; flows: number; warnings: number; dbSize: number } {
+  stats(): { files: number; nodes: number; flows: number; warnings: number; notes: number; dbSize: number } {
     const files = (this.stmts.countFiles.get() as any).count as number;
     const nodes = (this.stmts.countNodes.get() as any).count as number;
     const flows = (this.db.prepare(`SELECT COUNT(*) as count FROM flows`).get() as any).count as number;
     const warnings = (this.db.prepare(`SELECT COUNT(*) as count FROM warnings`).get() as any).count as number;
+    const notes = (this.db.prepare(`SELECT COUNT(*) as count FROM notes`).get() as any).count as number;
     let dbSize = 0;
     try { dbSize = fs.statSync(this.dbPath).size; } catch {}
-    return { files, nodes, flows, warnings, dbSize };
+    return { files, nodes, flows, warnings, notes, dbSize };
   }
 
   close(): void {

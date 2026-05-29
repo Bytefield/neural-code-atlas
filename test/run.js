@@ -2031,6 +2031,158 @@ test('SK-04 scan twice produces identical SKILL.md (deterministic)', () => {
   assert(content1 === content2, 'SKILL.md content differs between two scans of the same data');
 });
 
+// PI1-01: scan indexes both code nodes and markdown notes in the same DB
+test('PI1-01 scan indexes both code nodes and markdown notes', () => {
+  const piDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-pi1-'));
+  const docsDir = path.join(piDir, 'docs');
+  const tmpDb = path.join(piDir, 'pi1.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    fs.mkdirSync(docsDir);
+    fs.writeFileSync(path.join(piDir, 'index.ts'), 'export function hello() { return 42; }\n');
+    fs.writeFileSync(path.join(docsDir, 'guide.md'), '# Guide\n\nSome documentation content here.\n');
+
+    const out = run(`scan ${piDir}`);
+    assert(out.includes('NCA|scan_complete'), `Expected scan_complete, got: ${out}`);
+    assert(out.includes('notes:'), 'Expected notes: in scan output');
+
+    const db = new Database(tmpDb);
+    try {
+      const nodeCount = db.prepare('SELECT COUNT(*) as n FROM nodes').get();
+      const noteCount = db.prepare('SELECT COUNT(*) as n FROM notes').get();
+      assert(nodeCount.n >= 1, `Expected >=1 code node, got ${nodeCount.n}`);
+      assert(noteCount.n >= 1, `Expected >=1 note, got ${noteCount.n}`);
+      const note = db.prepare("SELECT id, path FROM notes WHERE path LIKE '%guide%'").get();
+      assert(note, 'Expected guide.md to be indexed as a note');
+    } finally {
+      db.close();
+    }
+  } finally {
+    try { fs.rmSync(piDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
+// PI1-02: .md inside excluded dirs (node_modules) is not indexed
+test('PI1-02 markdown inside excluded dirs not indexed', () => {
+  const piDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-pi2-'));
+  const nmDir = path.join(piDir, 'node_modules', 'some-pkg');
+  const tmpDb = path.join(piDir, 'pi2.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    fs.mkdirSync(nmDir, { recursive: true });
+    fs.writeFileSync(path.join(piDir, 'app.ts'), 'export function init() { return true; }\n');
+    fs.writeFileSync(path.join(piDir, 'README.md'), '# App\n\nRoot readme.\n');
+    fs.writeFileSync(path.join(nmDir, 'CHANGELOG.md'), '# Changelog\n\nShould not be indexed.\n');
+
+    run(`scan ${piDir}`);
+
+    const db = new Database(tmpDb);
+    try {
+      const noteCount = db.prepare('SELECT COUNT(*) as n FROM notes').get();
+      assert(noteCount.n === 1, `Expected 1 note (root README only), got ${noteCount.n}`);
+      const nmNote = db.prepare("SELECT * FROM notes WHERE path LIKE '%node_modules%'").get();
+      assert(!nmNote, 'node_modules .md file must NOT be indexed');
+    } finally {
+      db.close();
+    }
+  } finally {
+    try { fs.rmSync(piDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
+// PI1-03: re-scan with no changes skips notes (incremental via SHA-256)
+test('PI1-03 re-scan with no changes skips notes (incremental)', () => {
+  const piDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-pi3-'));
+  const ncaDir = path.join(piDir, '.nca');
+  fs.mkdirSync(ncaDir);
+  const tmpDb = path.join(ncaDir, 'nca.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    fs.writeFileSync(path.join(piDir, 'main.ts'), 'export function run() { return 1; }\n');
+    fs.writeFileSync(path.join(piDir, 'NOTES.md'), '# Notes\n\nSome content.\n');
+
+    run(`scan ${piDir}`);
+
+    // Stamp a sentinel value so we can detect if the row is re-written
+    const db1 = new Database(tmpDb);
+    db1.prepare("UPDATE notes SET indexed_at = 'SENTINEL'").run();
+    db1.close();
+
+    // Re-scan with no file changes
+    run(`scan ${piDir}`);
+
+    // indexed_at must still be SENTINEL (note was not re-processed)
+    const db2 = new Database(tmpDb);
+    const note = db2.prepare("SELECT indexed_at FROM notes WHERE path LIKE '%NOTES%'").get();
+    db2.close();
+    assert(note, 'Expected NOTES.md to exist after re-scan');
+    assert(note.indexed_at === 'SENTINEL',
+      `Expected indexed_at='SENTINEL' (unchanged), got '${note.indexed_at}'`);
+  } finally {
+    try { fs.rmSync(piDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
+// PI1-04: editing a .md triggers re-index; unchanged .md is not touched
+test('PI1-04 editing a markdown file updates only that note on re-scan', () => {
+  const piDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-pi4-'));
+  const ncaDir = path.join(piDir, '.nca');
+  fs.mkdirSync(ncaDir);
+  const tmpDb = path.join(ncaDir, 'nca.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    const guidePath = path.join(piDir, 'guide.md');
+    fs.writeFileSync(path.join(piDir, 'app.ts'), 'export function start() { return 1; }\n');
+    fs.writeFileSync(guidePath, '# Guide\n\nOriginal content.\n');
+    fs.writeFileSync(path.join(piDir, 'other.md'), '# Other\n\nStay unchanged.\n');
+
+    run(`scan ${piDir}`);
+
+    const db1 = new Database(tmpDb);
+    const hash1 = db1.prepare("SELECT content_hash FROM notes WHERE path LIKE '%guide%'").get();
+    // Stamp sentinel on the note that should NOT change
+    db1.prepare("UPDATE notes SET indexed_at = 'SENTINEL' WHERE path LIKE '%other%'").run();
+    db1.close();
+    assert(hash1, 'Expected guide.md to be indexed after first scan');
+
+    // Edit guide.md
+    fs.writeFileSync(guidePath, '# Guide\n\nModified content — different now.\n');
+
+    run(`scan ${piDir}`);
+
+    const db2 = new Database(tmpDb);
+    const hash2 = db2.prepare("SELECT content_hash FROM notes WHERE path LIKE '%guide%'").get();
+    const otherNote = db2.prepare("SELECT indexed_at, content_hash FROM notes WHERE path LIKE '%other%'").get();
+    const totalNotes = db2.prepare('SELECT COUNT(*) as n FROM notes').get();
+    db2.close();
+
+    assert(hash2, 'Expected guide.md to still be indexed after edit');
+    assert(hash1.content_hash !== hash2.content_hash,
+      'Expected content_hash to change after editing guide.md');
+    assert(totalNotes.n === 2, `Expected 2 notes total, got ${totalNotes.n}`);
+    assert(otherNote && otherNote.indexed_at === 'SENTINEL',
+      `other.md should not have been re-indexed (sentinel must remain), got '${otherNote?.indexed_at}'`);
+  } finally {
+    try { fs.rmSync(piDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
 // Cleanup
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}

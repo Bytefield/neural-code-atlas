@@ -14,6 +14,13 @@ import { separator, header, formatField, formatStatus, colors } from './format.j
 import { registerProject } from './registry.js';
 import { generateSkill } from './skill.js';
 
+// Directories excluded from markdown scanning — mirrors DEFAULT_EXCLUDED_DIRS in scanner.ts
+const PROJECT_MD_EXCLUDED_DIRS = new Set([
+  'node_modules', '.git', 'dist', 'build', '.next', '.nuxt', '.svelte-kit',
+  'coverage', '__pycache__', '.mypy_cache', '.pytest_cache', '.tox',
+  '.nca', 'vendor', '.venv', 'venv', 'env',
+]);
+
 // Read version from package.json so it never needs manual updates
 const { version: PKG_VERSION } = require('../package.json') as { version: string };
 
@@ -37,7 +44,7 @@ program
   .command('scan [path]')
   .description('Scan a directory and build/update the NCA index')
   .option('-v, --verbose', 'verbose output')
-  .action((scanPath: string | undefined, opts: { verbose?: boolean }) => {
+  .action(async (scanPath: string | undefined, opts: { verbose?: boolean }) => {
     const rawPath = path.resolve(scanPath ?? process.cwd());
 
     if (!fs.existsSync(rawPath)) {
@@ -67,8 +74,12 @@ program
     const detector = new FlowDetector(storage);
     detector.detectAll();
 
+    const { VaultScanner } = require('./vault/scanner.js') as typeof import('./vault/scanner.js');
+    const vaultScanner = new VaultScanner(storage.db);
+    await vaultScanner.scan(rootPath, { excludedDirNames: PROJECT_MD_EXCLUDED_DIRS, quiet: true });
+
     const stats = storage.stats();
-    const scanTag = `NCA|scan_complete|files:${stats.files}|nodes:${stats.nodes}|flows:${stats.flows}|ms:${result.durationMs}`;
+    const scanTag = `NCA|scan_complete|files:${stats.files}|nodes:${stats.nodes}|flows:${stats.flows}|notes:${stats.notes}|ms:${result.durationMs}`;
     const scanLines = [
       formatStatus(scanTag),
       separator(),
@@ -77,6 +88,7 @@ program
       '  ' + formatField('nodes', stats.nodes),
       '  ' + formatField('files', stats.files),
       '  ' + formatField('flows', stats.flows),
+      '  ' + formatField('notes', stats.notes),
       '  ' + formatField('duration', `${result.durationMs}ms`),
       separator(),
     ];
@@ -298,7 +310,7 @@ program
   .command('watch [path]')
   .description('Watch for file changes and auto-reindex (requires chokidar)')
   .option('-v, --verbose', 'log each reindex event')
-  .action((watchPath: string | undefined, opts: { verbose?: boolean }) => {
+  .action(async (watchPath: string | undefined, opts: { verbose?: boolean }) => {
     const rootPath = path.resolve(watchPath ?? process.cwd());
 
     if (!fs.existsSync(rootPath)) {
@@ -319,13 +331,17 @@ program
     const dbPath = resolveDbPath(rootPath);
     const storage = new Storage(dbPath);
     const scanner = new Scanner(storage);
+    const { VaultScanner } = require('./vault/scanner.js') as typeof import('./vault/scanner.js');
+    const vaultScanner = new VaultScanner(storage.db);
 
     // Initial scan
     scanner.scan(rootPath);
+    await vaultScanner.scan(rootPath, { excludedDirNames: PROJECT_MD_EXCLUDED_DIRS, quiet: true });
     new Linker(storage).link(rootPath);
     new FlowDetector(storage).detectAll();
+    const initStats = storage.stats();
     process.stdout.write(
-      `NCA|watch_ready|root:${rootPath}|nodes:${storage.stats().nodes}\n`
+      `NCA|watch_ready|root:${rootPath}|nodes:${initStats.nodes}|notes:${initStats.notes}\n`
     );
 
     const DEBOUNCE_MS = 300;
@@ -333,36 +349,53 @@ program
     const pendingChanges = new Set<string>();
     const pendingDeletes = new Set<string>();
 
-    function flush(): void {
+    async function flush(): Promise<void> {
       const changed = [...pendingChanges];
       const deleted = [...pendingDeletes];
       pendingChanges.clear();
       pendingDeletes.clear();
 
-      // Handle deletions
-      for (const fp of deleted) {
+      const changedMd = changed.filter(fp => fp.endsWith('.md'));
+      const changedCode = changed.filter(fp => !fp.endsWith('.md'));
+      const deletedMd = deleted.filter(fp => fp.endsWith('.md'));
+      const deletedCode = deleted.filter(fp => !fp.endsWith('.md'));
+
+      // Handle code deletions
+      for (const fp of deletedCode) {
         storage.deleteNodesForFile(fp);
         storage.deleteFileRecord(fp);
         if (opts.verbose) process.stdout.write(`NCA|watch_unlink|${fp}\n`);
       }
 
-      // Re-index only the files that changed
+      // Handle markdown deletions
+      for (const fp of deletedMd) {
+        vaultScanner.deleteMdFile(fp);
+        if (opts.verbose) process.stdout.write(`NCA|watch_unlink_md|${fp}\n`);
+      }
+
+      // Re-index code files
       let totalParsed = 0;
       let totalMs = 0;
-      for (const fp of changed) {
+      for (const fp of changedCode) {
         const r = scanner.scanFile(fp, rootPath);
         totalParsed += r.parsed;
         totalMs += r.durationMs;
         if (opts.verbose) process.stdout.write(`NCA|watch_reindex_file|${fp}|parsed:${r.parsed}|ms:${r.durationMs}\n`);
       }
 
-      // Relink and redetect whenever anything changed — symmetric for both changes and deletions
+      // Re-index markdown files
+      for (const fp of changedMd) {
+        const outcome = await vaultScanner.scanMdFile(fp);
+        if (opts.verbose) process.stdout.write(`NCA|watch_reindex_md|${fp}|${outcome}\n`);
+      }
+
+      // Relink and redetect whenever anything changed
       if (deleted.length > 0 || changed.length > 0) {
         new Linker(storage).link(rootPath);
         new FlowDetector(storage).detectAll();
         const stats = storage.stats();
         process.stdout.write(
-          `NCA|watch_reindex|files:${totalParsed}|nodes:${stats.nodes}|ms:${totalMs}\n`
+          `NCA|watch_reindex|files:${totalParsed}|nodes:${stats.nodes}|notes:${stats.notes}|ms:${totalMs}\n`
         );
         const skillContent = generateSkill(dbPath);
         const skillPath = path.join(path.dirname(dbPath), 'SKILL.md');
