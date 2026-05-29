@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] — 2026-05-29
+
+### Added
+- **Project Intelligence Fase 1** (PR #29): `nca scan` now indexes Markdown notes alongside code. Vault schema (migration 003) enables FTS5 search on note chunks. `scan` output includes notes count.
+- **Project Intelligence Fase 2** (PR #30): `nca_ask` and the MCP `nca_ask` tool return unified code + documentation context. Notes matching the query appear in a `[DOCS]` section after code results, with title, file path, and excerpt. FTS5 prefix queries handle stemming variants.
+- **Project Intelligence Fase 3** (PR #31): `SKILL.md` now includes notes count in the header and a new `## Docs` section listing up to 20 indexed notes with relative paths and titles.
+
+---
+
 ## [1.2.1] — 2026-05-28
 
 ### Fixed
