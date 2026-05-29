@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] — 2026-05-29
+
+### Changed
+- docs: README updated to reflect 1.3.0 capabilities (Project Intelligence)
+
+---
+
 ## [1.3.0] — 2026-05-29
 
 ### Added
