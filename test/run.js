@@ -2183,6 +2183,133 @@ test('PI1-04 editing a markdown file updates only that note on re-scan', () => {
   }
 });
 
+// PI2-01: ask query matching a doc keyword → response includes [DOCS] section
+test('PI2-01 ask query matching doc keyword returns notes section', () => {
+  const piDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-pi2-01-'));
+  const ncaDir = path.join(piDir, '.nca');
+  fs.mkdirSync(ncaDir);
+  const tmpDb = path.join(ncaDir, 'nca.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    fs.writeFileSync(path.join(piDir, 'app.ts'), 'export function init() { return 1; }\n');
+    fs.writeFileSync(
+      path.join(piDir, 'ARCHITECTURE.md'),
+      '# Architecture\n\nThis project uses a modular architecture with clean separation of concerns.\n'
+    );
+
+    run(`scan ${piDir}`);
+
+    const out = run(`ask architecture`);
+    assert(out.includes('[DOCS]'), `Expected [DOCS] section in ask output, got:\n${out}`);
+    assert(out.includes('ARCHITECTURE'), `Expected ARCHITECTURE.md title in notes, got:\n${out}`);
+    assert(out.includes('excerpt:'), `Expected excerpt: field, got:\n${out}`);
+  } finally {
+    try { fs.rmSync(piDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
+// PI2-02: ask query with no matching notes → notes field is [], no [DOCS] section
+test('PI2-02 ask query with no matching notes has no [DOCS] section', () => {
+  const piDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-pi2-02-'));
+  const ncaDir = path.join(piDir, '.nca');
+  fs.mkdirSync(ncaDir);
+  const tmpDb = path.join(ncaDir, 'nca.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    fs.writeFileSync(path.join(piDir, 'app.ts'), 'export function greet() { return "hi"; }\n');
+    fs.writeFileSync(path.join(piDir, 'README.md'), '# App\n\nSimple project.\n');
+
+    run(`scan ${piDir}`);
+
+    // Query a term that cannot appear in docs
+    const out = run(`ask xyzzy_no_match_guaranteed_12345`);
+    assert(!out.includes('[DOCS]'), `Expected NO [DOCS] section when no notes match, got:\n${out}`);
+
+    // --json output: notes field must be an empty array
+    const jsonOut = run(`ask --json xyzzy_no_match_guaranteed_12345`);
+    const parsed = JSON.parse(jsonOut);
+    assert(Array.isArray(parsed.notes), 'Expected notes to be an array in JSON output');
+    assert(parsed.notes.length === 0, `Expected notes=[], got ${JSON.stringify(parsed.notes)}`);
+  } finally {
+    try { fs.rmSync(piDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
+// PI2-03: [DOCS] section appears AFTER code results ([N], [CTX]), not before
+test('PI2-03 notes section appears after code results', () => {
+  const piDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-pi2-03-'));
+  const ncaDir = path.join(piDir, '.nca');
+  fs.mkdirSync(ncaDir);
+  const tmpDb = path.join(ncaDir, 'nca.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    fs.writeFileSync(path.join(piDir, 'scanner.ts'), 'export function scan() { return []; }\n');
+    fs.writeFileSync(
+      path.join(piDir, 'SCANNING.md'),
+      '# Scanning\n\nThe scanner module walks the directory tree.\n'
+    );
+
+    run(`scan ${piDir}`);
+
+    const out = run(`ask scan`);
+    const nPos = out.indexOf('[N]');
+    const docsPos = out.indexOf('[DOCS]');
+
+    assert(nPos !== -1, 'Expected [N] section');
+    assert(docsPos !== -1, `Expected [DOCS] section, got:\n${out}`);
+    assert(docsPos > nPos, `Expected [DOCS] after [N], but [N]=${nPos} [DOCS]=${docsPos}`);
+  } finally {
+    try { fs.rmSync(piDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
+// PI2-04: --json output includes notes array with title, file, excerpt fields
+test('PI2-04 JSON output includes notes with title/file/excerpt', () => {
+  const piDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-pi2-04-'));
+  const ncaDir = path.join(piDir, '.nca');
+  fs.mkdirSync(ncaDir);
+  const tmpDb = path.join(ncaDir, 'nca.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    fs.writeFileSync(path.join(piDir, 'app.ts'), 'export function start() { return 1; }\n');
+    fs.writeFileSync(
+      path.join(piDir, 'DECISIONS.md'),
+      '# Decisions\n\nWe chose SQLite because it is embedded and requires no server.\n'
+    );
+
+    run(`scan ${piDir}`);
+
+    const jsonOut = run(`ask --json decisions`);
+    const parsed = JSON.parse(jsonOut);
+
+    assert(Array.isArray(parsed.notes), 'Expected notes array in JSON output');
+    assert(parsed.notes.length >= 1, `Expected >=1 note, got ${parsed.notes.length}`);
+
+    const note = parsed.notes[0];
+    assert(typeof note.title === 'string' && note.title.length > 0, 'Expected title string');
+    assert(typeof note.file === 'string' && note.file.includes('DECISIONS'), 'Expected file path');
+    assert(typeof note.excerpt === 'string' && note.excerpt.length > 0, 'Expected excerpt string');
+  } finally {
+    try { fs.rmSync(piDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
 // Cleanup
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}

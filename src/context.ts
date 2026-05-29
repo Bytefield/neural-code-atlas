@@ -1,5 +1,6 @@
 import * as path from 'path';
-import { Storage, NCNode } from './storage.js';
+import { Storage, NCNode, NoteMatch } from './storage.js';
+export type { NoteMatch };
 import { GraphSnapshot, nodeKey } from './graph.js';
 import { pagerank } from './graph/pagerank.js';
 import { detectGodNodes } from './graph/god-nodes.js';
@@ -172,12 +173,13 @@ export class ContextExpander {
   }
 
   /**
-   * Format with explicit flow and warning sections.
+   * Format with explicit flow, warning, and notes sections.
    */
   formatFull(
     result: QueryResult,
     flows: Array<{ name: string; steps: string[] }>,
-    warnings: Array<{ rule_id: string; node_id: string; detail: string }>
+    warnings: Array<{ rule_id: string; node_id: string; detail: string }>,
+    notes: NoteMatch[] = []
   ): string {
     const enrichment = computeEnrichment(this.storage);
     const ranked = this.rankWithBoost(this.expand(result.nodes, 2), result.query);
@@ -209,13 +211,22 @@ export class ContextExpander {
       lines.push(`entry:${top.file}:${top.line}|scope:${top.module}|confidence:${confidence.toFixed(2)}`);
     }
 
-    const output = lines.join('\n');
+    // Truncate code+flow section first, then always append docs (never truncated).
+    let output = lines.join('\n');
     if (output.length > MAX_CHARS) {
       const nodeCount = ranked.length;
       const truncated = output.slice(0, MAX_CHARS);
       const omitted = nodeCount - countNodes(truncated);
-      return truncated + `\nNCA|truncated|${omitted}_nodes_omitted`;
+      output = truncated + `\nNCA|truncated|${omitted}_nodes_omitted`;
     }
+
+    if (notes.length > 0) {
+      output += '\n[DOCS]';
+      for (const note of notes) {
+        output += `\n~${note.file}|title:${note.title}|excerpt:${note.excerpt}`;
+      }
+    }
+
     return output;
   }
 }
@@ -276,13 +287,15 @@ export interface QueryJSON {
   flows: Array<{ name: string; steps: string[] }>;
   warnings: Array<{ rule_id: string; node_id: string; detail: string }>;
   ctx: { entry: string; line: number; scope: string; confidence: number } | null;
+  notes: NoteMatch[];
 }
 
 export function buildQueryJSON(
   result: QueryResult,
   expander: ContextExpander,
   flows: Array<{ name: string; steps: string[] }>,
-  warnings: Array<{ rule_id: string; node_id: string; detail: string }>
+  warnings: Array<{ rule_id: string; node_id: string; detail: string }>,
+  notes: NoteMatch[] = []
 ): QueryJSON {
   const ranked = expander.rankWithBoost(expander.expand(result.nodes, 2), result.query);
   const top = ranked[0] ?? null;
@@ -300,6 +313,7 @@ export function buildQueryJSON(
           confidence: parseFloat(calcConfidence(top, result.query).toFixed(2)),
         }
       : null,
+    notes,
   };
 }
 

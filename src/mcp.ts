@@ -161,7 +161,8 @@ function handleToolCall(id: number | string | null, name: string, args: Record<s
       storage.updateNodeScores(matchedIds);
       const flows = storage.getAllFlows();
       const warnings = storage.getWarnings();
-      const result = ctx.formatFull({ query, nodes, timestamp: ts }, flows, warnings);
+      const notes = storage.searchNotes(query);
+      const result = ctx.formatFull({ query, nodes, timestamp: ts }, flows, warnings, notes);
       respond(id, toolText(warning + result));
       return;
     }
