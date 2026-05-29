@@ -130,13 +130,14 @@ program
 
     const flows = storage.getAllFlows();
     const warnings = storage.getWarnings();
+    const notes = storage.searchNotes(query);
     const ts = Date.now();
 
     if (opts.json) {
-      const json = buildQueryJSON({ query, nodes, timestamp: ts }, ctx, flows, warnings);
+      const json = buildQueryJSON({ query, nodes, timestamp: ts }, ctx, flows, warnings, notes);
       process.stdout.write(JSON.stringify(json, null, 2) + '\n');
     } else {
-      const result = ctx.formatFull({ query, nodes, timestamp: ts }, flows, warnings);
+      const result = ctx.formatFull({ query, nodes, timestamp: ts }, flows, warnings, notes);
       process.stdout.write(result + '\n');
     }
 

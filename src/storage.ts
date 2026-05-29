@@ -40,6 +40,12 @@ export interface FileRecord {
   parsed_at: number;
 }
 
+export interface NoteMatch {
+  title: string;
+  file: string;
+  excerpt: string;
+}
+
 
 export class Storage {
   /** @internal — not public API; exposed for testing only. */
@@ -353,6 +359,36 @@ export class Storage {
     let dbSize = 0;
     try { dbSize = fs.statSync(this.dbPath).size; } catch {}
     return { files, nodes, flows, warnings, notes, dbSize };
+  }
+
+  searchNotes(query: string): NoteMatch[] {
+    // Build a prefix FTS5 query: "arch decisions" → "arch* decisions*"
+    // Prefix matching handles stemming variants (scan → scanning, scanner).
+    const terms = query
+      .split(/\s+/)
+      .map(t => t.replace(/['"*]/g, '').trim())
+      .filter(Boolean)
+      .map(t => `${t}*`);
+    if (terms.length === 0) return [];
+    const ftsQuery = terms.join(' ');
+    try {
+      const rows = this.db.prepare(`
+        SELECT n.path, nc.text
+        FROM note_chunks_fts fts
+        JOIN note_chunks nc ON nc.rowid = fts.rowid
+        JOIN notes n ON n.id = nc.note_id
+        WHERE note_chunks_fts MATCH ?
+        ORDER BY fts.rank
+        LIMIT 3
+      `).all(ftsQuery) as { path: string; text: string }[];
+      return rows.map(r => ({
+        title: path.basename(r.path, '.md'),
+        file: r.path,
+        excerpt: r.text.length > 200 ? r.text.slice(0, 197) + '...' : r.text,
+      }));
+    } catch {
+      return [];
+    }
   }
 
   close(): void {
