@@ -2031,6 +2031,60 @@ test('SK-04 scan twice produces identical SKILL.md (deterministic)', () => {
   assert(content1 === content2, 'SKILL.md content differs between two scans of the same data');
 });
 
+// SK5-01: header includes notes:N
+test('SK5-01 SKILL.md header includes notes count', () => {
+  // fixtures dir has no .md files → notes:0 must appear in header
+  const content = fs.readFileSync(skillPath, 'utf-8');
+  const headerLine = content.split('\n').find(l => l.startsWith('nodes:'));
+  assert(headerLine, 'Expected header line starting with nodes:');
+  assert(headerLine.includes('notes:'), `Expected notes: in header line, got: ${headerLine}`);
+});
+
+// SK5-02: ## Docs section lists note titles and relative paths
+test('SK5-02 SKILL.md has Docs section with note titles and relative paths', () => {
+  const sk5Dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-sk5-02-'));
+  const ncaDir = path.join(sk5Dir, '.nca');
+  fs.mkdirSync(ncaDir);
+  const tmpDb = path.join(ncaDir, 'nca.db');
+  const skillPath5 = path.join(ncaDir, 'SKILL.md');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    fs.writeFileSync(path.join(sk5Dir, 'app.ts'), 'export function run() { return 1; }\n');
+    fs.writeFileSync(path.join(sk5Dir, 'README.md'), '# Project\n\nMain readme.\n');
+    fs.mkdirSync(path.join(sk5Dir, 'docs'));
+    fs.writeFileSync(path.join(sk5Dir, 'docs', 'ARCHITECTURE.md'), '# Architecture\n\nSystem design decisions.\n');
+
+    run(`scan ${sk5Dir}`);
+
+    assert(fs.existsSync(skillPath5), `SKILL.md not found at ${skillPath5}`);
+    const content = fs.readFileSync(skillPath5, 'utf-8');
+
+    assert(content.includes('## Docs'), `Expected ## Docs section, got:\n${content}`);
+    assert(content.includes('README.md'), `Expected README.md in Docs section, got:\n${content}`);
+    assert(content.includes('docs/ARCHITECTURE.md'), `Expected docs/ARCHITECTURE.md in Docs, got:\n${content}`);
+    assert(content.includes('— README'), `Expected title 'README' in Docs, got:\n${content}`);
+    assert(content.includes('— ARCHITECTURE'), `Expected title 'ARCHITECTURE' in Docs, got:\n${content}`);
+
+    // Docs entries must use relative paths — extract section and check
+    const docsSection = content.split('## Docs')[1]?.split(/\n##/)[0] ?? '';
+    assert(!docsSection.includes(sk5Dir), `Docs section must use relative paths, not absolute root ${sk5Dir}`);
+  } finally {
+    try { fs.rmSync(sk5Dir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
+// SK5-03: no notes indexed → ## Docs shows "(no docs indexed)"
+test('SK5-03 no notes yields (no docs indexed) in Docs section', () => {
+  // fixtures dir has no .md files; main skillPath was written by SK-04
+  const content = fs.readFileSync(skillPath, 'utf-8');
+  assert(content.includes('## Docs'), 'Expected ## Docs section even when no notes');
+  assert(content.includes('(no docs indexed)'), `Expected "(no docs indexed)", got:\n${content}`);
+});
+
 // PI1-01: scan indexes both code nodes and markdown notes in the same DB
 test('PI1-01 scan indexes both code nodes and markdown notes', () => {
   const piDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-pi1-'));

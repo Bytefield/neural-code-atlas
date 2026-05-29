@@ -47,7 +47,7 @@ function buildSkill(dbPath: string, storage: Storage): string {
   // ── Section 1: Header ─────────────────────────────────────────────────────
   sections.push(
     `# NCA SKILL — ${projectName}\n` +
-    `nodes:${stats.nodes} files:${stats.files} edges:${edgeCount} scanned:${lastScan}`
+    `nodes:${stats.nodes} files:${stats.files} edges:${edgeCount} notes:${stats.notes} scanned:${lastScan}`
   );
 
   // ── Section 2: Modules (top-level source dirs) ────────────────────────────
@@ -112,7 +112,21 @@ function buildSkill(dbPath: string, storage: Storage): string {
     `## Issues\n  cycles:${cycleCount} long-chains:${chainCount} (chain threshold:${maxChainDepth})`
   );
 
-  // ── Section 6: MCP tools ──────────────────────────────────────────────────
+  // ── Section 6: Docs (indexed notes) ─────────────────────────────────────
+  const noteRows = storage.db
+    .prepare(`SELECT path FROM notes ORDER BY path LIMIT 20`)
+    .all() as { path: string }[];
+  const docsLines = noteRows.map(r => {
+    const normalized = r.path.replace(/\\/g, '/');
+    const relPath = normalized.startsWith(rootPrefix)
+      ? normalized.slice(rootPrefix.length)
+      : normalized;
+    const title = path.basename(relPath, '.md');
+    return `  ${relPath} — ${title}`;
+  });
+  sections.push(`## Docs\n${docsLines.join('\n') || '  (no docs indexed)'}`);
+
+  // ── Section 7: MCP tools ──────────────────────────────────────────────────
   sections.push(
     `## MCP Tools\n` +
     `  nca_ask(query, project?) — search functions/classes by name or concept\n` +
