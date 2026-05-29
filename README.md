@@ -1,8 +1,15 @@
 # Neural Code Atlas (NCA)
 
-> Local semantic index for codebases: tree-sitter + SQLite + CLI + MCP server.
+> Local project intelligence for AI-assisted development: indexes code structure
+> and documentation together in a single SQLite database, exposes graph analytics
+> (Louvain communities, PageRank, god nodes) and full-text search via CLI and
+> MCP server — so AI assistants get precise structural and contextual answers,
+> not similarity guesses.
 
-NCA scans your repo, builds a persistent SQLite index of structural nodes (functions, classes, modules), and lets you query it via CLI or MCP server so AI assistants can retrieve precise context without brute-force grep.
+NCA scans your repo, builds a persistent SQLite index of code nodes (functions,
+classes, modules) AND documentation (markdown files, architecture docs, personal
+notes), and exposes both via CLI and MCP server. One database, unified context
+for code structure and the reasoning behind it.
 
 ## Why
 
@@ -38,7 +45,7 @@ If install fails, see `INSTALL.md` (native build tools for `better-sqlite3`/`tre
 ```bash
 cd your-project
 nca scan .
-# → builds index, writes SKILL.md at project root
+# → builds index, writes .nca/SKILL.md alongside the database
 
 nca ask "authentication middleware"
 # → returns ranked nodes with module, PageRank position, god-node flag
@@ -98,22 +105,32 @@ nca ask "storage layer"
 #   module:src/storage  ← directory-level module name
 ```
 
+## Project Intelligence
+
+`nca scan` automatically indexes all markdown files in your repo alongside
+code nodes — READMEs, changelogs, architecture docs, and any personal notes
+in a gitignored `notes/` folder. One database, unified context.
+
+`nca_ask` returns unified results: code nodes AND relevant documentation
+excerpts in a single query. Ask about a concept and get both where it lives
+in the code and what your docs say about it.
+
 ## SKILL.md
 
-`nca scan` writes a `SKILL.md` file to your project root (alongside `.nca/`). It is a structured, token-efficient codebase map that covers:
+`nca scan` writes `.nca/SKILL.md` alongside the database. It is a structured, token-efficient codebase map that covers:
 
-- **Architecture summary** — module list with community assignments and coupling scores
-- **Hot nodes** — top nodes by query frequency (what gets asked about most)
-- **God nodes** — nodes flagged for disproportionate coupling
-- **Entry points** — functions/classes with no callers (likely public API surface)
-- **Key patterns** — recurring structural patterns detected across the graph
+- **Module list** — node counts per top-level directory
+- **Top 20 nodes by PageRank** — name, fanIn, fanOut, complexity
+- **God nodes** — with coupling scores
+- **Issues** — cycle count and deep chain count
+- **Docs** — all indexed markdown files with titles and paths (new in 1.3.0)
 
 ### Using SKILL.md with Claude Code
 
 Add it to your project's context before asking architectural questions:
 
 ```
-/add SKILL.md
+/add .nca/SKILL.md
 nca_ask(query="what handles auth")
 ```
 
@@ -150,7 +167,7 @@ nca_status(project="synio")
 
 Tools exposed by the MCP server:
 
-- `nca_ask` — query nodes by name or keyword; returns module, PageRank rank, god-node flag
+- `nca_ask` — query code and docs by name or keyword; returns code nodes with module/PageRank/god-node context, plus documentation excerpts
 - `nca_flow` — trace execution flow from an entry point
 - `nca_status` — show index stats
 - `nca_evolve` — run architectural heuristics
@@ -211,6 +228,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the full history.
 
 Recent highlights:
 
+- **1.3.0** — Project Intelligence: unified code + documentation indexing, nca_ask returns code and docs together, SKILL.md Docs section
 - **1.2.1** — canonical path resolution (`realpathSync`) prevents duplicate indexing across WSL/Windows/symlinks
 - **1.2.0** — graph analytics (Louvain, PageRank, betweenness, god nodes), SKILL.md, enriched `nca_ask` responses
 - **1.1.1** — vault scanning with FTS5, YAML frontmatter support, incremental updates
