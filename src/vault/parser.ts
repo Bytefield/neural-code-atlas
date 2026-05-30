@@ -16,16 +16,11 @@ export interface ParsedNote {
 
 /**
  * Derive note ID from file path when not in frontmatter.
- * Rules: filename (no extension), lowercase, replace spaces/special chars with hyphens.
+ * Uses hash of full path to guarantee uniqueness across directories.
  */
 function deriveId(filePath: string): string {
-  const fileName = filePath.split(/[/\\]/).pop() || '';
-  const withoutExt = fileName.replace(/\.[^.]*$/, '');
-  return withoutExt
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '');
+  const normalized = filePath.replace(/\\/g, '/');
+  return createHash('sha256').update(normalized).digest('hex').slice(0, 16);
 }
 
 /**

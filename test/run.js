@@ -611,7 +611,8 @@ test('WUR-01 watch unlink handler relinks graph and flows', () => {
   // PARSER-02: no-frontmatter.md — id derived from filename, status='vigente', optionals undefined
   test('PARSER-02 no-frontmatter.md: id derived, status vigente, no optional fields', () => {
     const r = parseSync('no-frontmatter.md');
-    assert(r.id === 'no-frontmatter', `Expected id='no-frontmatter', got '${r.id}'`);
+    assert(typeof r.id === 'string' && r.id.length === 16 && /^[a-f0-9]{16}$/.test(r.id),
+      `Expected 16-char hex id, got '${r.id}'`);
     assert(r.status === 'vigente', `Expected status='vigente', got '${r.status}'`);
     assert(r.type === undefined || r.type === null,
       `Expected type=undefined, got '${r.type}'`);
