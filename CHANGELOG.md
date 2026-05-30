@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] — 2026-05-29
+
+### Fixed
+- fix: derive note ID from full path hash to prevent UNIQUE constraint violations when scanning repos with same-named markdown files in different directories
+
+---
+
 ## [1.3.1] — 2026-05-29
 
 ### Changed
