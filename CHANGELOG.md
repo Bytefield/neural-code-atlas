@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.3] — 2026-05-31
+
+### Fixed
+- Purge stale note IDs before re-indexing to handle format migration from
+  filename-based to path-hash-based IDs. Fixes UNIQUE constraint violations
+  on large repos with same-named markdown files (PR #36).
+
+---
+
 ## [1.3.2] — 2026-05-29
 
 ### Fixed
