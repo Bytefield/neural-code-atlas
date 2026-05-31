@@ -237,6 +237,18 @@ export class Storage {
     }
   }
 
+  /**
+   * Fallback: find nodes whose source file path contains the query fragment.
+   * Used when symbol search returns no results, so path queries are never a dead end.
+   */
+  searchByPath(query: string): NCNode[] {
+    const term = `%${query.toLowerCase().replace(/\\/g, '/')}%`;
+    const rows = this.db.prepare(
+      `SELECT * FROM nodes WHERE LOWER(file) LIKE ? ORDER BY complexity DESC, id DESC LIMIT 20`
+    ).all(term) as any[];
+    return rows.map(r => this.rowToNode(r));
+  }
+
   getNodeDepNodes(node: NCNode): NCNode[] {
     if (!node.deps.length) return [];
     const rows = this.stmts.getNodeDeps.all(JSON.stringify(node.deps)) as any[];

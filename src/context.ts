@@ -174,21 +174,27 @@ export class ContextExpander {
 
   /**
    * Format with explicit flow, warning, and notes sections.
+   * pathFallback=true signals that nodes came from file-path matching, not symbol search.
    */
   formatFull(
     result: QueryResult,
     flows: Array<{ name: string; steps: string[] }>,
     warnings: Array<{ rule_id: string; node_id: string; detail: string }>,
-    notes: NoteMatch[] = []
+    notes: NoteMatch[] = [],
+    pathFallback: boolean = false
   ): string {
     const enrichment = computeEnrichment(this.storage);
     const ranked = this.rankWithBoost(this.expand(result.nodes, 2), result.query);
     const lines: string[] = [];
 
     lines.push(`NCA|q:${result.query}|t:${result.timestamp}`);
-    lines.push('[N]');
+    lines.push(pathFallback ? '[PATH_MATCH]' : '[N]');
     for (const n of ranked) lines.push(formatNodeEnriched(n, enrichment));
-    if (ranked.length === 0) lines.push('(no results)');
+    if (ranked.length === 0) {
+      lines.push(
+        `(no matches for '${result.query}' — nca_ask searches by symbol/concept; try a function or class name)`
+      );
+    }
 
     if (flows.length > 0) {
       lines.push('[F]');
@@ -288,6 +294,8 @@ export interface QueryJSON {
   warnings: Array<{ rule_id: string; node_id: string; detail: string }>;
   ctx: { entry: string; line: number; scope: string; confidence: number } | null;
   notes: NoteMatch[];
+  pathFallback?: boolean;
+  guidance?: string;
 }
 
 export function buildQueryJSON(
@@ -295,11 +303,12 @@ export function buildQueryJSON(
   expander: ContextExpander,
   flows: Array<{ name: string; steps: string[] }>,
   warnings: Array<{ rule_id: string; node_id: string; detail: string }>,
-  notes: NoteMatch[] = []
+  notes: NoteMatch[] = [],
+  pathFallback: boolean = false
 ): QueryJSON {
   const ranked = expander.rankWithBoost(expander.expand(result.nodes, 2), result.query);
   const top = ranked[0] ?? null;
-  return {
+  const out: QueryJSON = {
     query: result.query,
     timestamp: result.timestamp,
     nodes: ranked,
@@ -315,5 +324,10 @@ export function buildQueryJSON(
       : null,
     notes,
   };
+  if (pathFallback) out.pathFallback = true;
+  if (ranked.length === 0) {
+    out.guidance = `no matches for '${result.query}' — nca_ask searches by symbol/concept; try a function or class name`;
+  }
+  return out;
 }
 

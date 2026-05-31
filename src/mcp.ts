@@ -164,14 +164,24 @@ function toolAsk(
 ): void {
   const query = String(args.query ?? '');
   const ctx = new ContextExpander(storage);
-  const nodes = storage.search(query);
+  let nodes = storage.search(query);
+
+  // Log query and score boosts only for symbol hits
   const matchedIds = nodes.filter(n => n.id !== undefined).map(n => n.id as number);
   storage.logQuery(query, matchedIds);
   storage.updateNodeScores(matchedIds);
+
+  // Path fallback: if no symbols matched, try file-path substring match
+  let pathFallback = false;
+  if (nodes.length === 0) {
+    nodes = storage.searchByPath(query);
+    pathFallback = nodes.length > 0;
+  }
+
   const flows = storage.getAllFlows();
   const warnings = storage.getWarnings();
   const notes = storage.searchNotes(query);
-  const result = ctx.formatFull({ query, nodes, timestamp: ts }, flows, warnings, notes);
+  const result = ctx.formatFull({ query, nodes, timestamp: ts }, flows, warnings, notes, pathFallback);
   respond(id, toolText(warning + result));
 }
 
