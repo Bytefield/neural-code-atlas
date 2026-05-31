@@ -43,19 +43,159 @@ function detectEffects(text: string): string[] {
   return effects;
 }
 
-const BRANCH_TYPES_TS = new Set([
-  'if_statement', 'else_clause', 'ternary_expression',
-  'for_statement', 'for_in_statement', 'while_statement', 'do_statement',
-  'switch_case', 'catch_clause',
-  '&&', '||', '??',
-]);
+/** Language-specific extraction rules: node types, branch complexity markers, and extraction helpers. */
+interface LanguageExtractor {
+  /** Tree-sitter node types that define functions/methods to extract. */
+  functionNodeTypes: string[];
+  /** Tree-sitter node types that define classes to extract. */
+  classNodeTypes: string[];
+  /** Tree-sitter node types for import statements. */
+  importNodeTypes: string[];
+  /** Node types that increase cyclomatic complexity. */
+  branchTypes: Set<string>;
 
-const BRANCH_TYPES_PY = new Set([
-  'if_statement', 'elif_clause', 'else_clause',
-  'for_statement', 'while_statement',
-  'except_clause', 'with_statement',
-  'boolean_operator', 'conditional_expression',
-]);
+  /** Extract the name of a function/class node. */
+  extractNodeName(node: any): string;
+  /** Extract parameter list from a function/class node. */
+  extractNodeParams(node: any): string[];
+  /** Extract return type annotation if present. */
+  extractReturnType(node: any): string | null;
+  /** Map tree-sitter node.type to normalized kind: 'class', 'method', 'arrow', 'function'. */
+  getNodeKind(type: string): string;
+  /** Extract imports from an import node; returns array of module names. */
+  extractImports(node: any): string[];
+}
+
+class TypeScriptExtractor implements LanguageExtractor {
+  functionNodeTypes = ['function_declaration', 'function_expression', 'arrow_function', 'method_definition'];
+  classNodeTypes = ['class_declaration'];
+  importNodeTypes = ['import_statement', 'import_declaration'];
+  branchTypes = new Set([
+    'if_statement', 'else_clause', 'ternary_expression',
+    'for_statement', 'for_in_statement', 'while_statement', 'do_statement',
+    'switch_case', 'catch_clause',
+    '&&', '||', '??',
+  ]);
+
+  extractNodeName(node: any): string {
+    const isAnonymousForm = node.type === 'arrow_function' || node.type === 'function_expression';
+    if (!isAnonymousForm) {
+      const nameNode = node.childForFieldName?.('name') ?? findChildOfType(node, 'identifier');
+      if (nameNode) return nameNode.text;
+    } else {
+      const nameNode = node.childForFieldName?.('name');
+      if (nameNode) return nameNode.text;
+    }
+
+    let parent = node.parent;
+    while (parent) {
+      if (parent.type === 'variable_declarator') {
+        const id = parent.childForFieldName?.('name') ?? findChildOfType(parent, 'identifier');
+        if (id) return id.text;
+      }
+      if (parent.type === 'assignment_expression') {
+        const left = parent.childForFieldName?.('left');
+        if (left?.type === 'identifier') return left.text;
+        if (left?.type === 'member_expression') {
+          return left.childForFieldName?.('property')?.text ?? '<anonymous>';
+        }
+      }
+      if (parent.type === 'pair') {
+        const key = parent.childForFieldName?.('key');
+        if (key) return key.text;
+      }
+      if (parent.type === 'method_definition') {
+        const key = parent.childForFieldName?.('name');
+        if (key) return key.text;
+      }
+      if (parent.type === 'statement_block' || parent.type === 'program' || parent.type === 'function_declaration') break;
+      parent = parent.parent;
+    }
+    return '<anonymous>';
+  }
+
+  extractNodeParams(node: any): string[] {
+    const paramNode = node.childForFieldName?.('parameters') ?? findChildOfType(node, 'formal_parameters');
+    if (!paramNode) return [];
+    const params: string[] = [];
+    for (let i = 0; i < paramNode.namedChildCount; i++) {
+      const p = paramNode.namedChild(i);
+      if (!p) continue;
+      const name = p.childForFieldName?.('pattern') ?? p.childForFieldName?.('name') ?? findChildOfType(p, 'identifier') ?? p;
+      const type = p.childForFieldName?.('type');
+      const annotation = type ? `:${type.text.trim()}` : '';
+      params.push(`${name.text}${annotation}`);
+    }
+    return params;
+  }
+
+  extractReturnType(node: any): string | null {
+    const ret = node.childForFieldName?.('return_type');
+    if (ret) return ret.text.replace(/^:\s*/, '').trim();
+    return null;
+  }
+
+  getNodeKind(type: string): string {
+    if (type.includes('class')) return 'class';
+    if (type.includes('method')) return 'method';
+    if (type.includes('arrow')) return 'arrow';
+    return 'function';
+  }
+
+  extractImports(node: any): string[] {
+    const src = node.childForFieldName?.('source') ?? findChildOfType(node, 'string');
+    if (src) {
+      const raw = src.text.replace(/['"]/g, '');
+      return [raw];
+    }
+    return [];
+  }
+}
+
+class PythonExtractor implements LanguageExtractor {
+  functionNodeTypes = ['function_definition'];
+  classNodeTypes = ['class_definition'];
+  importNodeTypes = ['import_statement', 'import_from_statement'];
+  branchTypes = new Set([
+    'if_statement', 'elif_clause', 'else_clause',
+    'for_statement', 'while_statement',
+    'except_clause', 'with_statement',
+    'boolean_operator', 'conditional_expression',
+  ]);
+
+  extractNodeName(node: any): string {
+    const nameNode = node.childForFieldName?.('name') ?? findChildOfType(node, 'identifier');
+    return nameNode?.text ?? '<anonymous>';
+  }
+
+  extractNodeParams(node: any): string[] {
+    const paramNode = node.childForFieldName?.('parameters');
+    if (!paramNode) return [];
+    const params: string[] = [];
+    for (let i = 0; i < paramNode.namedChildCount; i++) {
+      const p = paramNode.namedChild(i);
+      if (!p || p.text === 'self') continue;
+      params.push(p.text);
+    }
+    return params;
+  }
+
+  extractReturnType(node: any): string | null {
+    const ret = node.childForFieldName?.('return_type');
+    if (ret) return ret.text.replace(/^->\s*/, '').trim();
+    return null;
+  }
+
+  getNodeKind(type: string): string {
+    return type === 'class_definition' ? 'class' : 'function';
+  }
+
+  extractImports(node: any): string[] {
+    const mod = node.childForFieldName?.('module_name') ?? findChildOfType(node, 'dotted_name');
+    if (mod) return [mod.text];
+    return [];
+  }
+}
 
 interface RawNode {
   type: string;
@@ -83,16 +223,22 @@ function hashNodeContent(r: RawNode): string {
 
 export class NCAParser {
   private parsers: Map<string, any> = new Map();
+  private extractors: Map<string, LanguageExtractor> = new Map();
 
   constructor() {
     loadTreeSitter();
     if (!treeSitterAvailable) return;
+
+    const tsExt = new TypeScriptExtractor();
+    const pyExt = new PythonExtractor();
 
     if (tsLanguage) {
       const p = new TreeSitterParser();
       p.setLanguage(tsLanguage);
       this.parsers.set('ts', p);
       this.parsers.set('tsx', p);
+      this.extractors.set('ts', tsExt);
+      this.extractors.set('tsx', tsExt);
     }
     if (jsLanguage) {
       const p = new TreeSitterParser();
@@ -101,11 +247,16 @@ export class NCAParser {
       this.parsers.set('jsx', p);
       this.parsers.set('mjs', p);
       this.parsers.set('cjs', p);
+      this.extractors.set('js', tsExt);
+      this.extractors.set('jsx', tsExt);
+      this.extractors.set('mjs', tsExt);
+      this.extractors.set('cjs', tsExt);
     }
     if (pyLanguage) {
       const p = new TreeSitterParser();
       p.setLanguage(pyLanguage);
       this.parsers.set('py', p);
+      this.extractors.set('py', pyExt);
     }
   }
 
@@ -123,12 +274,11 @@ export class NCAParser {
     let raws: RawNode[] = [];
 
     const parser = this.parsers.get(ext);
-    if (parser) {
+    const extractor = this.extractors.get(ext);
+    if (parser && extractor) {
       try {
         const tree = parser.parse(code);
-        raws = ext === 'py'
-          ? this.extractPython(tree.rootNode, code)
-          : this.extractTS(tree.rootNode, code);
+        raws = this.extract(tree.rootNode, extractor);
       } catch {
         raws = this.regexFallback(code, ext);
       }
@@ -151,78 +301,33 @@ export class NCAParser {
     }));
   }
 
-  private extractTS(rootNode: any, _src: string): RawNode[] {
+  private extract(rootNode: any, extractor: LanguageExtractor): RawNode[] {
     const results: RawNode[] = [];
     const imports: string[] = [];
 
-    // Collect imports first
-    const importNodes = rootNode.descendantsOfType([
-      'import_statement', 'import_declaration',
-    ]);
+    // Collect imports via extractor
+    const importNodes = rootNode.descendantsOfType(extractor.importNodeTypes);
     for (const n of importNodes) {
-      const src = n.childForFieldName?.('source') ?? findChildOfType(n, 'string');
-      if (src) {
-        const raw = src.text.replace(/['"]/g, '');
-        imports.push(raw);
-      }
+      const nodeImports = extractor.extractImports(n);
+      imports.push(...nodeImports);
     }
 
-    // Functions — single descendantsOfType call, no dead variable
-    const fnTypes = [
-      'function_declaration', 'function_expression',
-      'arrow_function', 'method_definition',
-      'class_declaration',
-    ];
-    const fnNodes: any[] = rootNode.descendantsOfType(fnTypes);
+    // Extract functions and classes via extractor
+    const allNodeTypes = [...extractor.functionNodeTypes, ...extractor.classNodeTypes];
+    const fnNodes: any[] = rootNode.descendantsOfType(allNodeTypes);
 
     for (const n of fnNodes) {
-      const name = extractName(n);
+      const name = extractor.extractNodeName(n);
       if (!name || name === '<anonymous>') continue;
 
-      const params = extractParams(n);
-      const retType = extractReturnType(n);
-      const cx = calcComplexity(n, BRANCH_TYPES_TS);
+      const params = extractor.extractNodeParams(n);
+      const retType = extractor.extractReturnType(n);
+      const cx = calcComplexity(n, extractor.branchTypes);
       const callDeps = extractCalls(n);
       const effects = detectEffects(n.text ?? '');
 
       results.push({
-        type: nodeKind(n.type),
-        name,
-        inputs: params,
-        outputs: retType ? [retType] : [],
-        deps: [...imports, ...callDeps],
-        line: n.startPosition?.row ?? 0,
-        complexity: cx,
-        effects,
-      });
-    }
-
-    return results;
-  }
-
-  private extractPython(rootNode: any, _src: string): RawNode[] {
-    const results: RawNode[] = [];
-    const imports: string[] = [];
-
-    for (const n of rootNode.descendantsOfType(['import_statement', 'import_from_statement'])) {
-      const mod = n.childForFieldName?.('module_name') ?? findChildOfType(n, 'dotted_name');
-      if (mod) imports.push(mod.text);
-    }
-
-    const pyFnTypes = ['function_definition', 'class_definition'];
-    const pyFnNodes: any[] = rootNode.descendantsOfType(pyFnTypes);
-    for (const n of pyFnNodes) {
-      const nameNode = n.childForFieldName?.('name') ?? findChildOfType(n, 'identifier');
-      if (!nameNode) continue;
-      const name = nameNode.text;
-      const params = extractPyParams(n);
-      const retType = extractPyReturnType(n);
-      const cx = calcComplexity(n, BRANCH_TYPES_PY);
-      const callDeps = extractCalls(n);
-      const effects = detectEffects(n.text ?? '');
-
-      results.push({
-        type: n.type === 'class_definition' ? 'class' : 'function',
+        type: extractor.getNodeKind(n.type),
         name,
         inputs: params,
         outputs: retType ? [retType] : [],
@@ -310,94 +415,6 @@ function findChildOfType(node: any, type: string): any {
   return null;
 }
 
-function extractName(node: any): string {
-  // arrow_function and function_expression don't have a direct name child —
-  // findChildOfType would incorrectly return a parameter identifier (e.g. `x` in `x => x*2`)
-  const isAnonymousForm = node.type === 'arrow_function' || node.type === 'function_expression';
-
-  if (!isAnonymousForm) {
-    const nameNode = node.childForFieldName?.('name') ?? findChildOfType(node, 'identifier');
-    if (nameNode) return nameNode.text;
-  } else {
-    // function_expression can have an optional name: `const f = function named() {}`
-    const nameNode = node.childForFieldName?.('name');
-    if (nameNode) return nameNode.text;
-  }
-
-  // Walk up parent chain to find the assigned variable name
-  let parent = node.parent;
-  while (parent) {
-    if (parent.type === 'variable_declarator') {
-      const id = parent.childForFieldName?.('name') ?? findChildOfType(parent, 'identifier');
-      if (id) return id.text;
-    }
-    if (parent.type === 'assignment_expression') {
-      const left = parent.childForFieldName?.('left');
-      if (left?.type === 'identifier') return left.text;
-      if (left?.type === 'member_expression') {
-        return left.childForFieldName?.('property')?.text ?? '<anonymous>';
-      }
-    }
-    if (parent.type === 'pair') {
-      const key = parent.childForFieldName?.('key');
-      if (key) return key.text;
-    }
-    if (parent.type === 'method_definition') {
-      const key = parent.childForFieldName?.('name');
-      if (key) return key.text;
-    }
-    // Stop walking if we hit a block or function boundary
-    if (
-      parent.type === 'statement_block' ||
-      parent.type === 'program' ||
-      parent.type === 'function_declaration'
-    ) break;
-    parent = parent.parent;
-  }
-
-  return '<anonymous>';
-}
-
-function extractParams(node: any): string[] {
-  const paramNode = node.childForFieldName?.('parameters') ?? findChildOfType(node, 'formal_parameters');
-  if (!paramNode) return [];
-  const params: string[] = [];
-  for (let i = 0; i < paramNode.namedChildCount; i++) {
-    const p = paramNode.namedChild(i);
-    if (!p) continue;
-    const name = p.childForFieldName?.('pattern') ?? p.childForFieldName?.('name') ?? findChildOfType(p, 'identifier') ?? p;
-    const type = p.childForFieldName?.('type');
-    const annotation = type ? `:${type.text.trim()}` : '';
-    params.push(`${name.text}${annotation}`);
-  }
-  return params;
-}
-
-function extractPyParams(node: any): string[] {
-  const paramNode = node.childForFieldName?.('parameters');
-  if (!paramNode) return [];
-  const params: string[] = [];
-  for (let i = 0; i < paramNode.namedChildCount; i++) {
-    const p = paramNode.namedChild(i);
-    if (!p || p.text === 'self') continue;
-    params.push(p.text);
-  }
-  return params;
-}
-
-function extractReturnType(node: any): string | null {
-  const ret = node.childForFieldName?.('return_type');
-  if (ret) return ret.text.replace(/^:\s*/, '').trim();
-  return null;
-}
-
-function extractPyReturnType(node: any): string | null {
-  // tree-sitter-python exposes `->` return annotation as 'return_type' field
-  const ret = node.childForFieldName?.('return_type');
-  if (ret) return ret.text.replace(/^->\s*/, '').trim();
-  return null;
-}
-
 function extractCalls(node: any): string[] {
   const calls: string[] = [];
   const callNodes = node.descendantsOfType?.(['call_expression', 'call']) ?? [];
@@ -426,13 +443,6 @@ function calcComplexity(node: any, branchTypes: Set<string>): number {
   }
   walk(node);
   return cx;
-}
-
-function nodeKind(type: string): string {
-  if (type.includes('class')) return 'class';
-  if (type.includes('method')) return 'method';
-  if (type.includes('arrow')) return 'arrow';
-  return 'function';
 }
 
 function fileToModule(filePath: string, rootPath: string): string {
