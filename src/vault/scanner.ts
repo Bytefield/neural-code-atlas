@@ -25,6 +25,15 @@ export class VaultScanner {
     const result: ScanResult = { indexed: 0, updated: 0, unchanged: 0, errors: 0 };
     const startTime = Date.now();
 
+    if (!opts?.dryRun) {
+      const notes = this.db.prepare(`SELECT id FROM notes LIMIT 1`).all() as { id: string }[];
+      if (notes.length > 0 && !notes[0].id.match(/^[0-9a-f]{16}$/)) {
+        this.db.transaction(() => {
+          this.db.exec(`DELETE FROM note_chunks; DELETE FROM notes;`);
+        })();
+      }
+    }
+
     const defaultExclusions = ['.obsidian/', '.trash/', '.smart-connections/', 'node_modules/', '.git/'];
 
     let ignorePatterns: string[] = [];
