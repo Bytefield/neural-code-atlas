@@ -127,91 +127,145 @@ function handleToolsList(id: number | string | null): void {
   respond(id, { tools: TOOLS });
 }
 
+// ─── Per-tool handlers ────────────────────────────────────────────────────────
+
+type StorageHandler = (
+  id: number | string | null,
+  args: Record<string, unknown>,
+  ts: number,
+  storage: Storage,
+  warning: string
+) => void;
+
+type StorageToolName = 'nca_ask' | 'nca_flow' | 'nca_status' | 'nca_evolve' | 'nca_insights';
+
+function toolProjects(id: number | string | null, ts: number): void {
+  const projects = listProjects();
+  if (projects.length === 0) {
+    respond(id, toolText("No indexed projects found. Run 'nca scan <path>'"));
+    return;
+  }
+  const nowSec = Math.floor(Date.now() / 1000);
+  const lines = [`NCA|projects|t:${ts}`, '[PROJECTS]'];
+  for (const p of projects) {
+    const ageDays = Math.floor((nowSec - p.registeredAt) / 86400);
+    const exists = p.dbExists ? 'db:ok' : 'db:missing';
+    lines.push(`${p.name} | ${p.root} | ${exists} | registered:${ageDays}d ago`);
+  }
+  respond(id, toolText(lines.join('\n')));
+}
+
+function toolAsk(
+  id: number | string | null,
+  args: Record<string, unknown>,
+  ts: number,
+  storage: Storage,
+  warning: string
+): void {
+  const query = String(args.query ?? '');
+  const ctx = new ContextExpander(storage);
+  const nodes = storage.search(query);
+  const matchedIds = nodes.filter(n => n.id !== undefined).map(n => n.id as number);
+  storage.logQuery(query, matchedIds);
+  storage.updateNodeScores(matchedIds);
+  const flows = storage.getAllFlows();
+  const warnings = storage.getWarnings();
+  const notes = storage.searchNotes(query);
+  const result = ctx.formatFull({ query, nodes, timestamp: ts }, flows, warnings, notes);
+  respond(id, toolText(warning + result));
+}
+
+function toolFlow(
+  id: number | string | null,
+  args: Record<string, unknown>,
+  ts: number,
+  storage: Storage,
+  warning: string
+): void {
+  const flowName = String(args.name ?? '');
+  const detector = new FlowDetector(storage);
+  const result = detector.detect(flowName);
+  storage.upsertFlow({ name: flowName, steps: result.steps });
+  const lines: string[] = [
+    `NCA|flow:${flowName}|t:${ts}`,
+    '[F]',
+    detector.formatFlow(result),
+  ];
+  respond(id, toolText(warning + lines.join('\n')));
+}
+
+function toolStatus(
+  id: number | string | null,
+  args: Record<string, unknown>,
+  ts: number,
+  storage: Storage,
+  warning: string
+): void {
+  const stats = storage.stats();
+  const lines = [
+    `NCA|status|t:${ts}`,
+    `files:${stats.files}|nodes:${stats.nodes}|flows:${stats.flows}|warnings:${stats.warnings}`,
+    `db:${storage.dbPath}|size:${stats.dbSize}`,
+  ];
+  respond(id, toolText(warning + lines.join('\n')));
+}
+
+function toolEvolve(
+  id: number | string | null,
+  args: Record<string, unknown>,
+  ts: number,
+  storage: Storage,
+  warning: string
+): void {
+  const root = rootFromDbPath(storage.dbPath);
+  const evolver = new Evolver(storage);
+  const result = evolver.analyze(root);
+  respond(id, toolText(warning + result.summary));
+}
+
+function toolInsights(
+  id: number | string | null,
+  args: Record<string, unknown>,
+  ts: number,
+  storage: Storage,
+  warning: string
+): void {
+  const insights = storage.topInsights();
+  const lines = [`NCA|insights|t:${ts}`, '[HOT]'];
+  for (const i of insights) {
+    lines.push(`${i.name}|q:${i.query_count}|boost:${i.score_boost.toFixed(2)}|f:${i.file}`);
+  }
+  if (insights.length === 0) lines.push('(no data yet)');
+  respond(id, toolText(warning + lines.join('\n')));
+}
+
+const STORAGE_HANDLERS: Record<StorageToolName, StorageHandler> = {
+  nca_ask: toolAsk,
+  nca_flow: toolFlow,
+  nca_status: toolStatus,
+  nca_evolve: toolEvolve,
+  nca_insights: toolInsights,
+};
+
+// ─── Dispatch ─────────────────────────────────────────────────────────────────
+
 function handleToolCall(id: number | string | null, name: string, args: Record<string, unknown>): void {
   try {
     const ts = Date.now();
-    const projectHint = args.project ? String(args.project) : undefined;
 
     if (name === 'nca_projects') {
-      const projects = listProjects();
-      if (projects.length === 0) {
-        respond(id, toolText("No indexed projects found. Run 'nca scan <path>'"));
-        return;
-      }
-      const nowSec = Math.floor(Date.now() / 1000);
-      const lines = [`NCA|projects|t:${ts}`, '[PROJECTS]'];
-      for (const p of projects) {
-        const ageDays = Math.floor((nowSec - p.registeredAt) / 86400);
-        const exists = p.dbExists ? 'db:ok' : 'db:missing';
-        lines.push(`${p.name} | ${p.root} | ${exists} | registered:${ageDays}d ago`);
-      }
-      respond(id, toolText(lines.join('\n')));
+      toolProjects(id, ts);
       return;
     }
 
-    const storage = resolveAndGetStorage(projectHint);
-    const warning = staleWarning(storage);
-
-    if (name === 'nca_ask') {
-      const query = String(args.query ?? '');
-      const ctx = new ContextExpander(storage);
-      const nodes = storage.search(query);
-      const matchedIds = nodes.filter(n => n.id !== undefined).map(n => n.id as number);
-      storage.logQuery(query, matchedIds);
-      storage.updateNodeScores(matchedIds);
-      const flows = storage.getAllFlows();
-      const warnings = storage.getWarnings();
-      const notes = storage.searchNotes(query);
-      const result = ctx.formatFull({ query, nodes, timestamp: ts }, flows, warnings, notes);
-      respond(id, toolText(warning + result));
+    const handler = STORAGE_HANDLERS[name as StorageToolName];
+    if (!handler) {
+      respondError(id, -32601, `Unknown tool: ${name}`);
       return;
     }
 
-    if (name === 'nca_flow') {
-      const flowName = String(args.name ?? '');
-      const detector = new FlowDetector(storage);
-      const result = detector.detect(flowName);
-      storage.upsertFlow({ name: flowName, steps: result.steps });
-      const lines: string[] = [
-        `NCA|flow:${flowName}|t:${ts}`,
-        '[F]',
-        detector.formatFlow(result),
-      ];
-      respond(id, toolText(warning + lines.join('\n')));
-      return;
-    }
-
-    if (name === 'nca_status') {
-      const stats = storage.stats();
-      const lines = [
-        `NCA|status|t:${ts}`,
-        `files:${stats.files}|nodes:${stats.nodes}|flows:${stats.flows}|warnings:${stats.warnings}`,
-        `db:${storage.dbPath}|size:${stats.dbSize}`,
-      ];
-      respond(id, toolText(warning + lines.join('\n')));
-      return;
-    }
-
-    if (name === 'nca_evolve') {
-      const root = rootFromDbPath(storage.dbPath);
-      const evolver = new Evolver(storage);
-      const result = evolver.analyze(root);
-      respond(id, toolText(warning + result.summary));
-      return;
-    }
-
-    if (name === 'nca_insights') {
-      const insights = storage.topInsights();
-      const lines = [`NCA|insights|t:${ts}`, '[HOT]'];
-      for (const i of insights) {
-        lines.push(`${i.name}|q:${i.query_count}|boost:${i.score_boost.toFixed(2)}|f:${i.file}`);
-      }
-      if (insights.length === 0) lines.push('(no data yet)');
-      respond(id, toolText(warning + lines.join('\n')));
-      return;
-    }
-
-    respondError(id, -32601, `Unknown tool: ${name}`);
+    const storage = resolveAndGetStorage(args.project ? String(args.project) : undefined);
+    handler(id, args, ts, storage, staleWarning(storage));
   } catch (err) {
     respondError(id, -32603, `Tool execution error: ${(err as Error).message}`);
   }
