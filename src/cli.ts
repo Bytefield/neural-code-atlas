@@ -121,12 +121,19 @@ program
 
     const storage = new Storage(dbPath);
     const ctx = new ContextExpander(storage);
-    const nodes = storage.search(query);
+    let nodes = storage.search(query);
 
-    // Log query and update frequency-based score boosts
+    // Log query and update frequency-based score boosts (only for symbol hits)
     const matchedIds = nodes.filter(n => n.id !== undefined).map(n => n.id as number);
     storage.logQuery(query, matchedIds);
     storage.updateNodeScores(matchedIds);
+
+    // Path fallback: if no symbols matched, try file-path substring match
+    let pathFallback = false;
+    if (nodes.length === 0) {
+      nodes = storage.searchByPath(query);
+      pathFallback = nodes.length > 0;
+    }
 
     const flows = storage.getAllFlows();
     const warnings = storage.getWarnings();
@@ -134,10 +141,10 @@ program
     const ts = Date.now();
 
     if (opts.json) {
-      const json = buildQueryJSON({ query, nodes, timestamp: ts }, ctx, flows, warnings, notes);
+      const json = buildQueryJSON({ query, nodes, timestamp: ts }, ctx, flows, warnings, notes, pathFallback);
       process.stdout.write(JSON.stringify(json, null, 2) + '\n');
     } else {
-      const result = ctx.formatFull({ query, nodes, timestamp: ts }, flows, warnings, notes);
+      const result = ctx.formatFull({ query, nodes, timestamp: ts }, flows, warnings, notes, pathFallback);
       process.stdout.write(result + '\n');
     }
 

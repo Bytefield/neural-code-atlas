@@ -2365,6 +2365,75 @@ test('PI2-04 JSON output includes notes with title/file/excerpt', () => {
   }
 });
 
+// PF-01: path-fragment query with no symbol match → [PATH_MATCH] section
+test('PF-01 ask path-fragment returns [PATH_MATCH] when no symbol match', () => {
+  const piDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-pf-01-'));
+  const ncaDir = path.join(piDir, '.nca');
+  fs.mkdirSync(ncaDir);
+  const tmpDb = path.join(ncaDir, 'nca.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    // File name contains 'vapi' but the function inside does not — FTS5 won't tokenise 'vapi' from 'vapiClient'
+    fs.writeFileSync(path.join(piDir, 'vapiClient.ts'),
+      'export function connect(url: string) { return url; }\n');
+
+    run(`scan ${piDir}`);
+
+    const out = run(`ask vapi`);
+    assert(out.includes('[PATH_MATCH]'),
+      `Expected [PATH_MATCH] section for path-fragment query, got:\n${out}`);
+    assert(out.includes('vapiClient'),
+      `Expected file reference in [PATH_MATCH] output, got:\n${out}`);
+    assert(!out.includes('(no matches'),
+      `Expected nodes from path match, not guidance, got:\n${out}`);
+  } finally {
+    try { fs.rmSync(piDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
+// PF-02: query with no symbol or path match → guidance message, never silent empty
+test('PF-02 ask with no symbol or path match emits guidance not silent empty', () => {
+  const piDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-pf-02-'));
+  const ncaDir = path.join(piDir, '.nca');
+  fs.mkdirSync(ncaDir);
+  const tmpDb = path.join(ncaDir, 'nca.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = tmpDb;
+
+  try {
+    fs.writeFileSync(path.join(piDir, 'app.ts'), 'export function start() { return 1; }\n');
+    run(`scan ${piDir}`);
+
+    const out = run(`ask xyzzy_zzz_no_match_99999`);
+    assert(!out.includes('(no results)'),
+      `Expected guidance text not "(no results)", got:\n${out}`);
+    assert(out.includes('no matches for'),
+      `Expected "no matches for" guidance message, got:\n${out}`);
+
+    // JSON mode must include guidance field, not crash
+    const jsonOut = run(`ask --json xyzzy_zzz_no_match_99999`);
+    const parsed = JSON.parse(jsonOut);
+    assert(typeof parsed.guidance === 'string' && parsed.guidance.length > 0,
+      `Expected guidance string in JSON output, got: ${JSON.stringify(parsed.guidance)}`);
+  } finally {
+    try { fs.rmSync(piDir, { recursive: true, force: true }); } catch {}
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+  }
+});
+
+// PF-03: valid symbol query still returns [N] — no regression
+test('PF-03 ask valid symbol returns [N] not [PATH_MATCH]', () => {
+  const out = run(`ask fetchData`);
+  assert(out.includes('[N]'), `Expected [N] section for symbol query, got:\n${out}`);
+  assert(!out.includes('[PATH_MATCH]'),
+    `Expected no [PATH_MATCH] for valid symbol query, got:\n${out}`);
+});
+
 // Cleanup
 process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
