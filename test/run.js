@@ -2439,6 +2439,177 @@ process.on('exit', () => {
   try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
 });
 
+// TS-CHAR-01 / PY-CHAR-01: Parser characterization — golden captured from main (pre-refactor)
+// via NCAParser.parseFile() directly, isolating the parser from Linker post-processing.
+// (Linker.link() runs after scan and drops relative imports that don't resolve to files;
+// testing through scan+DB would conflate linker behaviour with parser behaviour.)
+// Golden verified: same snippet fed to main's parseFile produces identical field values.
+{
+  const { NCAParser } = require(path.join(ROOT, 'dist', 'parser.js'));
+  const charParser = new NCAParser();
+
+  // ─── TS snippet ──────────────────────────────────────────────────────────────
+  // Covers: named function, arrow function, class, methods, relative + external imports,
+  // complexity via if-branches. Function+class in same snippet verifies allNodeTypes
+  // iteration order (the key structural change in the refactor).
+  const TS_SNIPPET = [
+    "import { readFile } from 'fs/promises';",
+    'import type { Config } from "./config";',
+    '',
+    'export function greet(name: string, loud: boolean): string {',
+    '  if (loud) {',
+    '    return name.toUpperCase();',
+    '  }',
+    '  return name;',
+    '}',
+    '',
+    'export const formatLabel = (value: string): string => {',
+    "  if (!value) return '';",
+    '  return value.trim().toLowerCase();',
+    '};',
+    '',
+    'export class Processor {',
+    '  private items: string[] = [];',
+    '',
+    '  constructor(private config: Config) {}',
+    '',
+    '  process(input: string): string | null {',
+    '    if (!input) return null;',
+    '    const trimmed = input.trim();',
+    '    if (trimmed.length === 0) return null;',
+    '    return trimmed;',
+    '  }',
+    '',
+    '  reset(): void {',
+    '    this.items = [];',
+    '  }',
+    '}',
+  ].join('\n');
+
+  test('TS-CHAR-01 TypeScript parser output matches golden: functions, class, methods, arrows', () => {
+    const charDir = path.join(os.tmpdir(), `nca-ts-char-${Date.now()}`);
+    fs.mkdirSync(charDir, { recursive: true });
+    const tsFile = path.join(charDir, 'char.ts');
+    try {
+      fs.writeFileSync(tsFile, TS_SNIPPET, 'utf-8');
+      const nodes = charParser.parseFile(tsFile, '', charDir, TS_SNIPPET);
+      nodes.sort((a, b) => a.line - b.line);
+
+      const actual = nodes.map(n => ({
+        name: n.name, type: n.type, inputs: n.inputs, outputs: n.outputs,
+        complexity: n.complexity, deps: n.deps, line: n.line,
+      }));
+
+      const expected = [
+        { name: 'greet',       type: 'function', inputs: ['name:: string', 'loud:: boolean'], outputs: ['string'],        complexity: 2, deps: ['fs/promises', './config', 'toUpperCase'],          line: 3  },
+        { name: 'formatLabel', type: 'arrow',    inputs: ['value:: string'],                  outputs: ['string'],        complexity: 2, deps: ['fs/promises', './config', 'toLowerCase', 'trim'],   line: 10 },
+        { name: 'Processor',   type: 'class',    inputs: [],                                  outputs: [],                complexity: 3, deps: ['fs/promises', './config', 'trim'],                  line: 15 },
+        { name: 'constructor', type: 'method',   inputs: ['config:: Config'],                 outputs: [],                complexity: 1, deps: ['fs/promises', './config'],                          line: 18 },
+        { name: 'process',     type: 'method',   inputs: ['input:: string'],                  outputs: ['string | null'], complexity: 3, deps: ['fs/promises', './config', 'trim'],                  line: 20 },
+        { name: 'reset',       type: 'method',   inputs: [],                                  outputs: ['void'],          complexity: 1, deps: ['fs/promises', './config'],                          line: 27 },
+      ];
+
+      assert(actual.length === expected.length,
+        `TS-CHAR-01: expected ${expected.length} nodes, got ${actual.length}:\n` +
+        actual.map(n => `  ${n.name} (${n.type}) line=${n.line}`).join('\n'));
+
+      for (let i = 0; i < expected.length; i++) {
+        const a = actual[i]; const e = expected[i]; const ctx = `node[${i}] "${e.name}"`;
+        assert(a.name === e.name,       `TS-CHAR-01: ${ctx} name: expected "${e.name}", got "${a.name}"`);
+        assert(a.type === e.type,       `TS-CHAR-01: ${ctx} type: expected "${e.type}", got "${a.type}"`);
+        assert(a.complexity === e.complexity, `TS-CHAR-01: ${ctx} complexity: expected ${e.complexity}, got ${a.complexity}`);
+        assert(a.line === e.line,       `TS-CHAR-01: ${ctx} line: expected ${e.line}, got ${a.line}`);
+        assert(JSON.stringify(a.inputs)  === JSON.stringify(e.inputs),  `TS-CHAR-01: ${ctx} inputs: expected ${JSON.stringify(e.inputs)}, got ${JSON.stringify(a.inputs)}`);
+        assert(JSON.stringify(a.outputs) === JSON.stringify(e.outputs), `TS-CHAR-01: ${ctx} outputs: expected ${JSON.stringify(e.outputs)}, got ${JSON.stringify(a.outputs)}`);
+        assert(JSON.stringify(a.deps)    === JSON.stringify(e.deps),    `TS-CHAR-01: ${ctx} deps: expected ${JSON.stringify(e.deps)}, got ${JSON.stringify(a.deps)}`);
+      }
+    } finally {
+      try { fs.rmSync(charDir, { recursive: true, force: true }); } catch {}
+    }
+  });
+
+  // ─── PY snippet ──────────────────────────────────────────────────────────────
+  // Covers: standalone functions with -> return types, class with methods (self excluded),
+  // external-only imports (os, typing), complexity via for/if/except.
+  const PY_SNIPPET = [
+    'import os',
+    'from typing import Optional, List',
+    '',
+    'def find_files(root: str, ext: str) -> List[str]:',
+    '    results = []',
+    '    for entry in os.listdir(root):',
+    '        if entry.endswith(ext):',
+    '            results.append(entry)',
+    '    return results',
+    '',
+    'def normalize(value: Optional[str]) -> str:',
+    '    if value is None:',
+    "        return ''",
+    '    return value.strip().lower()',
+    '',
+    'class Pipeline:',
+    '    def __init__(self, name: str):',
+    '        self.name = name',
+    '        self._steps = []',
+    '',
+    "    def add(self, fn) -> 'Pipeline':",
+    '        self._steps.append(fn)',
+    '        return self',
+    '',
+    '    def run(self, data):',
+    '        result = data',
+    '        for step in self._steps:',
+    '            try:',
+    '                result = step(result)',
+    '            except Exception:',
+    '                result = None',
+    '                break',
+    '        return result',
+  ].join('\n');
+
+  test('PY-CHAR-01 Python parser output matches golden: functions, class, methods, return types', () => {
+    const charDir = path.join(os.tmpdir(), `nca-py-char-${Date.now()}`);
+    fs.mkdirSync(charDir, { recursive: true });
+    const pyFile = path.join(charDir, 'char.py');
+    try {
+      fs.writeFileSync(pyFile, PY_SNIPPET, 'utf-8');
+      const nodes = charParser.parseFile(pyFile, '', charDir, PY_SNIPPET);
+      nodes.sort((a, b) => a.line - b.line);
+
+      const actual = nodes.map(n => ({
+        name: n.name, type: n.type, inputs: n.inputs, outputs: n.outputs,
+        complexity: n.complexity, deps: n.deps, line: n.line,
+      }));
+
+      const expected = [
+        { name: 'find_files', type: 'function', inputs: ['root: str', 'ext: str'],  outputs: ['List[str]'],  complexity: 3, deps: ['os', 'typing'],         line: 3  },
+        { name: 'normalize',  type: 'function', inputs: ['value: Optional[str]'],   outputs: ['str'],        complexity: 2, deps: ['os', 'typing'],         line: 10 },
+        { name: 'Pipeline',   type: 'class',    inputs: [],                          outputs: [],             complexity: 3, deps: ['os', 'typing', 'step'], line: 15 },
+        { name: '__init__',   type: 'function', inputs: ['name: str'],               outputs: [],             complexity: 1, deps: ['os', 'typing'],         line: 16 },
+        { name: 'add',        type: 'function', inputs: ['fn'],                      outputs: ["'Pipeline'"], complexity: 1, deps: ['os', 'typing'],         line: 20 },
+        { name: 'run',        type: 'function', inputs: ['data'],                    outputs: [],             complexity: 3, deps: ['os', 'typing', 'step'], line: 24 },
+      ];
+
+      assert(actual.length === expected.length,
+        `PY-CHAR-01: expected ${expected.length} nodes, got ${actual.length}:\n` +
+        actual.map(n => `  ${n.name} (${n.type}) line=${n.line}`).join('\n'));
+
+      for (let i = 0; i < expected.length; i++) {
+        const a = actual[i]; const e = expected[i]; const ctx = `node[${i}] "${e.name}"`;
+        assert(a.name === e.name,       `PY-CHAR-01: ${ctx} name: expected "${e.name}", got "${a.name}"`);
+        assert(a.type === e.type,       `PY-CHAR-01: ${ctx} type: expected "${e.type}", got "${a.type}"`);
+        assert(a.complexity === e.complexity, `PY-CHAR-01: ${ctx} complexity: expected ${e.complexity}, got ${a.complexity}`);
+        assert(a.line === e.line,       `PY-CHAR-01: ${ctx} line: expected ${e.line}, got ${a.line}`);
+        assert(JSON.stringify(a.inputs)  === JSON.stringify(e.inputs),  `PY-CHAR-01: ${ctx} inputs: expected ${JSON.stringify(e.inputs)}, got ${JSON.stringify(a.inputs)}`);
+        assert(JSON.stringify(a.outputs) === JSON.stringify(e.outputs), `PY-CHAR-01: ${ctx} outputs: expected ${JSON.stringify(e.outputs)}, got ${JSON.stringify(a.outputs)}`);
+        assert(JSON.stringify(a.deps)    === JSON.stringify(e.deps),    `PY-CHAR-01: ${ctx} deps: expected ${JSON.stringify(e.deps)}, got ${JSON.stringify(a.deps)}`);
+      }
+    } finally {
+      try { fs.rmSync(charDir, { recursive: true, force: true }); } catch {}
+    }
+  });
+}
+
 // AC5: MCP server — tools/list + nca_ask + nca_insights in a single spawn
 // Timing on Windows: 500ms init delay + 3s response window + 1s graceful drain.
 // Results timer (below) fires at 4500ms, after all three phases complete.
