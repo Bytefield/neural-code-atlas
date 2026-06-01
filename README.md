@@ -167,7 +167,7 @@ nca_status(project="synio")
 
 Tools exposed by the MCP server:
 
-- `nca_ask` — query code and docs by name or keyword; returns code nodes with module/PageRank/god-node context, plus documentation excerpts
+- `nca_ask` — query code and docs by name or keyword; returns code nodes with module/PageRank/god-node context, plus documentation excerpts. If no symbols match, falls back to searching by file path (marked `[PATH_MATCH]`). If both symbol and path searches fail, returns a guidance message
 - `nca_flow` — trace execution flow from an entry point
 - `nca_status` — show index stats
 - `nca_evolve` — run architectural heuristics

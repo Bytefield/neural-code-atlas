@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] — 2026-06-01
+
+### Added
+- **Path fallback in `nca_ask`** (PR #39): when a query does not match any code symbols,
+  the tool now falls back to searching by file path (LIKE on the `file` column). Results
+  are marked with `[PATH_MATCH]` to distinguish them from symbol matches. If both symbol
+  and path searches fail, a guidance message is emitted. JSON output includes `pathFallback`
+  and `guidance` fields for MCP consumers.
+
+### Changed
+- **MCP tool dispatch refactored** (PR #38): `handleToolCall` replaced with a typed dispatch
+  map per tool, reducing cyclomatic complexity from 16 to 5 and improving maintainability.
+- **Parser architecture refactored** (PR #40): extracted `LanguageExtractor` interface with
+  TypeScript and Python implementations. Provides a foundation for multi-language support
+  and simplifies the addition of new parsers.
+
+### Tests
+- **Parser characterization tests** (TS-CHAR-01, PY-CHAR-01): golden output tests for TypeScript
+  and Python parsing, capturing function/class/method/return-type extraction.
+- **Migration scenario coverage** (MIG-09, MIG-10, MIG-11): v2→v3 incremental upgrade, invalid
+  schema_version detection (NaN and negative values), and transactional rollback guarantee
+  verified via induced migration failure.
+
+---
+
 ## [1.3.3] — 2026-05-31
 
 ### Fixed
