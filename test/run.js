@@ -1328,6 +1328,183 @@ test("MIG-08 notes.status defaults to 'vigente' when not specified", () => {
   }
 });
 
+// MIG-09: upgrade v2→v3 applies only migration 003
+test('MIG-09 upgrade v2→v3 applies only migration 003', () => {
+  const dbFile = path.join(tmpDir, 'mig09.db');
+  try {
+    // Step 1: create a fully-migrated v3 DB
+    const s1 = new StorageClass(dbFile);
+    s1.close();
+
+    // Step 2: simulate a v2 DB — remove vault schema and reset metadata
+    const setupDb = new Database(dbFile);
+    setupDb.pragma('foreign_keys = OFF');
+    setupDb.exec(`
+      DROP TRIGGER IF EXISTS note_chunks_ai;
+      DROP TRIGGER IF EXISTS note_chunks_ad;
+      DROP TRIGGER IF EXISTS note_chunks_au;
+      DROP INDEX IF EXISTS idx_notes_status;
+      DROP INDEX IF EXISTS idx_notes_area;
+      DROP INDEX IF EXISTS idx_notes_type;
+      DROP TABLE IF EXISTS note_chunks_fts;
+      DROP TABLE IF EXISTS note_chunks;
+      DROP TABLE IF EXISTS notes;
+    `);
+    setupDb.prepare(`UPDATE schema_meta SET value = '2' WHERE key = 'schema_version'`).run();
+    setupDb.prepare(`DELETE FROM migration_log WHERE version = 3`).run();
+
+    const logBefore = setupDb.prepare('SELECT COUNT(*) AS n FROM migration_log').get();
+    assert(logBefore.n === 2, `Pre-condition: expected 2 log rows, got ${logBefore.n}`);
+    const verBefore = setupDb.prepare(`SELECT value FROM schema_meta WHERE key = 'schema_version'`).get();
+    assert(verBefore && verBefore.value === '2', `Pre-condition: expected schema_version=2, got ${JSON.stringify(verBefore)}`);
+    setupDb.close();
+
+    // Step 3: re-open via Storage — should apply only migration 003
+    const s2 = new StorageClass(dbFile);
+    s2.close();
+
+    // Step 4: verify exactly one migration was applied
+    const db = new Database(dbFile);
+    try {
+      const ver = db.prepare(`SELECT value FROM schema_meta WHERE key = 'schema_version'`).get();
+      assert(ver && ver.value === '3', `Expected schema_version=3, got: ${JSON.stringify(ver)}`);
+
+      const logs = db.prepare('SELECT version, name FROM migration_log ORDER BY version').all();
+      assert(logs.length === 3, `Expected 3 migration_log rows, got: ${logs.length}`);
+      assert(logs[2].name === 'vault_schema', `Expected v3 name=vault_schema, got: ${logs[2].name}`);
+
+      const tblNames = db.prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('notes', 'note_chunks') ORDER BY name`
+      ).all().map(r => r.name);
+      assert(tblNames.includes('note_chunks'), `Expected 'note_chunks' table to exist`);
+      assert(tblNames.includes('notes'), `Expected 'notes' table to exist`);
+
+      const fts = db.prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'note_chunks_fts'`
+      ).get();
+      assert(fts, `Expected 'note_chunks_fts' virtual table to exist`);
+    } finally {
+      db.close();
+    }
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// MIG-10: invalid schema_version (NaN and negative) aborts with MigrationError
+test('MIG-10 invalid schema_version (NaN and negative) aborts with MigrationError', () => {
+  // Case A: non-numeric value → parseInt returns NaN → index.ts:50-55
+  const dbNaN = path.join(tmpDir, 'mig10-nan.db');
+  try {
+    const db = new Database(dbNaN);
+    db.exec(`CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+    db.prepare(`INSERT INTO schema_meta (key, value) VALUES ('schema_version', 'not_a_number')`).run();
+    db.close();
+
+    let threw = false;
+    try {
+      const s = new StorageClass(dbNaN);
+      s.close();
+    } catch (err) {
+      threw = true;
+      assert(err.name === 'MigrationError', `Expected MigrationError, got: ${err.name}`);
+      assert(
+        err.message.includes('not_a_number'),
+        `Expected message to include the bad value, got: ${err.message}`
+      );
+    }
+    assert(threw, 'Expected Storage to throw on NaN schema_version');
+  } finally {
+    try { fs.unlinkSync(dbNaN); } catch {}
+  }
+
+  // Case B: negative integer → parsed < 0 → index.ts:50-55
+  const dbNeg = path.join(tmpDir, 'mig10-neg.db');
+  try {
+    const db = new Database(dbNeg);
+    db.exec(`CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+    db.prepare(`INSERT INTO schema_meta (key, value) VALUES ('schema_version', '-1')`).run();
+    db.close();
+
+    let threw = false;
+    try {
+      const s = new StorageClass(dbNeg);
+      s.close();
+    } catch (err) {
+      threw = true;
+      assert(err.name === 'MigrationError', `Expected MigrationError, got: ${err.name}`);
+      assert(
+        err.message.includes('-1'),
+        `Expected message to include '-1', got: ${err.message}`
+      );
+    }
+    assert(threw, 'Expected Storage to throw on negative schema_version');
+  } finally {
+    try { fs.unlinkSync(dbNeg); } catch {}
+  }
+});
+
+// MIG-11: failed migration rolls back — DB stays at N-1, MigrationError is thrown
+test('MIG-11 failed migration rolls back: DB stays at N-1 and MigrationError is thrown', () => {
+  const dbFile = path.join(tmpDir, 'mig11.db');
+  try {
+    // Pre-create schema_meta and migration_log WITHOUT the 'result' column.
+    // runMigrations tries to INSERT (version, name, applied_at, result) into migration_log;
+    // the missing column causes the INSERT to fail inside the transaction, exercising the
+    // rollback path at index.ts:114-124.
+    const db = new Database(dbFile);
+    db.exec(`
+      CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE migration_log (
+        version    INTEGER PRIMARY KEY,
+        name       TEXT    NOT NULL,
+        applied_at INTEGER NOT NULL
+      );
+    `);
+    db.close();
+
+    let threw = false;
+    let thrownError = null;
+    try {
+      const s = new StorageClass(dbFile);
+      s.close();
+    } catch (err) {
+      threw = true;
+      thrownError = err;
+    }
+
+    assert(threw, 'Expected Storage constructor to throw when migration INSERT fails');
+    assert(
+      thrownError && thrownError.name === 'MigrationError',
+      `Expected MigrationError, got: ${thrownError && thrownError.name}: ${thrownError && thrownError.message}`
+    );
+    assert(
+      thrownError.version === 1,
+      `Expected failed version=1 (migration001), got: ${thrownError && thrownError.version}`
+    );
+
+    // DB must be at N-1 = v0: transaction rolled back, nothing committed
+    const verifyDb = new Database(dbFile);
+    try {
+      const ver = verifyDb.prepare(`SELECT value FROM schema_meta WHERE key = 'schema_version'`).get();
+      assert(!ver, `Rollback: schema_version must not be set, got: ${JSON.stringify(ver)}`);
+
+      const logCount = verifyDb.prepare('SELECT COUNT(*) AS n FROM migration_log').get();
+      assert(logCount.n === 0, `Rollback: migration_log must be empty, got count=${logCount.n}`);
+
+      // CREATE TABLE statements within the transaction must also have been rolled back
+      const nodesTbl = verifyDb.prepare(
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'nodes'`
+      ).get();
+      assert(!nodesTbl, `Rollback: 'nodes' table must not exist after failed migration`);
+    } finally {
+      verifyDb.close();
+    }
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
 // VAULT tests
 // VAULT-01: first scan indexes notes
 test('VAULT-01 first scan indexes notes', () => {
