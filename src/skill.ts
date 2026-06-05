@@ -134,6 +134,25 @@ function buildSkill(dbPath: string, storage: Storage): string {
     `  nca_projects() — list indexed projects`
   );
 
+  // ── Section 8: Vault CLI tools ────────────────────────────────────────────
+  sections.push(
+    `## Vault Tools\n` +
+    `  nca vault search "<query>" [--area X] [--type Y] [--status S] [--limit N] [--json]\n` +
+    `    Search indexed notes via FTS5. Filters: area, type, status. Default limit: 10.\n` +
+    `    Examples:\n` +
+    `      nca vault search "authentication"\n` +
+    `      nca vault search "deploy" --area devops --type guide\n` +
+    `      nca vault search "decision" --status vigente --limit 5 --json\n` +
+    `\n` +
+    `  nca vault get <id_or_path> [--body] [--json]\n` +
+    `    Retrieve a note by id, path suffix, or filename stem.\n` +
+    `    --body includes the full markdown content. --json for structured output.\n` +
+    `    Examples:\n` +
+    `      nca vault get ADR-001-auth\n` +
+    `      nca vault get 00-System/DOC-SKELETONS.md --body\n` +
+    `      nca vault get DOC-SKELETONS --json`
+  );
+
   const output = sections.join('\n\n') + '\n';
 
   if (output.length <= HARD_CAP) return output;
