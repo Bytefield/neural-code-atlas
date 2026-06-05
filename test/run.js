@@ -2787,6 +2787,278 @@ process.on('exit', () => {
   });
 }
 
+// ─── VSEARCH tests ────────────────────────────────────────────────────────────
+
+// VSEARCH-01: basic search returns matching note
+test('VSEARCH-01 vault search returns matching notes', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vsearch-01-'));
+  const dbPath = path.join(dir, 'nca.db');
+  const vaultRoot = path.join(dir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'arch.md'),
+      '---\nid: arch-decision\ntype: adr\narea: backend\nstatus: vigente\nsummary: Architecture decision\n---\n\nThis note explains the authentication architecture.\n');
+    fs.writeFileSync(path.join(vaultRoot, 'setup.md'),
+      '---\nid: setup-guide\ntype: guide\narea: devops\nstatus: vigente\nsummary: Setup guide\n---\n\nThis note explains the project setup steps.\n');
+
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+
+    const out = execSync(`node ${CLI} vault search "authentication" --json`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+    const results = JSON.parse(out);
+
+    assert(Array.isArray(results), 'Expected JSON array');
+    assert(results.length >= 1, `Expected >=1 result, got ${results.length}`);
+    assert(results[0].id === 'arch-decision', `Expected arch-decision, got ${results[0].id}`);
+    assert(results[0].path.endsWith('arch.md'), 'Expected path ending with arch.md');
+    assert(typeof results[0].snippet === 'string', 'Expected snippet string');
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// VSEARCH-02: filter by area returns only matching notes
+test('VSEARCH-02 vault search --area filters correctly', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vsearch-02-'));
+  const dbPath = path.join(dir, 'nca.db');
+  const vaultRoot = path.join(dir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'a.md'),
+      '---\nid: note-backend\narea: backend\nstatus: vigente\n---\n\nThis is a backend deployment process note.\n');
+    fs.writeFileSync(path.join(vaultRoot, 'b.md'),
+      '---\nid: note-frontend\narea: frontend\nstatus: vigente\n---\n\nThis is a frontend deployment process note.\n');
+
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+
+    const out = execSync(`node ${CLI} vault search "deployment" --area backend --json`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+    const results = JSON.parse(out);
+
+    assert(results.length === 1, `Expected 1 result with --area backend, got ${results.length}`);
+    assert(results[0].id === 'note-backend', `Expected note-backend, got ${results[0].id}`);
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// VSEARCH-03: filter by type
+test('VSEARCH-03 vault search --type filters correctly', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vsearch-03-'));
+  const dbPath = path.join(dir, 'nca.db');
+  const vaultRoot = path.join(dir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'adr.md'),
+      '---\nid: adr-note\ntype: adr\nstatus: vigente\n---\n\nThis document describes the system configuration decisions.\n');
+    fs.writeFileSync(path.join(vaultRoot, 'guide.md'),
+      '---\nid: guide-note\ntype: guide\nstatus: vigente\n---\n\nThis guide covers the system configuration steps.\n');
+
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+
+    const out = execSync(`node ${CLI} vault search "configuration" --type adr --json`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+    const results = JSON.parse(out);
+
+    assert(results.length === 1, `Expected 1 result with --type adr, got ${results.length}`);
+    assert(results[0].id === 'adr-note', `Expected adr-note, got ${results[0].id}`);
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// VSEARCH-04: no results for unmatched query
+test('VSEARCH-04 vault search empty result for unmatched query', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vsearch-04-'));
+  const dbPath = path.join(dir, 'nca.db');
+  const vaultRoot = path.join(dir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'note.md'),
+      '---\nid: simple-note\nstatus: vigente\n---\n\nThis note has some ordinary content.\n');
+
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+
+    const out = execSync(`node ${CLI} vault search "xyzzy_no_match_12345" --json`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+    const results = JSON.parse(out);
+
+    assert(Array.isArray(results), 'Expected JSON array');
+    assert(results.length === 0, `Expected empty array, got ${results.length}`);
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// VSEARCH-05: --limit respected
+test('VSEARCH-05 vault search --limit restricts result count', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vsearch-05-'));
+  const dbPath = path.join(dir, 'nca.db');
+  const vaultRoot = path.join(dir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    for (let i = 1; i <= 5; i++) {
+      fs.writeFileSync(path.join(vaultRoot, `note${i}.md`),
+        `---\nid: note-${i}\nstatus: vigente\n---\n\nThis note talks about infrastructure and deployment.\n`);
+    }
+
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+
+    const out = execSync(`node ${CLI} vault search "infrastructure" --limit 2 --json`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+    const results = JSON.parse(out);
+
+    assert(results.length <= 2, `Expected <=2 results with --limit 2, got ${results.length}`);
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// VSEARCH-06: text output (no --json) includes id and path
+test('VSEARCH-06 vault search text output includes id and path', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vsearch-06-'));
+  const dbPath = path.join(dir, 'nca.db');
+  const vaultRoot = path.join(dir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'myNote.md'),
+      '---\nid: my-unique-note\nstatus: vigente\n---\n\nThis note covers caching strategies.\n');
+
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+
+    const out = execSync(`node ${CLI} vault search "caching"`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+
+    assert(out.includes('my-unique-note'), `Expected id in output, got:\n${out}`);
+    assert(out.includes('myNote.md'), `Expected path in output, got:\n${out}`);
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// ─── VGET tests ───────────────────────────────────────────────────────────────
+
+// VGET-01: get by id returns frontmatter
+test('VGET-01 vault get by id returns note metadata', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vget-01-'));
+  const dbPath = path.join(dir, 'nca.db');
+  const vaultRoot = path.join(dir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'arch.md'),
+      '---\nid: arch-design\ntype: adr\narea: backend\nstatus: vigente\nsummary: Core design decision\nupdated: 2026-01-15\n---\n\nBody of the note.\n');
+
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+
+    const out = execSync(`node ${CLI} vault get arch-design --json`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+    const note = JSON.parse(out);
+
+    assert(note.id === 'arch-design', `Expected id=arch-design, got ${note.id}`);
+    assert(note.type === 'adr', `Expected type=adr, got ${note.type}`);
+    assert(note.area === 'backend', `Expected area=backend, got ${note.area}`);
+    assert(note.status === 'vigente', `Expected status=vigente, got ${note.status}`);
+    assert(note.summary === 'Core design decision', `Expected summary, got ${note.summary}`);
+    assert(note.updated === '2026-01-15', `Expected updated=2026-01-15, got ${note.updated}`);
+    assert(note.body === undefined, 'Expected no body without --body flag');
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// VGET-02: get by path suffix returns note
+test('VGET-02 vault get by path suffix resolves correctly', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vget-02-'));
+  const dbPath = path.join(dir, 'nca.db');
+  const vaultRoot = path.join(dir, 'vault');
+  fs.mkdirSync(path.join(vaultRoot, 'subdir'), { recursive: true });
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'subdir', 'deep.md'),
+      '---\nid: deep-note\nstatus: vigente\n---\n\nDeep note content.\n');
+
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+
+    const out = execSync(`node ${CLI} vault get subdir/deep.md --json`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+    const note = JSON.parse(out);
+
+    assert(note.id === 'deep-note', `Expected id=deep-note, got ${note.id}`);
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// VGET-03: get with --body includes file content
+test('VGET-03 vault get --body includes markdown content', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vget-03-'));
+  const dbPath = path.join(dir, 'nca.db');
+  const vaultRoot = path.join(dir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    const content = '---\nid: body-note\nstatus: vigente\n---\n\nThis is the full body content for testing.\n';
+    fs.writeFileSync(path.join(vaultRoot, 'body.md'), content);
+
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+
+    const out = execSync(`node ${CLI} vault get body-note --body --json`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+    const note = JSON.parse(out);
+
+    assert(note.id === 'body-note', `Expected id=body-note, got ${note.id}`);
+    assert(typeof note.body === 'string', 'Expected body to be a string');
+    assert(note.body.includes('full body content'), `Expected body content, got: ${note.body}`);
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// VGET-04: get non-existent note exits with error
+test('VGET-04 vault get non-existent note exits with error', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vget-04-'));
+  const dbPath = path.join(dir, 'nca.db');
+
+  try {
+    const storage = new StorageClass(dbPath);
+    storage.close();
+
+    let threw = false;
+    try {
+      execSync(`node ${CLI} vault get id-that-does-not-exist-999 --json`, {
+        encoding: 'utf-8',
+        env: { ...process.env, NCA_DB_PATH: dbPath },
+      });
+    } catch (err) {
+      threw = true;
+      assert(err.status === 1, `Expected exit code 1, got ${err.status}`);
+    }
+    assert(threw, 'Expected command to exit with non-zero code');
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// VGET-05: get by stem (filename without .md extension)
+test('VGET-05 vault get by filename stem resolves note', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-vget-05-'));
+  const dbPath = path.join(dir, 'nca.db');
+  const vaultRoot = path.join(dir, 'vault');
+  fs.mkdirSync(vaultRoot);
+
+  try {
+    fs.writeFileSync(path.join(vaultRoot, 'SKELETONS.md'),
+      '---\nid: doc-skeletons\nstatus: vigente\n---\n\nDocument skeleton templates.\n');
+
+    execSync(`node ${CLI} vault scan ${vaultRoot}`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+
+    const out = execSync(`node ${CLI} vault get SKELETONS --json`, { encoding: 'utf-8', env: { ...process.env, NCA_DB_PATH: dbPath } });
+    const note = JSON.parse(out);
+
+    assert(note.id === 'doc-skeletons', `Expected doc-skeletons, got ${note.id}`);
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
 // AC5: MCP server — tools/list + nca_ask + nca_insights in a single spawn
 // Timing on Windows: 500ms init delay + 3s response window + 1s graceful drain.
 // Results timer (below) fires at 4500ms, after all three phases complete.

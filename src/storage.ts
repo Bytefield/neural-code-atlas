@@ -3,6 +3,10 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { runMigrations, MigrationError, getMigrationStatus } from './migrations/index.js';
+import { vaultSearch as _vaultSearch, type VaultSearchResult, type VaultSearchFilters } from './vault/search.js';
+import { vaultGet as _vaultGet, type VaultNoteDetail } from './vault/get.js';
+
+export type { VaultSearchResult, VaultSearchFilters, VaultNoteDetail };
 
 export interface NCNode {
   id?: number;
@@ -401,6 +405,14 @@ export class Storage {
     } catch {
       return [];
     }
+  }
+
+  vaultSearch(query: string, filters?: VaultSearchFilters, limit?: number): VaultSearchResult[] {
+    return _vaultSearch(this.db, query, filters, limit);
+  }
+
+  vaultGet(idOrPath: string, includeBody?: boolean): VaultNoteDetail | null {
+    return _vaultGet(this.db, idOrPath, includeBody);
   }
 
   close(): void {

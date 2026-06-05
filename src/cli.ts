@@ -565,4 +565,95 @@ vault
     storage.close();
   });
 
+vault
+  .command('search <query>')
+  .description('Search vault notes via full-text search')
+  .option('--area <area>', 'filter by area')
+  .option('--type <type>', 'filter by note type')
+  .option('--status <status>', 'filter by status (vigente|borrador|obsoleto)')
+  .option('--limit <n>', 'max results (default 10, max 50)', '10')
+  .option('--json', 'output as JSON')
+  .action((query: string, opts: {
+    area?: string; type?: string; status?: string;
+    limit: string; json?: boolean;
+  }) => {
+    const dbPath = resolveDbPath();
+    const storage = new Storage(dbPath);
+
+    const limit = Math.min(Math.max(1, parseInt(opts.limit, 10) || 10), 50);
+    const filters = {
+      ...(opts.area ? { area: opts.area } : {}),
+      ...(opts.type ? { type: opts.type } : {}),
+      ...(opts.status ? { status: opts.status } : {}),
+    };
+
+    const results = storage.vaultSearch(query, filters, limit);
+    storage.close();
+
+    if (opts.json) {
+      process.stdout.write(JSON.stringify(results, null, 2) + '\n');
+      return;
+    }
+
+    if (results.length === 0) {
+      process.stdout.write('No results found.\n');
+      return;
+    }
+
+    const lines: string[] = [separator()];
+    for (const r of results) {
+      const area = r.area ?? '—';
+      const type = r.type ?? '—';
+      const updated = r.updated ?? '—';
+      const summary = r.summary ? (r.summary.length > 60 ? r.summary.slice(0, 57) + '...' : r.summary) : '—';
+      lines.push(`${colors.bold}${r.id}${colors.reset} | ${area} | ${type} | ${updated} | ${summary}`);
+      lines.push(`  ${colors.gray}${r.path}${colors.reset}`);
+      if (r.snippet) lines.push(`  ${colors.gray}${r.snippet}${colors.reset}`);
+      lines.push(separator());
+    }
+    process.stdout.write(lines.join('\n') + '\n');
+  });
+
+vault
+  .command('get <id_or_path>')
+  .description('Retrieve a vault note by id or path')
+  .option('--body', 'include full markdown body')
+  .option('--json', 'output as JSON')
+  .action((idOrPath: string, opts: { body?: boolean; json?: boolean }) => {
+    const dbPath = resolveDbPath();
+    const storage = new Storage(dbPath);
+
+    const note = storage.vaultGet(idOrPath, opts.body);
+    storage.close();
+
+    if (!note) {
+      process.stderr.write(`Error: note not found: ${idOrPath}\n`);
+      process.exit(1);
+    }
+
+    if (opts.json) {
+      process.stdout.write(JSON.stringify(note, null, 2) + '\n');
+      return;
+    }
+
+    const lines: string[] = [
+      separator(),
+      header(note.id),
+      '',
+      formatField('path',       note.path),
+      formatField('status',     note.status),
+      formatField('area',       note.area ?? '—'),
+      formatField('type',       note.type ?? '—'),
+      formatField('updated',    note.updated ?? '—'),
+      formatField('indexed_at', note.indexed_at),
+    ];
+    if (note.summary) lines.push(formatField('summary', note.summary));
+    lines.push(separator());
+    if (opts.body && note.body !== undefined) {
+      lines.push('');
+      lines.push(note.body);
+    }
+    process.stdout.write(lines.join('\n') + '\n');
+  });
+
 program.parse(process.argv);
