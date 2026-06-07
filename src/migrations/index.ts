@@ -3,6 +3,7 @@ import type { Migration } from './types.js';
 import { migration001 } from './001_init_schema.js';
 import { migration002 } from './002_repair_line_move_duplicates.js';
 import { migration003 } from './003_vault_schema.js';
+import { migration004 } from './004_doc_code_edges.js';
 
 /**
  * All migrations in order. Future migrations append here.
@@ -12,6 +13,7 @@ const ALL_MIGRATIONS: readonly Migration[] = [
   migration001,
   migration002,
   migration003,
+  migration004,
 ];
 
 /**
