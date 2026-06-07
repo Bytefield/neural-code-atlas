@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import * as path from 'path';
 import * as fs from 'fs';
 import BetterSqlite3 from 'better-sqlite3';
@@ -23,6 +23,68 @@ const PROJECT_MD_EXCLUDED_DIRS = new Set([
 
 // Read version from package.json so it never needs manual updates
 const { version: PKG_VERSION } = require('../package.json') as { version: string };
+
+// ─── helpers ─────────────────────────────────────────────────────────────────
+
+/** Collector for repeatable --docs options */
+function collect(val: string, prev: string[]): string[] {
+  return prev.concat([val]);
+}
+
+interface EnsureIndexedOptions {
+  interactive: boolean;
+  fromHook: boolean;
+  originalQuery?: string;
+  flags: {
+    yes?: boolean;
+    docs?: string[];
+    vault?: string;
+    json?: boolean;
+  };
+}
+
+function runSetupWizard(repoRoot: string, originalQuery?: string): void {
+  // TODO(context-compiler-phase3): interactive wizard for first-run setup
+  void repoRoot; void originalQuery;
+  console.error('NCA index not found. Run: nca scan .');
+  process.exit(1);
+}
+
+function runSilentSetup(repoRoot: string, flags: EnsureIndexedOptions['flags']): void {
+  // TODO(context-compiler-phase3): auto-detect sources and run setup from flags
+  void repoRoot; void flags;
+  console.error('NCA index not found. Run: nca scan .');
+  process.exit(1);
+}
+
+function ensureIndexed(repoRoot: string, options: EnsureIndexedOptions): void {
+  const dbPath = resolveDbPath(repoRoot);
+  if (fs.existsSync(dbPath)) return;
+
+  if (options.fromHook) {
+    console.log([
+      '',
+      '⚠️  No NCA index found for this repo.',
+      '',
+      'To get context-aware assistance, run one of:',
+      '  nca ask "your question" --yes',
+      '  nca ask "your question" --vault <path>',
+      '',
+      'Or set up manually:',
+      '  nca scan .',
+      '',
+      'Continuing without NCA context.',
+      '',
+    ].join('\n'));
+    return;
+  }
+
+  if (options.interactive) {
+    runSetupWizard(repoRoot, options.originalQuery);
+  } else {
+    runSilentSetup(repoRoot, options.flags);
+  }
+}
 
 const program = new Command();
 
@@ -108,16 +170,25 @@ program
   .description('Query the NCA semantic index')
   .option('-p, --path <path>', 'project root path (defaults to cwd)')
   .option('--json', 'output structured JSON')
-  .action((queryParts: string[], opts: { path?: string; json?: boolean }) => {
+  .option('--yes', 'accept all defaults without prompting')
+  .option('--docs <path>', 'add a doc source (repeatable)', collect, [])
+  .option('--vault <path>', 'add an external vault path')
+  .addOption(new Option('--from-hook', 'called from SessionStart hook (internal use)').hideHelp())
+  .action((queryParts: string[], opts: {
+    path?: string; json?: boolean; yes?: boolean;
+    docs?: string[]; vault?: string; fromHook?: boolean;
+  }) => {
     const query = queryParts.join(' ');
     const rootPath = path.resolve(opts.path ?? process.cwd());
-    const dbPath = resolveDbPath(rootPath);
 
-    if (!fs.existsSync(dbPath)) {
-      const msg = `NCA|error|no_index|run: nca scan ${rootPath}`;
-      process.stdout.write(opts.json ? JSON.stringify({ error: msg }) + '\n' : msg + '\n');
-      process.exit(1);
-    }
+    ensureIndexed(rootPath, {
+      interactive: process.stdin.isTTY && process.stdout.isTTY,
+      fromHook: opts.fromHook ?? false,
+      originalQuery: query,
+      flags: { yes: opts.yes, docs: opts.docs, vault: opts.vault, json: opts.json },
+    });
+
+    const dbPath = resolveDbPath(rootPath);
 
     const storage = new Storage(dbPath);
     const ctx = new ContextExpander(storage);
@@ -157,16 +228,24 @@ program
   .description('Trace execution flow from an entry point')
   .option('-p, --path <path>', 'project root path (defaults to cwd)')
   .option('--json', 'output structured JSON')
-  .action((name: string, opts: { path?: string; json?: boolean }) => {
+  .option('--yes', 'accept all defaults without prompting')
+  .option('--docs <path>', 'add a doc source (repeatable)', collect, [])
+  .option('--vault <path>', 'add an external vault path')
+  .addOption(new Option('--from-hook', 'called from SessionStart hook (internal use)').hideHelp())
+  .action((name: string, opts: {
+    path?: string; json?: boolean; yes?: boolean;
+    docs?: string[]; vault?: string; fromHook?: boolean;
+  }) => {
     const rootPath = path.resolve(opts.path ?? process.cwd());
+
+    ensureIndexed(rootPath, {
+      interactive: process.stdin.isTTY && process.stdout.isTTY,
+      fromHook: opts.fromHook ?? false,
+      originalQuery: undefined,
+      flags: { yes: opts.yes, docs: opts.docs, vault: opts.vault, json: opts.json },
+    });
+
     const dbPath = resolveDbPath(rootPath);
-
-    if (!fs.existsSync(dbPath)) {
-      const msg = `NCA|error|no_index|run: nca scan ${rootPath}`;
-      process.stdout.write(opts.json ? JSON.stringify({ error: msg }) + '\n' : msg + '\n');
-      process.exit(1);
-    }
-
     const storage = new Storage(dbPath);
     const detector = new FlowDetector(storage);
     const result = detector.detect(name);
@@ -197,16 +276,24 @@ program
   .description('Run architectural analysis and emit warnings')
   .option('-p, --path <path>', 'project root path (defaults to cwd)')
   .option('--json', 'output structured JSON')
-  .action((opts: { path?: string; json?: boolean }) => {
+  .option('--yes', 'accept all defaults without prompting')
+  .option('--docs <path>', 'add a doc source (repeatable)', collect, [])
+  .option('--vault <path>', 'add an external vault path')
+  .addOption(new Option('--from-hook', 'called from SessionStart hook (internal use)').hideHelp())
+  .action((opts: {
+    path?: string; json?: boolean; yes?: boolean;
+    docs?: string[]; vault?: string; fromHook?: boolean;
+  }) => {
     const rootPath = path.resolve(opts.path ?? process.cwd());
+
+    ensureIndexed(rootPath, {
+      interactive: process.stdin.isTTY && process.stdout.isTTY,
+      fromHook: opts.fromHook ?? false,
+      originalQuery: undefined,
+      flags: { yes: opts.yes, docs: opts.docs, vault: opts.vault, json: opts.json },
+    });
+
     const dbPath = resolveDbPath(rootPath);
-
-    if (!fs.existsSync(dbPath)) {
-      const msg = `NCA|error|no_index|run: nca scan ${rootPath}`;
-      process.stdout.write(opts.json ? JSON.stringify({ error: msg }) + '\n' : msg + '\n');
-      process.exit(1);
-    }
-
     const storage = new Storage(dbPath);
     const evolver = new Evolver(storage);
     const result = evolver.analyze(rootPath);
@@ -568,16 +655,30 @@ vault
 vault
   .command('search <query>')
   .description('Search vault notes via full-text search')
+  .option('--root <path>', 'vault root path (must match the path used in vault scan)')
   .option('--area <area>', 'filter by area')
   .option('--type <type>', 'filter by note type')
   .option('--status <status>', 'filter by status (vigente|borrador|obsoleto)')
   .option('--limit <n>', 'max results (default 10, max 50)', '10')
   .option('--json', 'output as JSON')
+  .option('--yes', 'accept all defaults without prompting')
+  .option('--docs <path>', 'add a doc source (repeatable)', collect, [])
+  .option('--vault <path>', 'add an external vault path')
+  .addOption(new Option('--from-hook', 'called from SessionStart hook (internal use)').hideHelp())
   .action((query: string, opts: {
-    area?: string; type?: string; status?: string;
-    limit: string; json?: boolean;
+    root?: string; area?: string; type?: string; status?: string;
+    limit: string; json?: boolean; yes?: boolean;
+    docs?: string[]; vault?: string; fromHook?: boolean;
   }) => {
-    const dbPath = resolveDbPath();
+    const repoRoot = process.cwd();
+    ensureIndexed(repoRoot, {
+      interactive: process.stdin.isTTY && process.stdout.isTTY,
+      fromHook: opts.fromHook ?? false,
+      originalQuery: query,
+      flags: { yes: opts.yes, docs: opts.docs, vault: opts.vault, json: opts.json },
+    });
+
+    const dbPath = opts.root ? resolveDbPath(path.resolve(opts.root)) : resolveDbPath();
     const storage = new Storage(dbPath);
 
     const limit = Math.min(Math.max(1, parseInt(opts.limit, 10) || 10), 50);
@@ -617,10 +718,26 @@ vault
 vault
   .command('get <id_or_path>')
   .description('Retrieve a vault note by id or path')
+  .option('--root <path>', 'vault root path (must match the path used in vault scan)')
   .option('--body', 'include full markdown body')
   .option('--json', 'output as JSON')
-  .action((idOrPath: string, opts: { body?: boolean; json?: boolean }) => {
-    const dbPath = resolveDbPath();
+  .option('--yes', 'accept all defaults without prompting')
+  .option('--docs <path>', 'add a doc source (repeatable)', collect, [])
+  .option('--vault <path>', 'add an external vault path')
+  .addOption(new Option('--from-hook', 'called from SessionStart hook (internal use)').hideHelp())
+  .action((idOrPath: string, opts: {
+    root?: string; body?: boolean; json?: boolean; yes?: boolean;
+    docs?: string[]; vault?: string; fromHook?: boolean;
+  }) => {
+    const repoRoot = process.cwd();
+    ensureIndexed(repoRoot, {
+      interactive: process.stdin.isTTY && process.stdout.isTTY,
+      fromHook: opts.fromHook ?? false,
+      originalQuery: undefined,
+      flags: { yes: opts.yes, docs: opts.docs, vault: opts.vault, json: opts.json },
+    });
+
+    const dbPath = opts.root ? resolveDbPath(path.resolve(opts.root)) : resolveDbPath();
     const storage = new Storage(dbPath);
 
     const note = storage.vaultGet(idOrPath, opts.body);
