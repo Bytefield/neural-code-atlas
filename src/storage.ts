@@ -50,6 +50,11 @@ export interface NoteMatch {
   excerpt: string;
 }
 
+export interface DocCodeEdgeSymbol {
+  symbol: string;
+  nodeId: string | null;
+}
+
 
 export class Storage {
   /** @internal — not public API; exposed for testing only. */
@@ -413,6 +418,68 @@ export class Storage {
 
   vaultGet(idOrPath: string, includeBody?: boolean): VaultNoteDetail | null {
     return _vaultGet(this.db, idOrPath, includeBody);
+  }
+
+  /**
+   * Upsert doc→code edges for a given note.
+   * For each symbol name:
+   *   - Looks up the node by name in the nodes table (first match by id).
+   *   - Inserts/replaces an edge with node_id = "file:name" if found, NULL if not.
+   * Silently ignores symbols not found in the graph (creates broken edge with node_id NULL).
+   * All operations are synchronous (better-sqlite3).
+   */
+  upsertDocCodeEdges(noteId: string, symbols: string[]): void {
+    if (symbols.length === 0) return;
+    const now = new Date().toISOString();
+    const upsert = this.db.prepare(`
+      INSERT INTO doc_code_edges (note_id, symbol_name, node_id, edge_type, created_at)
+      VALUES (?, ?, ?, 'references', ?)
+      ON CONFLICT(note_id, symbol_name) DO UPDATE SET
+        node_id = excluded.node_id,
+        created_at = excluded.created_at
+    `);
+    const lookupNode = this.db.prepare(
+      `SELECT file, name FROM nodes WHERE name = ? ORDER BY id LIMIT 1`
+    );
+    const tx = this.db.transaction(() => {
+      for (const sym of symbols) {
+        const row = lookupNode.get(sym) as { file: string; name: string } | undefined;
+        const nodeId = row ? `${row.file}:${row.name}` : null;
+        upsert.run(noteId, sym, nodeId, now);
+      }
+    });
+    tx();
+  }
+
+  /**
+   * Return all notes that reference the given symbol name via doc_code_edges.
+   */
+  getDocsBySymbol(symbolName: string): NoteMatch[] {
+    const rows = this.db.prepare(`
+      SELECT n.path, n.summary
+      FROM doc_code_edges dce
+      JOIN notes n ON n.id = dce.note_id
+      WHERE dce.symbol_name = ?
+      ORDER BY n.path
+    `).all(symbolName) as { path: string; summary: string | null }[];
+    return rows.map(r => ({
+      title: path.basename(r.path, '.md'),
+      file: r.path,
+      excerpt: r.summary ?? '',
+    }));
+  }
+
+  /**
+   * Return all symbols referenced by a note, with linked/unlinked status.
+   */
+  getSymbolsByDoc(noteId: string): DocCodeEdgeSymbol[] {
+    const rows = this.db.prepare(`
+      SELECT symbol_name, node_id
+      FROM doc_code_edges
+      WHERE note_id = ?
+      ORDER BY symbol_name
+    `).all(noteId) as { symbol_name: string; node_id: string | null }[];
+    return rows.map(r => ({ symbol: r.symbol_name, nodeId: r.node_id }));
   }
 
   close(): void {
