@@ -3586,6 +3586,334 @@ let mcpTestDone = false;
   }, 3000);
 }
 
+// ─── TASK tests ───────────────────────────────────────────────────────────────
+
+{
+  const { saveTask, loadTask, clearTask } = require(path.join(ROOT, 'dist', 'task.js'));
+
+  // TASK-01: saveTask creates .nca/current-task.json with correct fields
+  test('TASK-01 saveTask creates .nca/current-task.json with correct fields', () => {
+    const taskDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-task-'));
+    try {
+      saveTask(taskDir, 'test task description');
+      const taskFile = path.join(taskDir, '.nca', 'current-task.json');
+      assert(fs.existsSync(taskFile), `Expected task file at ${taskFile}`);
+      const raw = JSON.parse(fs.readFileSync(taskFile, 'utf-8'));
+      assert(raw.description === 'test task description', `Expected description, got: ${raw.description}`);
+      assert(typeof raw.createdAt === 'string' && raw.createdAt.length > 0, 'Expected createdAt string');
+      assert(raw.repoRoot === taskDir, `Expected repoRoot=${taskDir}, got: ${raw.repoRoot}`);
+    } finally {
+      try { fs.rmSync(taskDir, { recursive: true, force: true }); } catch {}
+    }
+  });
+
+  // TASK-02: loadTask returns null if file does not exist
+  test('TASK-02 loadTask returns null when no task file exists', () => {
+    const taskDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-task-'));
+    try {
+      const result = loadTask(taskDir);
+      assert(result === null, `Expected null, got: ${JSON.stringify(result)}`);
+    } finally {
+      try { fs.rmSync(taskDir, { recursive: true, force: true }); } catch {}
+    }
+  });
+
+  // TASK-03: saveTask overwrites existing task
+  test('TASK-03 saveTask overwrites existing task', () => {
+    const taskDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-task-'));
+    try {
+      saveTask(taskDir, 'first task');
+      saveTask(taskDir, 'second task');
+      const result = loadTask(taskDir);
+      assert(result !== null, 'Expected task to exist');
+      assert(result.description === 'second task', `Expected "second task", got: ${result.description}`);
+    } finally {
+      try { fs.rmSync(taskDir, { recursive: true, force: true }); } catch {}
+    }
+  });
+
+  // TASK-04: clearTask deletes the task file
+  test('TASK-04 clearTask removes the task file', () => {
+    const taskDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-task-'));
+    try {
+      saveTask(taskDir, 'to be cleared');
+      clearTask(taskDir);
+      const result = loadTask(taskDir);
+      assert(result === null, `Expected null after clear, got: ${JSON.stringify(result)}`);
+    } finally {
+      try { fs.rmSync(taskDir, { recursive: true, force: true }); } catch {}
+    }
+  });
+
+  // TASK-05: CLI nca task --show displays active task
+  test('TASK-05 nca task --show displays current task', () => {
+    const taskDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-task-'));
+    const prevDb = process.env.NCA_DB_PATH;
+    try {
+      saveTask(taskDir, 'my active cli task');
+      const out = execSync(`node ${CLI} task --show`, {
+        encoding: 'utf-8',
+        cwd: taskDir,
+        env: { ...process.env, NCA_DB_PATH: path.join(taskDir, 'nca.db') },
+      });
+      assert(out.includes('my active cli task'), `Expected task description in output, got: ${out}`);
+      assert(out.includes('Current task:'), `Expected "Current task:" prefix, got: ${out}`);
+    } finally {
+      try { fs.rmSync(taskDir, { recursive: true, force: true }); } catch {}
+      if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+      else process.env.NCA_DB_PATH = prevDb;
+    }
+  });
+
+  // TASK-06: CLI nca task --show message when no task
+  test('TASK-06 nca task --show shows clear message when no task active', () => {
+    const taskDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-task-'));
+    const prevDb = process.env.NCA_DB_PATH;
+    try {
+      const out = execSync(`node ${CLI} task --show`, {
+        encoding: 'utf-8',
+        cwd: taskDir,
+        env: { ...process.env, NCA_DB_PATH: path.join(taskDir, 'nca.db') },
+      });
+      assert(out.includes('No active task'), `Expected "No active task" message, got: ${out}`);
+    } finally {
+      try { fs.rmSync(taskDir, { recursive: true, force: true }); } catch {}
+      if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+      else process.env.NCA_DB_PATH = prevDb;
+    }
+  });
+}
+
+// ─── BRIEF tests ──────────────────────────────────────────────────────────────
+
+{
+  const { saveTask, clearTask } = require(path.join(ROOT, 'dist', 'task.js'));
+  const { generateBrief } = require(path.join(ROOT, 'dist', 'compiler', 'brief.js'));
+
+  // BRIEF-01: brief --light without active task → error (no crash)
+  test('BRIEF-01 brief --light without task active exits with error', () => {
+    const taskDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-brief-'));
+    const ncaDir = path.join(taskDir, '.nca');
+    fs.mkdirSync(ncaDir, { recursive: true });
+    const tmpDb = path.join(ncaDir, 'nca.db');
+    const prevDb = process.env.NCA_DB_PATH;
+    process.env.NCA_DB_PATH = tmpDb;
+    // ensure no task file present
+    try {
+      let threw = false;
+      try {
+        execSync(`node ${CLI} brief --light`, {
+          encoding: 'utf-8',
+          cwd: taskDir,
+          env: { ...process.env, NCA_DB_PATH: tmpDb },
+        });
+      } catch (err) {
+        threw = true;
+        assert(err.status === 1, `Expected exit code 1, got ${err.status}`);
+        assert(
+          (err.stderr || '').includes('No active task') || (err.message || '').includes('No active task'),
+          `Expected "No active task" in stderr, got: ${err.stderr}`
+        );
+      }
+      assert(threw, 'Expected brief --light to exit non-zero with no task');
+    } finally {
+      try { fs.rmSync(taskDir, { recursive: true, force: true }); } catch {}
+      if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+      else process.env.NCA_DB_PATH = prevDb;
+    }
+  });
+
+  // BRIEF-02: brief --light with task → markdown not empty
+  test('BRIEF-02 brief --light with active task produces non-empty markdown', () => {
+    const briefDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-brief-'));
+    const ncaDir = path.join(briefDir, '.nca');
+    fs.mkdirSync(ncaDir, { recursive: true });
+    const tmpDb = path.join(ncaDir, 'nca.db');
+    const prevDb = process.env.NCA_DB_PATH;
+    process.env.NCA_DB_PATH = tmpDb;
+
+    try {
+      // Create minimal DB with a scan so storage opens ok
+      fs.writeFileSync(path.join(briefDir, 'app.ts'), 'export function init() { return 1; }\n');
+      execSync(`node ${CLI} scan ${briefDir}`, {
+        encoding: 'utf-8',
+        env: { ...process.env, NCA_DB_PATH: tmpDb },
+      });
+
+      saveTask(briefDir, 'init function review');
+
+      const result = generateBrief({ task: { description: 'init function review', createdAt: new Date().toISOString(), repoRoot: briefDir }, repoRoot: briefDir });
+      assert(typeof result.markdown === 'string' && result.markdown.length > 0,
+        'Expected non-empty markdown');
+      assert(result.markdown.includes('## NCA Brief'), 'Expected ## NCA Brief header');
+      assert(result.markdown.includes('init function review'), 'Expected task description in brief');
+    } finally {
+      try { fs.rmSync(briefDir, { recursive: true, force: true }); } catch {}
+      if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+      else process.env.NCA_DB_PATH = prevDb;
+    }
+  });
+
+  // BRIEF-03: brief --light token count <= 300
+  test('BRIEF-03 brief --light token count is <= 300', () => {
+    const briefDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-brief-'));
+    const ncaDir = path.join(briefDir, '.nca');
+    fs.mkdirSync(ncaDir, { recursive: true });
+    const tmpDb = path.join(ncaDir, 'nca.db');
+    const prevDb = process.env.NCA_DB_PATH;
+    process.env.NCA_DB_PATH = tmpDb;
+
+    try {
+      fs.writeFileSync(path.join(briefDir, 'app.ts'), [
+        'export function authenticate(user: string, token: string): boolean { return token.length > 0; }',
+        'export function authorize(role: string, resource: string): boolean { return role === "admin"; }',
+        'export function validate(input: string): boolean { return input.trim().length > 0; }',
+      ].join('\n'));
+      execSync(`node ${CLI} scan ${briefDir}`, {
+        encoding: 'utf-8',
+        env: { ...process.env, NCA_DB_PATH: tmpDb },
+      });
+
+      const result = generateBrief({
+        task: { description: 'authenticate user token validation', createdAt: new Date().toISOString(), repoRoot: briefDir },
+        repoRoot: briefDir,
+      });
+      assert(result.tokens <= 300,
+        `Expected tokens <= 300, got ${result.tokens}. Brief:\n${result.markdown}`);
+    } finally {
+      try { fs.rmSync(briefDir, { recursive: true, force: true }); } catch {}
+      if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+      else process.env.NCA_DB_PATH = prevDb;
+    }
+  });
+
+  // BRIEF-04: brief --light excludes docs with status 'obsoleto'
+  test('BRIEF-04 brief --light excludes docs with status obsoleto', () => {
+    const briefDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-brief-'));
+    const ncaDir = path.join(briefDir, '.nca');
+    const vaultDir = path.join(briefDir, 'vault');
+    fs.mkdirSync(ncaDir, { recursive: true });
+    fs.mkdirSync(vaultDir, { recursive: true });
+    const tmpDb = path.join(ncaDir, 'nca.db');
+    const prevDb = process.env.NCA_DB_PATH;
+    process.env.NCA_DB_PATH = tmpDb;
+
+    try {
+      fs.writeFileSync(path.join(briefDir, 'app.ts'), 'export function migrate() { return true; }\n');
+      execSync(`node ${CLI} scan ${briefDir}`, {
+        encoding: 'utf-8',
+        env: { ...process.env, NCA_DB_PATH: tmpDb },
+      });
+
+      // Index vault with one obsoleto and one vigente note
+      fs.writeFileSync(path.join(vaultDir, 'old.md'),
+        '---\nid: old-migration\nstatus: obsoleto\nsummary: Old migration guide\n---\n\nThis migration guide is obsolete and should not appear.\n');
+      fs.writeFileSync(path.join(vaultDir, 'current.md'),
+        '---\nid: current-migration\nstatus: vigente\nsummary: Current migration guide\n---\n\nThis migration guide is current and valid.\n');
+      execSync(`node ${CLI} vault scan ${vaultDir}`, {
+        encoding: 'utf-8',
+        env: { ...process.env, NCA_DB_PATH: tmpDb },
+      });
+
+      const result = generateBrief({
+        task: { description: 'migrate database schema', createdAt: new Date().toISOString(), repoRoot: briefDir },
+        repoRoot: briefDir,
+        vaultRoot: briefDir,
+      });
+
+      // The markdown must NOT contain the obsoleto doc
+      assert(!result.markdown.includes('old-migration'),
+        `Expected obsoleto doc to be excluded from brief. Got:\n${result.markdown}`);
+      assert(!result.markdown.includes('Old migration guide'),
+        `Expected obsoleto summary to be excluded. Got:\n${result.markdown}`);
+    } finally {
+      try { fs.rmSync(briefDir, { recursive: true, force: true }); } catch {}
+      if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+      else process.env.NCA_DB_PATH = prevDb;
+    }
+  });
+
+  // BRIEF-05: brief --light --json produces valid parseable JSON
+  test('BRIEF-05 brief --light --json produces valid JSON', () => {
+    const briefDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-brief-'));
+    const ncaDir = path.join(briefDir, '.nca');
+    fs.mkdirSync(ncaDir, { recursive: true });
+    const tmpDb = path.join(ncaDir, 'nca.db');
+    const prevDb = process.env.NCA_DB_PATH;
+    process.env.NCA_DB_PATH = tmpDb;
+
+    try {
+      fs.writeFileSync(path.join(briefDir, 'app.ts'), 'export function start() { return 1; }\n');
+      execSync(`node ${CLI} scan ${briefDir}`, {
+        encoding: 'utf-8',
+        env: { ...process.env, NCA_DB_PATH: tmpDb },
+      });
+
+      saveTask(briefDir, 'start application review');
+
+      const out = execSync(`node ${CLI} brief --light --json`, {
+        encoding: 'utf-8',
+        cwd: briefDir,
+        env: { ...process.env, NCA_DB_PATH: tmpDb },
+      });
+
+      let parsed;
+      try {
+        parsed = JSON.parse(out);
+      } catch (e) {
+        throw new Error(`brief --json output is not valid JSON: ${e.message}\nOutput: ${out.slice(0, 300)}`);
+      }
+
+      assert(typeof parsed.task === 'string', 'Expected task string in JSON');
+      assert(parsed.level === 'light', `Expected level='light', got: ${parsed.level}`);
+      assert(typeof parsed.tokens === 'number', 'Expected tokens number in JSON');
+      assert(Array.isArray(parsed.symbols), 'Expected symbols array in JSON');
+      assert(Array.isArray(parsed.docs), 'Expected docs array in JSON');
+      assert(Array.isArray(parsed.gotchas), 'Expected gotchas array in JSON');
+      assert(typeof parsed.markdown === 'string', 'Expected markdown string in JSON');
+    } finally {
+      try { fs.rmSync(briefDir, { recursive: true, force: true }); } catch {}
+      if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+      else process.env.NCA_DB_PATH = prevDb;
+    }
+  });
+
+  // BRIEF-06: brief --light without vaultRoot works (only symbols)
+  test('BRIEF-06 brief --light without vaultRoot works with symbols only', () => {
+    const briefDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-brief-'));
+    const ncaDir = path.join(briefDir, '.nca');
+    fs.mkdirSync(ncaDir, { recursive: true });
+    const tmpDb = path.join(ncaDir, 'nca.db');
+    const prevDb = process.env.NCA_DB_PATH;
+    process.env.NCA_DB_PATH = tmpDb;
+
+    try {
+      fs.writeFileSync(path.join(briefDir, 'app.ts'), 'export function connect() { return true; }\n');
+      execSync(`node ${CLI} scan ${briefDir}`, {
+        encoding: 'utf-8',
+        env: { ...process.env, NCA_DB_PATH: tmpDb },
+      });
+
+      // generateBrief without vaultRoot — must not throw, must produce markdown
+      const result = generateBrief({
+        task: { description: 'connect database', createdAt: new Date().toISOString(), repoRoot: briefDir },
+        repoRoot: briefDir,
+        // no vaultRoot
+      });
+
+      assert(typeof result.markdown === 'string' && result.markdown.length > 0,
+        'Expected non-empty markdown without vaultRoot');
+      assert(result.docs.length === 0, 'Expected 0 docs when no vaultRoot provided');
+      assert(result.gotchas.length === 0, 'Expected 0 gotchas when no vaultRoot provided');
+      assert(result.tokens <= 300, `Expected tokens <= 300, got ${result.tokens}`);
+    } finally {
+      try { fs.rmSync(briefDir, { recursive: true, force: true }); } catch {}
+      if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+      else process.env.NCA_DB_PATH = prevDb;
+    }
+  });
+}
+
 // Results — wait for MCP async test (3000ms timeout above + 500ms init + 1000ms drain window)
 setTimeout(() => {
   // Flush MCP test result into the pass/fail counters
