@@ -10,8 +10,17 @@ export interface ScanResult {
   errors: number;
 }
 
+/** Minimal interface satisfied by Storage — avoids circular import. */
+interface DocCodeEdgeStore {
+  upsertDocCodeEdges(noteId: string, symbols: string[]): void;
+}
+
 export class VaultScanner {
-  constructor(private db: Database.Database) {}
+  private store: DocCodeEdgeStore | null;
+
+  constructor(private db: Database.Database, store?: DocCodeEdgeStore) {
+    this.store = store ?? null;
+  }
 
   async scan(
     root: string,
@@ -125,8 +134,23 @@ export class VaultScanner {
       }
     });
 
+    // Doc→code edge upserts must run AFTER the transaction so note rows exist
+    // (doc_code_edges has FK on notes.id). Run per-note outside main tx.
+
     if (!opts?.dryRun) {
       tx();
+      // After notes are committed, upsert doc→code edges for notes with symbols.
+      if (this.store) {
+        for (const note of parsedNotes) {
+          if (note && note.referencedSymbols.length > 0) {
+            try {
+              this.store.upsertDocCodeEdges(note.id, note.referencedSymbols);
+            } catch {
+              // Never let edge upsert errors abort a scan
+            }
+          }
+        }
+      }
     }
 
     if (!opts?.quiet) {
@@ -157,6 +181,14 @@ export class VaultScanner {
       outcome = this.upsertNoteRecord(note);
     });
     tx();
+    // Upsert doc→code edges after note is committed
+    if (this.store && note.referencedSymbols.length > 0) {
+      try {
+        this.store.upsertDocCodeEdges(note.id, note.referencedSymbols);
+      } catch {
+        // Never let edge upsert errors abort a scan
+      }
+    }
     return outcome;
   }
 

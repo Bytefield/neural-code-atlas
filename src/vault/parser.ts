@@ -12,6 +12,8 @@ export interface ParsedNote {
   updated?: string;
   contentHash: string;
   bodyChunks: string[];
+  /** Symbol names extracted from frontmatter references.symbols (may be empty). */
+  referencedSymbols: string[];
 }
 
 /**
@@ -135,6 +137,13 @@ export async function parseNote(filePath: string): Promise<ParsedNote> {
   const summary = frontmatter.summary as string | undefined;
   const updated = frontmatter.updated as string | undefined;
 
+  // Extract references.symbols — array of code symbol names
+  const refsField = frontmatter.references as Record<string, unknown> | undefined;
+  const symbolsRaw = refsField?.symbols;
+  const referencedSymbols: string[] = Array.isArray(symbolsRaw)
+    ? (symbolsRaw as unknown[]).filter((s): s is string => typeof s === 'string')
+    : [];
+
   // Hash the body (not the frontmatter)
   const contentHash = hashContent(body);
 
@@ -151,5 +160,6 @@ export async function parseNote(filePath: string): Promise<ParsedNote> {
     updated,
     contentHash,
     bodyChunks,
+    referencedSymbols,
   };
 }

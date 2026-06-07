@@ -113,10 +113,10 @@ test('MIG-01 fresh DB applies all migrations', () => {
 
     const db = new Database(dbFile);
     const versionRow = db.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'").get();
-    assert(versionRow && versionRow.value === '3', `Expected schema_version=3, got: ${JSON.stringify(versionRow)}`);
+    assert(versionRow && versionRow.value === '4', `Expected schema_version=4, got: ${JSON.stringify(versionRow)}`);
 
     const logCount = db.prepare('SELECT COUNT(*) as count FROM migration_log').get();
-    assert(logCount.count === 3, `Expected 3 migration_log rows, got: ${logCount.count}`);
+    assert(logCount.count === 4, `Expected 4 migration_log rows, got: ${logCount.count}`);
 
     const logRow1 = db.prepare('SELECT * FROM migration_log WHERE version = 1').get();
     assert(logRow1, 'Expected migration_log row for version 1');
@@ -129,6 +129,10 @@ test('MIG-01 fresh DB applies all migrations', () => {
     const logRow3 = db.prepare('SELECT * FROM migration_log WHERE version = 3').get();
     assert(logRow3, 'Expected migration_log row for version 3');
     assert(logRow3.name === 'vault_schema', `Expected name=vault_schema, got: ${logRow3.name}`);
+
+    const logRow4 = db.prepare('SELECT * FROM migration_log WHERE version = 4').get();
+    assert(logRow4, 'Expected migration_log row for version 4');
+    assert(logRow4.name === 'doc_code_edges', `Expected name=doc_code_edges, got: ${logRow4.name}`);
     db.close();
   } finally {
     try { fs.unlinkSync(dbFile); } catch {}
@@ -146,7 +150,7 @@ test('MIG-02 already-migrated DB applies nothing', () => {
 
     const db = new Database(dbFile);
     const count = db.prepare('SELECT COUNT(*) as count FROM migration_log').get();
-    assert(count.count === 3, `Expected 3 migration_log rows (one per migration), got: ${count.count}`);
+    assert(count.count === 4, `Expected 4 migration_log rows (one per migration), got: ${count.count}`);
     db.close();
   } finally {
     try { fs.unlinkSync(dbFile); } catch {}
@@ -219,10 +223,10 @@ test('MIG-04 legacy DB without schema_meta migrates cleanly', () => {
 
     const db2 = new Database(dbFile);
     const versionRow = db2.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'").get();
-    assert(versionRow && versionRow.value === '3', `Expected schema_version=3, got: ${JSON.stringify(versionRow)}`);
+    assert(versionRow && versionRow.value === '4', `Expected schema_version=4, got: ${JSON.stringify(versionRow)}`);
 
     const logCount = db2.prepare('SELECT COUNT(*) as count FROM migration_log').get();
-    assert(logCount.count === 3, `Expected 3 migration_log rows, got: ${logCount.count}`);
+    assert(logCount.count === 4, `Expected 4 migration_log rows, got: ${logCount.count}`);
 
     const nodeRow = db2.prepare("SELECT * FROM nodes WHERE name = 'legacyNode'").get();
     assert(nodeRow, 'Expected legacyNode to still exist after migration');
@@ -271,7 +275,7 @@ test('MIG-05 migration 002 repairs line-move duplicates', () => {
       assert(count === 2, `Expected 2 nodes after repair, got ${count}`);
 
       const ver = db.prepare(`SELECT value FROM schema_meta WHERE key='schema_version'`).get();
-      assert(ver.value === '3', `Expected schema_version=3, got ${ver.value}`);
+      assert(ver.value === '4', `Expected schema_version=4, got ${ver.value}`);
 
       const logRow = db.prepare(`SELECT version, name, result FROM migration_log WHERE version=2`).get();
       assert(logRow, 'Expected migration_log row for v2');
@@ -1249,7 +1253,7 @@ test('MIG-06 migration 003 creates vault tables, FTS, triggers and indexes', () 
 
       // Schema version
       const ver = db.prepare(`SELECT value FROM schema_meta WHERE key='schema_version'`).get();
-      assert(ver && ver.value === '3', `Expected schema_version=3, got: ${JSON.stringify(ver)}`);
+      assert(ver && ver.value === '4', `Expected schema_version=4, got: ${JSON.stringify(ver)}`);
     } finally {
       db.close();
     }
@@ -1328,11 +1332,11 @@ test("MIG-08 notes.status defaults to 'vigente' when not specified", () => {
   }
 });
 
-// MIG-09: upgrade v2→v3 applies only migration 003
-test('MIG-09 upgrade v2→v3 applies only migration 003', () => {
+// MIG-09: upgrade v2→v4 applies migrations 003 and 004
+test('MIG-09 upgrade v2→v4 applies migrations 003 and 004', () => {
   const dbFile = path.join(tmpDir, 'mig09.db');
   try {
-    // Step 1: create a fully-migrated v3 DB
+    // Step 1: create a fully-migrated v4 DB
     const s1 = new StorageClass(dbFile);
     s1.close();
 
@@ -1346,12 +1350,16 @@ test('MIG-09 upgrade v2→v3 applies only migration 003', () => {
       DROP INDEX IF EXISTS idx_notes_status;
       DROP INDEX IF EXISTS idx_notes_area;
       DROP INDEX IF EXISTS idx_notes_type;
+      DROP INDEX IF EXISTS idx_doc_code_edges_note;
+      DROP INDEX IF EXISTS idx_doc_code_edges_symbol;
+      DROP INDEX IF EXISTS idx_doc_code_edges_node;
+      DROP TABLE IF EXISTS doc_code_edges;
       DROP TABLE IF EXISTS note_chunks_fts;
       DROP TABLE IF EXISTS note_chunks;
       DROP TABLE IF EXISTS notes;
     `);
     setupDb.prepare(`UPDATE schema_meta SET value = '2' WHERE key = 'schema_version'`).run();
-    setupDb.prepare(`DELETE FROM migration_log WHERE version = 3`).run();
+    setupDb.prepare(`DELETE FROM migration_log WHERE version >= 3`).run();
 
     const logBefore = setupDb.prepare('SELECT COUNT(*) AS n FROM migration_log').get();
     assert(logBefore.n === 2, `Pre-condition: expected 2 log rows, got ${logBefore.n}`);
@@ -1359,25 +1367,27 @@ test('MIG-09 upgrade v2→v3 applies only migration 003', () => {
     assert(verBefore && verBefore.value === '2', `Pre-condition: expected schema_version=2, got ${JSON.stringify(verBefore)}`);
     setupDb.close();
 
-    // Step 3: re-open via Storage — should apply only migration 003
+    // Step 3: re-open via Storage — should apply migrations 003 and 004
     const s2 = new StorageClass(dbFile);
     s2.close();
 
-    // Step 4: verify exactly one migration was applied
+    // Step 4: verify migrations were applied
     const db = new Database(dbFile);
     try {
       const ver = db.prepare(`SELECT value FROM schema_meta WHERE key = 'schema_version'`).get();
-      assert(ver && ver.value === '3', `Expected schema_version=3, got: ${JSON.stringify(ver)}`);
+      assert(ver && ver.value === '4', `Expected schema_version=4, got: ${JSON.stringify(ver)}`);
 
       const logs = db.prepare('SELECT version, name FROM migration_log ORDER BY version').all();
-      assert(logs.length === 3, `Expected 3 migration_log rows, got: ${logs.length}`);
+      assert(logs.length === 4, `Expected 4 migration_log rows, got: ${logs.length}`);
       assert(logs[2].name === 'vault_schema', `Expected v3 name=vault_schema, got: ${logs[2].name}`);
+      assert(logs[3].name === 'doc_code_edges', `Expected v4 name=doc_code_edges, got: ${logs[3].name}`);
 
       const tblNames = db.prepare(
-        `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('notes', 'note_chunks') ORDER BY name`
+        `SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('notes', 'note_chunks', 'doc_code_edges') ORDER BY name`
       ).all().map(r => r.name);
       assert(tblNames.includes('note_chunks'), `Expected 'note_chunks' table to exist`);
       assert(tblNames.includes('notes'), `Expected 'notes' table to exist`);
+      assert(tblNames.includes('doc_code_edges'), `Expected 'doc_code_edges' table to exist`);
 
       const fts = db.prepare(
         `SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'note_chunks_fts'`
@@ -3055,6 +3065,470 @@ test('VGET-05 vault get by filename stem resolves note', () => {
 
     assert(note.id === 'doc-skeletons', `Expected doc-skeletons, got ${note.id}`);
   } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// ── EDGE tests — doc↔code edges ──────────────────────────────────────────────
+
+// EDGE-01: upsertDocCodeEdges creates edges for known symbols
+test('EDGE-01 upsertDocCodeEdges creates edges for known symbols', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-edge-'));
+  const dbPath = path.join(dir, 'edge.db');
+  try {
+    const storage = new StorageClass(dbPath);
+
+    // Insert a node so it can be found
+    storage.upsertNode({
+      type: 'function', name: 'handleBook', module: 'src/router',
+      inputs: [], outputs: [], deps: [], effects: [],
+      complexity: 1, file: '/app/src/routers/booking.ts', line: 10, sha256: 'abc',
+    });
+
+    // Insert a note
+    storage.db.prepare(
+      `INSERT INTO notes (id, path, status, content_hash, indexed_at)
+       VALUES ('note-1', '/vault/gotcha.md', 'vigente', 'hash1', datetime('now'))`
+    ).run();
+
+    // Upsert edges
+    storage.upsertDocCodeEdges('note-1', ['handleBook']);
+
+    const rows = storage.db.prepare(
+      `SELECT * FROM doc_code_edges WHERE note_id = 'note-1'`
+    ).all();
+
+    assert(rows.length === 1, `Expected 1 edge, got ${rows.length}`);
+    assert(rows[0].symbol_name === 'handleBook', `Expected symbol_name=handleBook`);
+    assert(rows[0].node_id !== null, `Expected node_id to be set (linked)`);
+    assert(rows[0].node_id.includes('handleBook'), `Expected node_id to contain 'handleBook'`);
+
+    storage.close();
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// EDGE-02: upsertDocCodeEdges creates edge with node_id NULL for unknown symbol
+test('EDGE-02 upsertDocCodeEdges creates edge with node_id NULL for unknown symbol', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-edge2-'));
+  const dbPath = path.join(dir, 'edge2.db');
+  try {
+    const storage = new StorageClass(dbPath);
+
+    storage.db.prepare(
+      `INSERT INTO notes (id, path, status, content_hash, indexed_at)
+       VALUES ('note-2', '/vault/other.md', 'vigente', 'hash2', datetime('now'))`
+    ).run();
+
+    storage.upsertDocCodeEdges('note-2', ['nonExistentSymbol']);
+
+    const row = storage.db.prepare(
+      `SELECT * FROM doc_code_edges WHERE note_id = 'note-2'`
+    ).get();
+
+    assert(row, 'Expected an edge row');
+    assert(row.symbol_name === 'nonExistentSymbol', `Expected symbol_name=nonExistentSymbol`);
+    assert(row.node_id === null, `Expected node_id=NULL for unknown symbol, got: ${row.node_id}`);
+
+    storage.close();
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// EDGE-03: getDocsBySymbol returns notes that reference the symbol
+test('EDGE-03 getDocsBySymbol returns notes referencing the symbol', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-edge3-'));
+  const dbPath = path.join(dir, 'edge3.db');
+  try {
+    const storage = new StorageClass(dbPath);
+
+    storage.upsertNode({
+      type: 'function', name: 'myFn', module: 'src/mod',
+      inputs: [], outputs: [], deps: [], effects: [],
+      complexity: 1, file: '/app/src/mod.ts', line: 1, sha256: 'def',
+    });
+
+    storage.db.prepare(
+      `INSERT INTO notes (id, path, status, summary, content_hash, indexed_at)
+       VALUES ('note-3', '/vault/doc.md', 'vigente', 'test summary', 'hash3', datetime('now'))`
+    ).run();
+
+    storage.upsertDocCodeEdges('note-3', ['myFn']);
+
+    const docs = storage.getDocsBySymbol('myFn');
+
+    assert(docs.length === 1, `Expected 1 doc, got ${docs.length}`);
+    assert(docs[0].file === '/vault/doc.md', `Expected file=/vault/doc.md, got: ${docs[0].file}`);
+    assert(docs[0].excerpt === 'test summary', `Expected excerpt='test summary', got: '${docs[0].excerpt}'`);
+
+    storage.close();
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// EDGE-04: getSymbolsByDoc returns symbols with linked/unlinked status
+test('EDGE-04 getSymbolsByDoc returns symbols with linked/unlinked status', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-edge4-'));
+  const dbPath = path.join(dir, 'edge4.db');
+  try {
+    const storage = new StorageClass(dbPath);
+
+    storage.upsertNode({
+      type: 'function', name: 'linkedFn', module: 'src/mod',
+      inputs: [], outputs: [], deps: [], effects: [],
+      complexity: 1, file: '/app/src/mod.ts', line: 1, sha256: 'ghi',
+    });
+
+    storage.db.prepare(
+      `INSERT INTO notes (id, path, status, content_hash, indexed_at)
+       VALUES ('note-4', '/vault/note4.md', 'vigente', 'hash4', datetime('now'))`
+    ).run();
+
+    storage.upsertDocCodeEdges('note-4', ['linkedFn', 'unlinkedFn']);
+
+    const symbols = storage.getSymbolsByDoc('note-4');
+
+    assert(symbols.length === 2, `Expected 2 symbols, got ${symbols.length}`);
+
+    const linked = symbols.find(s => s.symbol === 'linkedFn');
+    const unlinked = symbols.find(s => s.symbol === 'unlinkedFn');
+
+    assert(linked, 'Expected linkedFn in symbols');
+    assert(linked.nodeId !== null, `Expected linkedFn.nodeId to be set, got null`);
+
+    assert(unlinked, 'Expected unlinkedFn in symbols');
+    assert(unlinked.nodeId === null, `Expected unlinkedFn.nodeId=null, got: ${unlinked.nodeId}`);
+
+    storage.close();
+  } finally {
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// EDGE-05: nca related <symbol> returns docs (CLI integration)
+test('EDGE-05 nca related <symbol> returns docs (CLI integration)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-edge5-'));
+  const dbPath = path.join(dir, 'edge5.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = dbPath;
+
+  try {
+    const storage = new StorageClass(dbPath);
+
+    storage.upsertNode({
+      type: 'function', name: 'cliTestFn', module: 'src/test',
+      inputs: [], outputs: [], deps: [], effects: [],
+      complexity: 1, file: '/app/src/test.ts', line: 5, sha256: 'jkl',
+    });
+
+    storage.db.prepare(
+      `INSERT INTO notes (id, path, status, summary, content_hash, indexed_at)
+       VALUES ('note-5', '/vault/test-note.md', 'vigente', 'CLI test summary', 'hash5', datetime('now'))`
+    ).run();
+
+    storage.upsertDocCodeEdges('note-5', ['cliTestFn']);
+    storage.close();
+
+    const out = run('related cliTestFn');
+    assert(out.includes('cliTestFn'), `Expected cliTestFn in output, got: ${out}`);
+    assert(out.includes('/vault/test-note.md'), `Expected note path in output, got: ${out}`);
+    assert(out.includes('1 docs found'), `Expected '1 docs found', got: ${out}`);
+  } finally {
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// EDGE-06: nca related <doc_id> returns symbols with linked/unlinked status (CLI)
+test('EDGE-06 nca related <doc_id> returns symbols with status (CLI)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-edge6-'));
+  const dbPath = path.join(dir, 'edge6.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = dbPath;
+
+  try {
+    const storage = new StorageClass(dbPath);
+
+    storage.upsertNode({
+      type: 'function', name: 'knownFn', module: 'src/known',
+      inputs: [], outputs: [], deps: [], effects: [],
+      complexity: 1, file: '/app/src/known.ts', line: 1, sha256: 'mno',
+    });
+
+    storage.db.prepare(
+      `INSERT INTO notes (id, path, status, content_hash, indexed_at)
+       VALUES ('note-6', '/vault/edge6.md', 'vigente', 'hash6', datetime('now'))`
+    ).run();
+
+    storage.upsertDocCodeEdges('note-6', ['knownFn', 'unknownFn']);
+    storage.close();
+
+    // Use note id as the argument (contains no '/' but the note path does)
+    const out = run('related note-6');
+    assert(out.includes('knownFn'), `Expected knownFn in output, got: ${out}`);
+    assert(out.includes('unknownFn'), `Expected unknownFn in output, got: ${out}`);
+    assert(out.includes('[linked]'), `Expected [linked] status, got: ${out}`);
+    assert(out.includes('[unlinked]'), `Expected [unlinked] status, got: ${out}`);
+  } finally {
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// EDGE-07: vault scan processes references.symbols and creates edges
+test('EDGE-07 vault scan processes references.symbols and creates edges', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-edge7-'));
+  const vaultRoot = path.join(dir, 'vault');
+  const dbPath = path.join(dir, 'edge7.db');
+  fs.mkdirSync(vaultRoot);
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = dbPath;
+
+  try {
+    // Write a markdown note with references.symbols frontmatter
+    fs.writeFileSync(path.join(vaultRoot, 'gotcha.md'), [
+      '---',
+      'type: gotcha',
+      'status: vigente',
+      'summary: Test gotcha',
+      'references:',
+      '  symbols: [handleBook, createInternalAppointment]',
+      '---',
+      '',
+      '# Gotcha',
+      'Some body text.',
+    ].join('\n'));
+
+    // Insert a matching code node before scanning
+    const storage = new StorageClass(dbPath);
+    storage.upsertNode({
+      type: 'function', name: 'handleBook', module: 'src/router',
+      inputs: [], outputs: [], deps: [], effects: [],
+      complexity: 1, file: '/app/src/routers/booking.ts', line: 10, sha256: 'pqr',
+    });
+    storage.close();
+
+    // Run vault scan via CLI
+    run(`vault scan ${vaultRoot}`);
+
+    // Check edges were created
+    const Database2 = require('better-sqlite3');
+    const db2 = new Database2(dbPath);
+    try {
+      const edges = db2.prepare(
+        `SELECT symbol_name, node_id FROM doc_code_edges ORDER BY symbol_name`
+      ).all();
+
+      assert(edges.length === 2, `Expected 2 edges, got ${edges.length}: ${JSON.stringify(edges)}`);
+
+      const handleBookEdge = edges.find(e => e.symbol_name === 'handleBook');
+      const createEdge = edges.find(e => e.symbol_name === 'createInternalAppointment');
+
+      assert(handleBookEdge, 'Expected edge for handleBook');
+      assert(handleBookEdge.node_id !== null, `Expected handleBook edge to be linked`);
+
+      assert(createEdge, 'Expected edge for createInternalAppointment');
+      assert(createEdge.node_id === null, `Expected createInternalAppointment to be unlinked (null node_id)`);
+    } finally {
+      db2.close();
+    }
+  } finally {
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// EDGE-08: vault scan ignores notes without references.symbols without error
+test('EDGE-08 vault scan ignores notes without references.symbols silently', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-edge8-'));
+  const vaultRoot = path.join(dir, 'vault');
+  const dbPath = path.join(dir, 'edge8.db');
+  fs.mkdirSync(vaultRoot);
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = dbPath;
+
+  try {
+    // Note without references.symbols
+    fs.writeFileSync(path.join(vaultRoot, 'plain.md'), [
+      '---',
+      'type: arquitectura',
+      'status: vigente',
+      'summary: Plain note without symbols',
+      '---',
+      '',
+      '# Architecture Note',
+      'No symbols here.',
+    ].join('\n'));
+
+    // Should not throw
+    let threw = false;
+    try {
+      run(`vault scan ${vaultRoot}`);
+    } catch (err) {
+      threw = true;
+    }
+    assert(!threw, 'vault scan should not throw on notes without references.symbols');
+
+    // No edges should be created
+    const Database2 = require('better-sqlite3');
+    const db2 = new Database2(dbPath);
+    try {
+      const count = db2.prepare(`SELECT COUNT(*) AS n FROM doc_code_edges`).get().n;
+      assert(count === 0, `Expected 0 edges for note without symbols, got ${count}`);
+    } finally {
+      db2.close();
+    }
+  } finally {
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// ── AUDIT tests ───────────────────────────────────────────────────────────────
+
+// AUDIT-01: nca docs audit calculates coverage % correctly
+test('AUDIT-01 nca docs audit calculates coverage % correctly', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-audit1-'));
+  const dbPath = path.join(dir, 'audit1.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = dbPath;
+
+  try {
+    const storage = new StorageClass(dbPath);
+
+    // Add 4 nodes: 2 documented, 2 not
+    for (let i = 1; i <= 4; i++) {
+      storage.upsertNode({
+        type: 'function', name: `fn${i}`, module: 'src/mod',
+        inputs: [], outputs: [], deps: [], effects: [],
+        complexity: 1, file: `/app/src/mod.ts`, line: i, sha256: `hash${i}`,
+      });
+    }
+
+    // Add notes and edges for fn1 and fn2 only
+    for (let i = 1; i <= 2; i++) {
+      storage.db.prepare(
+        `INSERT INTO notes (id, path, status, content_hash, indexed_at)
+         VALUES (?, ?, 'vigente', ?, datetime('now'))`
+      ).run(`note-a${i}`, `/vault/doc${i}.md`, `hashN${i}`);
+      storage.upsertDocCodeEdges(`note-a${i}`, [`fn${i}`]);
+    }
+
+    storage.close();
+
+    const out = run('docs audit');
+    assert(out.includes('Indexed symbols:'), `Expected coverage header, got: ${out}`);
+    assert(out.includes('4'), `Expected total of 4 symbols`);
+    assert(out.includes('2'), `Expected 2 documented`);
+    // Check percentage is in the output
+    assert(out.match(/50%/), `Expected 50% coverage, got: ${out}`);
+  } finally {
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// AUDIT-02: nca docs audit lists top undocumented by PageRank
+test('AUDIT-02 nca docs audit lists top undocumented symbols by centrality', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-audit2-'));
+  const dbPath = path.join(dir, 'audit2.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = dbPath;
+
+  try {
+    const storage = new StorageClass(dbPath);
+
+    // Add nodes without any documentation
+    storage.upsertNode({
+      type: 'function', name: 'centralFn', module: 'src/mod',
+      inputs: [], outputs: [], deps: [], effects: [],
+      complexity: 5, file: `/app/src/central.ts`, line: 1, sha256: 'c1',
+    });
+    storage.upsertNode({
+      type: 'function', name: 'leafFn', module: 'src/mod',
+      inputs: [], outputs: [], deps: ['centralFn'], effects: [],
+      complexity: 1, file: `/app/src/leaf.ts`, line: 1, sha256: 'l1',
+    });
+
+    storage.close();
+
+    const out = run('docs audit');
+    assert(out.includes('Undocumented'), `Expected undocumented section, got: ${out}`);
+    assert(out.includes('centralFn') || out.includes('leafFn'),
+      `Expected at least one undocumented symbol listed, got: ${out}`);
+  } finally {
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// AUDIT-03: nca docs audit detects orphaned docs
+test('AUDIT-03 nca docs audit detects orphaned docs (all symbols unlinked)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-audit3-'));
+  const dbPath = path.join(dir, 'audit3.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = dbPath;
+
+  try {
+    const storage = new StorageClass(dbPath);
+
+    // Note with all broken references (symbols not in graph)
+    storage.db.prepare(
+      `INSERT INTO notes (id, path, status, content_hash, indexed_at)
+       VALUES ('orphan-1', '/vault/orphaned.md', 'vigente', 'hashO', datetime('now'))`
+    ).run();
+    storage.upsertDocCodeEdges('orphan-1', ['ghostFn', 'phantomFn']);
+
+    storage.close();
+
+    const out = run('docs audit');
+    assert(out.includes('Orphaned docs') || out.includes('orphaned'),
+      `Expected orphaned docs section, got: ${out}`);
+    assert(out.includes('/vault/orphaned.md'),
+      `Expected orphaned doc path in output, got: ${out}`);
+  } finally {
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
+    try { fs.rmSync(dir, { recursive: true }); } catch {}
+  }
+});
+
+// AUDIT-04: nca docs audit detects broken edges
+test('AUDIT-04 nca docs audit detects broken edges (symbol in doc but not in graph)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-audit4-'));
+  const dbPath = path.join(dir, 'audit4.db');
+  const prevDb = process.env.NCA_DB_PATH;
+  process.env.NCA_DB_PATH = dbPath;
+
+  try {
+    const storage = new StorageClass(dbPath);
+
+    storage.db.prepare(
+      `INSERT INTO notes (id, path, status, content_hash, indexed_at)
+       VALUES ('broken-1', '/vault/broken.md', 'vigente', 'hashB', datetime('now'))`
+    ).run();
+    // Symbol does not exist in code graph
+    storage.upsertDocCodeEdges('broken-1', ['deletedFunction']);
+
+    storage.close();
+
+    const out = run('docs audit');
+    assert(out.includes('Broken edges') || out.includes('broken'),
+      `Expected broken edges section, got: ${out}`);
+    assert(out.includes('deletedFunction'),
+      `Expected deletedFunction in broken edges output, got: ${out}`);
+  } finally {
+    if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+    else process.env.NCA_DB_PATH = prevDb;
     try { fs.rmSync(dir, { recursive: true }); } catch {}
   }
 });
