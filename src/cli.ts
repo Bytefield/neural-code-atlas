@@ -137,7 +137,7 @@ program
     detector.detectAll();
 
     const { VaultScanner } = require('./vault/scanner.js') as typeof import('./vault/scanner.js');
-    const vaultScanner = new VaultScanner(storage.db);
+    const vaultScanner = new VaultScanner(storage.db, storage);
     await vaultScanner.scan(rootPath, { excludedDirNames: PROJECT_MD_EXCLUDED_DIRS, quiet: true });
 
     const stats = storage.stats();
@@ -427,7 +427,7 @@ program
     const storage = new Storage(dbPath);
     const scanner = new Scanner(storage);
     const { VaultScanner } = require('./vault/scanner.js') as typeof import('./vault/scanner.js');
-    const vaultScanner = new VaultScanner(storage.db);
+    const vaultScanner = new VaultScanner(storage.db, storage);
 
     // Initial scan
     scanner.scan(rootPath);
@@ -645,7 +645,7 @@ vault
     const dbPath = resolveDbPath(rootPath);
     const storage = new Storage(dbPath);
     const db = storage.db;
-    const scanner = new VaultScanner(db);
+    const scanner = new VaultScanner(db, storage);
 
     await scanner.scan(rootPath, { dryRun: opts.dryRun, verbose: opts.verbose });
 
@@ -770,6 +770,196 @@ vault
       lines.push('');
       lines.push(note.body);
     }
+    process.stdout.write(lines.join('\n') + '\n');
+  });
+
+// ─── related ──────────────────────────────────────────────────────────────────
+
+program
+  .command('related <symbol_or_doc>')
+  .description('Show docs referencing a symbol, or symbols referenced by a doc')
+  .option('--root <path>', 'vault/project root to use for DB resolution')
+  .option('--json', 'output as JSON')
+  .action((symbolOrDoc: string, opts: { root?: string; json?: boolean }) => {
+    const dbPath = opts.root ? resolveDbPath(path.resolve(opts.root)) : resolveDbPath();
+    const storage = new Storage(dbPath);
+
+    // Resolution strategy:
+    // 1. If arg contains '/' or ends with '.md' → definitely a doc path/id
+    // 2. Otherwise: try vaultGet — if a note with that id/stem exists, treat as doc; else as symbol
+    const looksLikeDoc = symbolOrDoc.includes('/') || symbolOrDoc.endsWith('.md');
+    const noteCandidate = storage.vaultGet(symbolOrDoc);
+    const isDoc = looksLikeDoc || noteCandidate !== null;
+
+    if (isDoc) {
+      // Resolve to note_id: use the looked-up note id or fall back to the raw arg
+      const noteId = noteCandidate?.id ?? symbolOrDoc;
+      const symbols = storage.getSymbolsByDoc(noteId);
+      storage.close();
+
+      if (opts.json) {
+        process.stdout.write(JSON.stringify({ doc: symbolOrDoc, symbols }, null, 2) + '\n');
+        return;
+      }
+
+      const linked = symbols.filter(s => s.nodeId !== null).length;
+      process.stdout.write(`Symbols referenced by '${symbolOrDoc}':\n`);
+      if (symbols.length === 0) {
+        process.stdout.write('  (none)\n');
+      } else {
+        for (const s of symbols) {
+          const status = s.nodeId ? '[linked]' : '[unlinked]';
+          process.stdout.write(`  ${s.symbol} ${status}\n`);
+        }
+      }
+      process.stdout.write(`(${symbols.length} symbols, ${linked} linked to code graph)\n`);
+    } else {
+      // Treat as symbol name
+      const docs = storage.getDocsBySymbol(symbolOrDoc);
+      storage.close();
+
+      if (opts.json) {
+        process.stdout.write(JSON.stringify({ symbol: symbolOrDoc, docs }, null, 2) + '\n');
+        return;
+      }
+
+      process.stdout.write(`Docs referencing '${symbolOrDoc}':\n`);
+      if (docs.length === 0) {
+        process.stdout.write('  (none)\n');
+      } else {
+        for (const d of docs) {
+          const summary = d.excerpt ? ` — ${d.excerpt}` : '';
+          process.stdout.write(`  ${d.file}${summary}\n`);
+        }
+      }
+      process.stdout.write(`(${docs.length} docs found)\n`);
+    }
+  });
+
+// ─── docs ─────────────────────────────────────────────────────────────────────
+
+const docs = program.command('docs').description('Documentation coverage operations');
+
+docs
+  .command('audit')
+  .description('Audit documentation coverage of the code graph (read-only)')
+  .option('--root <path>', 'project root to use for DB resolution')
+  .option('--json', 'output as JSON')
+  .action((opts: { root?: string; json?: boolean }) => {
+    const dbPath = opts.root ? resolveDbPath(path.resolve(opts.root)) : resolveDbPath();
+    const storage = new Storage(dbPath);
+    const db = storage.db;
+
+    // 1. All nodes in graph
+    const allNodes = storage.getAllNodes();
+    const totalSymbols = allNodes.length;
+
+    // 2. Which nodes have at least one doc_code_edge with non-null node_id?
+    // node_id in doc_code_edges is stored as "file:name" composite
+    const documentedNodeIds = new Set<string>(
+      (db.prepare(`SELECT DISTINCT node_id FROM doc_code_edges WHERE node_id IS NOT NULL`).all() as { node_id: string }[])
+        .map(r => r.node_id)
+    );
+
+    const documentedCount = allNodes.filter(n => documentedNodeIds.has(`${n.file}:${n.name}`)).length;
+    const undocumentedNodes = allNodes.filter(n => !documentedNodeIds.has(`${n.file}:${n.name}`));
+
+    // 3. Top undocumented by PageRank
+    // Compute pagerank on the live graph
+    const { GraphSnapshot } = require('./graph.js') as typeof import('./graph.js');
+    const { pagerank } = require('./graph/pagerank.js') as typeof import('./graph/pagerank.js');
+    const snap = GraphSnapshot.build(storage);
+    const ranks = pagerank(snap);
+
+    // Sort undocumented by pagerank descending
+    const undocWithRank = undocumentedNodes
+      .map(n => ({ node: n, rank: ranks.get(`${n.file}:${n.name}`) ?? 0 }))
+      .sort((a, b) => b.rank - a.rank)
+      .slice(0, 10);
+
+    // 4. Orphaned docs: notes with references.symbols where ALL edges have node_id NULL
+    const orphanedRows = db.prepare(`
+      SELECT dce.note_id, n.path, COUNT(*) as total,
+             SUM(CASE WHEN dce.node_id IS NULL THEN 1 ELSE 0 END) as broken
+      FROM doc_code_edges dce
+      JOIN notes n ON n.id = dce.note_id
+      GROUP BY dce.note_id, n.path
+      HAVING broken = total AND total > 0
+    `).all() as { note_id: string; path: string; total: number; broken: number }[];
+
+    // 5. Broken edges: edges where node_id IS NULL
+    const brokenRows = db.prepare(`
+      SELECT dce.symbol_name, COUNT(*) as doc_count
+      FROM doc_code_edges dce
+      WHERE dce.node_id IS NULL
+      GROUP BY dce.symbol_name
+      ORDER BY doc_count DESC
+    `).all() as { symbol_name: string; doc_count: number }[];
+
+    storage.close();
+
+    const coveragePct = totalSymbols > 0
+      ? Math.round((documentedCount / totalSymbols) * 100)
+      : 0;
+
+    if (opts.json) {
+      const result = {
+        totalSymbols,
+        documentedCount,
+        undocumentedCount: totalSymbols - documentedCount,
+        coveragePct,
+        topUndocumented: undocWithRank.map(({ node, rank }) => ({
+          name: node.name,
+          file: node.file,
+          rank,
+        })),
+        orphanedDocs: orphanedRows.map(r => ({
+          noteId: r.note_id,
+          path: r.path,
+          brokenRefs: r.broken,
+        })),
+        brokenEdges: brokenRows.map(r => ({
+          symbol: r.symbol_name,
+          docCount: r.doc_count,
+        })),
+      };
+      process.stdout.write(JSON.stringify(result, null, 2) + '\n');
+      return;
+    }
+
+    const lines: string[] = [
+      'NCA Documentation Coverage',
+      '─'.repeat(40),
+      `Indexed symbols:     ${totalSymbols}`,
+      `Documented:          ${documentedCount}  (${coveragePct}%)`,
+      `Undocumented:        ${totalSymbols - documentedCount}  (${100 - coveragePct}%)`,
+    ];
+
+    if (undocWithRank.length > 0) {
+      lines.push('');
+      lines.push('Top undocumented symbols (by centrality):');
+      for (const { node } of undocWithRank) {
+        const name = node.name.padEnd(30);
+        lines.push(`  ${name} ${node.file}`);
+      }
+    }
+
+    if (orphanedRows.length > 0) {
+      lines.push('');
+      lines.push('Orphaned docs (all referenced symbols unlinked):');
+      for (const r of orphanedRows) {
+        lines.push(`  ${r.path} — ${r.broken} broken reference${r.broken !== 1 ? 's' : ''}`);
+      }
+    }
+
+    if (brokenRows.length > 0) {
+      lines.push('');
+      lines.push('Broken edges (symbol referenced in docs but not in graph):');
+      for (const r of brokenRows) {
+        lines.push(`  ${r.symbol_name} — referenced in ${r.doc_count} doc${r.doc_count !== 1 ? 's' : ''}, not in graph`);
+      }
+    }
+
     process.stdout.write(lines.join('\n') + '\n');
   });
 
