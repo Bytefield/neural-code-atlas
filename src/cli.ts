@@ -963,4 +963,85 @@ docs
     process.stdout.write(lines.join('\n') + '\n');
   });
 
+// ─── task ─────────────────────────────────────────────────────────────────────
+
+program
+  .command('task [description]')
+  .description('Declare the current task (stored in .nca/current-task.json)')
+  .option('--show', 'show the current active task')
+  .option('--clear', 'clear the active task')
+  .action((description: string | undefined, opts: { show?: boolean; clear?: boolean }) => {
+    const { saveTask, loadTask, clearTask } = require('./task.js') as typeof import('./task.js');
+    const rootPath = process.cwd();
+
+    if (opts.clear) {
+      clearTask(rootPath);
+      process.stdout.write('Task cleared.\n');
+      return;
+    }
+
+    if (opts.show) {
+      const task = loadTask(rootPath);
+      if (!task) {
+        process.stdout.write("No active task. Run: nca task '<description>'\n");
+        return;
+      }
+      const ageSec = Math.floor((Date.now() - new Date(task.createdAt).getTime()) / 1000);
+      let ageStr: string;
+      if (ageSec < 60) ageStr = `${ageSec}s`;
+      else if (ageSec < 3600) ageStr = `${Math.floor(ageSec / 60)}m`;
+      else if (ageSec < 86400) ageStr = `${Math.floor(ageSec / 3600)}h`;
+      else ageStr = `${Math.floor(ageSec / 86400)}d`;
+      process.stdout.write(`Current task: ${task.description}\n(set ${ageStr} ago)\n`);
+      return;
+    }
+
+    if (!description || description.trim() === '') {
+      process.stderr.write("Error: provide a task description or use --show / --clear\n");
+      process.exit(1);
+    }
+
+    saveTask(rootPath, description.trim());
+    process.stdout.write(`Task set: ${description.trim()}\n`);
+  });
+
+// ─── brief ────────────────────────────────────────────────────────────────────
+
+program
+  .command('brief')
+  .description('Generate a context brief for the active task')
+  .option('--light', 'generate a light brief (~300 tokens) — default and only level')
+  .option('--root <path>', 'vault root path for doc lookup')
+  .option('--json', 'output as JSON')
+  .action((opts: { light?: boolean; root?: string; json?: boolean }) => {
+    const { loadTask } = require('./task.js') as typeof import('./task.js');
+    const { generateBrief } = require('./compiler/brief.js') as typeof import('./compiler/brief.js');
+
+    const rootPath = process.cwd();
+    const task = loadTask(rootPath);
+
+    if (!task) {
+      process.stderr.write("No active task. Run: nca task '<description>' first.\n");
+      process.exit(1);
+    }
+
+    const vaultRoot = opts.root ? path.resolve(opts.root) : undefined;
+    const result = generateBrief({ task, repoRoot: rootPath, vaultRoot });
+
+    if (opts.json) {
+      const payload = {
+        task: task.description,
+        level: 'light',
+        tokens: result.tokens,
+        symbols: result.symbols,
+        docs: result.docs,
+        gotchas: result.gotchas,
+        markdown: result.markdown,
+      };
+      process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
+    } else {
+      process.stdout.write(result.markdown + '\n');
+    }
+  });
+
 program.parse(process.argv);
