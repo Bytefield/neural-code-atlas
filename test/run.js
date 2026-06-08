@@ -396,6 +396,88 @@ test('HOOK-06 reverts_detected compares file_path, not just any recent edit', ()
   }
 });
 
+// ─── Stop hook (STOP-01..04) ──────────────────────────────────────────────────
+
+// Helper: write a session fixture and run the stop hook against it.
+function runStopHook(sessionId, session, extraEnv) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-stop-test-'));
+  const sessDir = path.join(tempDir, '.nca', 'sessions');
+  fs.mkdirSync(sessDir, { recursive: true });
+  fs.writeFileSync(path.join(sessDir, `${sessionId}.json`), JSON.stringify(session, null, 2));
+
+  const hookScript = path.join(ROOT, 'dist', 'hooks', 'stop.js');
+  const input = JSON.stringify({ session_id: sessionId, cwd: tempDir });
+  const result = require('child_process').spawnSync('node', [hookScript], {
+    input,
+    encoding: 'utf-8',
+    env: { ...process.env, ...(extraEnv || {}) },
+  });
+  const updated = JSON.parse(fs.readFileSync(path.join(sessDir, `${sessionId}.json`), 'utf-8'));
+  return { stdout: result.stdout || '', status: result.status, updated, tempDir };
+}
+
+function ev(tool, extra) {
+  return Object.assign(
+    { ts: '2026-06-08T10:00:00.000Z', tool, input_short: tool, blocked: false, fallback_after_brief: false, outcome: 'ok' },
+    extra || {}
+  );
+}
+
+test('STOP-01 mode off produces no stdout', () => {
+  const session = {
+    session_id: 's1', repo: 'r', started_at: '2026-06-08T10:00:00.000Z', mode: 'on',
+    events: [ev('Read'), ev('Bash', { input_short: 'nca brief --light' })],
+    brief_called: true, first_edit_at: null, files_read_before_first_edit: 0, reverts_detected: 0,
+  };
+  const { stdout } = runStopHook('s1', session, { NCA_MODE: 'off' });
+  assert(stdout.trim() === '', `Expected empty stdout with mode off, got: ${stdout}`);
+});
+
+test('STOP-02 turn with no relevant tools produces no stdout', () => {
+  const session = {
+    session_id: 's2', repo: 'r', started_at: '2026-06-08T10:00:00.000Z', mode: 'on',
+    events: [ev('Edit', { file_path: '/a.ts' }), ev('Write', { file_path: '/b.ts' })],
+    brief_called: false, first_edit_at: null, files_read_before_first_edit: 0, reverts_detected: 0,
+  };
+  const { stdout } = runStopHook('s2', session, { NCA_MODE: 'on' });
+  assert(stdout.trim() === '', `Expected empty stdout for Edit/Write only turn, got: ${stdout}`);
+});
+
+test('STOP-03 mixed turn produces correctly formatted summary line', () => {
+  const session = {
+    session_id: 's3', repo: 'r', started_at: '2026-06-08T10:00:00.000Z', mode: 'on',
+    events: [
+      ev('Bash', { input_short: 'nca brief --light' }),
+      ev('Bash', { input_short: 'nca brief --deep' }),
+      ev('Grep', { fallback_after_brief: true }),
+      ev('Grep', { fallback_after_brief: true }),
+      ev('Glob', { blocked: true }),
+      ev('Read'),
+      ev('Read'),
+      ev('Read'),
+      ev('Read'),
+    ],
+    brief_called: true, first_edit_at: null, files_read_before_first_edit: 0, reverts_detected: 0,
+  };
+  const { stdout } = runStopHook('s3', session, { NCA_MODE: 'on' });
+  const expected = '[NCA turn: 2 briefs, 3 grep (2 after-brief, 1 blocked), 4 read]';
+  assert(stdout.trim() === expected, `Expected:\n  ${expected}\nGot:\n  ${stdout.trim()}`);
+});
+
+test('STOP-04 last_stop_at is set after running', () => {
+  const session = {
+    session_id: 's4', repo: 'r', started_at: '2026-06-08T10:00:00.000Z', mode: 'on',
+    events: [ev('Read')],
+    brief_called: false, first_edit_at: null, files_read_before_first_edit: 0, reverts_detected: 0,
+  };
+  const { updated } = runStopHook('s4', session, { NCA_MODE: 'on' });
+  assert(typeof updated.last_stop_at === 'string' && updated.last_stop_at.length > 0,
+    `Expected last_stop_at to be set, got: ${updated.last_stop_at}`);
+  // A second turn with no new events (all events <= last_stop_at) must be silent.
+  const second = runStopHook('s4', updated, { NCA_MODE: 'on' });
+  assert(second.stdout.trim() === '', `Second turn should be silent, got: ${second.stdout}`);
+});
+
 // MIG-01: fresh DB applies all migrations
 test('MIG-01 fresh DB applies all migrations', () => {
   const dbFile = path.join(tmpDir, 'mig01.db');
