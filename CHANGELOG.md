@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1] — 2026-06-08
+
+### Fixed
+- `nca brief` now auto-resolves vault root from `.nca/config.local.json` — no longer requires the `--root` flag when a vault is configured
+
+---
+
 ## [1.5.0] — 2026-06-08
 
 ### Added
