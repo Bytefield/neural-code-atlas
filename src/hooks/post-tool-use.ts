@@ -47,32 +47,17 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { getMode } from './lib/mode.js';
+import {
+  ToolEvent,
+  SessionFile,
+  now,
+  acquireLock,
+  releaseLock,
+  logError,
+} from './lib/session.js';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
-
-interface ToolEvent {
-  ts: string;
-  tool: string;
-  input_short: string;
-  blocked: boolean;
-  fallback_after_brief: boolean;
-  outcome: 'ok' | 'error' | null;
-  // Normalized file_path, only set for Edit/Write. Used by revert detection
-  // to compare against prior events touching the same file.
-  file_path?: string;
-}
-
-interface SessionFile {
-  session_id: string;
-  repo: string;
-  started_at: string;
-  mode: 'on' | 'off';
-  events: ToolEvent[];
-  brief_called: boolean;
-  first_edit_at: string | null;
-  files_read_before_first_edit: number;
-  reverts_detected: number;
-}
+// ToolEvent and SessionFile are imported from ./lib/session.js (shared contract).
 
 interface HookInput {
   session_id: string;
@@ -84,10 +69,6 @@ interface HookInput {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-function now(): string {
-  return new Date().toISOString();
-}
 
 /**
  * Summarize tool_input into ≤80 chars.
@@ -180,46 +161,6 @@ function countReverts(session: SessionFile, toolName: string, toolInput: any): n
 }
 
 /**
- * Atomic lock via mkdir (no external deps).
- * Returns true if lock acquired, false if timeout.
- */
-function acquireLock(lockPath: string, timeoutMs: number): boolean {
-  const deadline = Date.now() + timeoutMs;
-
-  while (Date.now() < deadline) {
-    try {
-      fs.mkdirSync(lockPath, { recursive: false });
-      return true;
-    } catch (err: any) {
-      if (err.code === 'EEXIST') {
-        // Lock held, backoff
-        const delay = Math.min(5, timeoutMs / 10);
-        // Busy-wait via a tight loop (no sleep to avoid blocking)
-        const waitUntil = Date.now() + delay;
-        while (Date.now() < waitUntil) {
-          // spin
-        }
-      } else {
-        return false;
-      }
-    }
-  }
-
-  return false;
-}
-
-/**
- * Release lock.
- */
-function releaseLock(lockPath: string): void {
-  try {
-    fs.rmdirSync(lockPath);
-  } catch {
-    // ignore
-  }
-}
-
-/**
  * Rotate old session files (mtime > 30 days).
  */
 function rotateOldSessions(sessionsDir: string): void {
@@ -240,19 +181,6 @@ function rotateOldSessions(sessionsDir: string): void {
     }
   } catch {
     // ignore rotation errors
-  }
-}
-
-/**
- * Log error to .nca/hook.log (append-only).
- */
-function logError(cwd: string, message: string): void {
-  try {
-    const logPath = path.join(cwd, '.nca', 'hook.log');
-    const line = `${now()} | ${message}\n`;
-    fs.appendFileSync(logPath, line, 'utf-8');
-  } catch {
-    // silent
   }
 }
 
