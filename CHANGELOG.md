@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- `NCA_MODE` environment reader — `off` (case-insensitive) disables the
+  session hooks; any other value (including unset) leaves them on
+- PostToolUse hook (`dist/hooks/post-tool-use.js`) — structured session
+  logging to `.nca/sessions/<session_id>.json`, append-only under an atomic
+  lock with a hard timeout; never breaks the Claude Code session
+- Stop hook (`dist/hooks/stop.js`) — one-line per-turn navigation summary
+  (briefs, grep/glob with after-brief and blocked detail, reads)
+- `nca session report` — per-session tool usage and behavior report
+  (`--all`, `--json`)
+- `nca compare` — side-by-side comparison of two logged sessions (`--json`)
+
+### Notes
+- The `blocked` field is reserved for a forthcoming PreToolUse hook; the
+  PostToolUse path always records `blocked: false`.
+
+---
+
 ## [1.5.1] — 2026-06-08
 
 ### Fixed
