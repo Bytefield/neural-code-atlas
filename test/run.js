@@ -478,6 +478,87 @@ test('STOP-04 last_stop_at is set after running', () => {
   assert(second.stdout.trim() === '', `Second turn should be silent, got: ${second.stdout}`);
 });
 
+// ─── session report (REPORT-01..03) ────────────────────────────────────────────
+
+// Helper: write a session fixture into a temp repo and run a cli command there.
+function withSessionFixtures(fixtures, fn) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-sess-test-'));
+  const sd = path.join(tempDir, '.nca', 'sessions');
+  fs.mkdirSync(sd, { recursive: true });
+  for (const [id, session] of Object.entries(fixtures)) {
+    fs.writeFileSync(path.join(sd, `${id}.json`), JSON.stringify(session, null, 2));
+  }
+  try {
+    return fn(tempDir);
+  } finally {
+    try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch {}
+  }
+}
+
+function cliIn(cwd, args) {
+  return require('child_process').spawnSync('node', [CLI, ...args.split(' ')], {
+    cwd,
+    encoding: 'utf-8',
+    env: process.env,
+  });
+}
+
+function makeSession(id, overrides) {
+  return Object.assign({
+    session_id: id, repo: 'testrepo', started_at: '2026-06-08T10:00:00.000Z', mode: 'on',
+    events: [], brief_called: false, first_edit_at: null,
+    files_read_before_first_edit: 0, reverts_detected: 0,
+  }, overrides || {});
+}
+
+test('REPORT-01 session report counts briefs, grep and reads', () => {
+  const session = makeSession('rep1', {
+    events: [
+      { ts: '2026-06-08T10:00:01.000Z', tool: 'Bash', input_short: 'nca brief --light', blocked: false, fallback_after_brief: false, outcome: 'ok' },
+      { ts: '2026-06-08T10:00:02.000Z', tool: 'Grep', input_short: 'x', blocked: false, fallback_after_brief: true, outcome: 'ok' },
+      { ts: '2026-06-08T10:00:03.000Z', tool: 'Read', input_short: '/a.ts', blocked: false, fallback_after_brief: false, outcome: 'ok' },
+      { ts: '2026-06-08T10:00:04.000Z', tool: 'Read', input_short: '/b.ts', blocked: false, fallback_after_brief: false, outcome: 'ok' },
+    ],
+    brief_called: true,
+  });
+  withSessionFixtures({ rep1: session }, (cwd) => {
+    const r = cliIn(cwd, 'session report rep1');
+    assert(r.status === 0, `expected exit 0, got ${r.status}: ${r.stderr}`);
+    assert(/nca brief\s+1 calls/.test(r.stdout), `brief count wrong:\n${r.stdout}`);
+    assert(/Grep\s+1 calls \(1 after-brief, 0 blocked\)/.test(r.stdout), `grep line wrong:\n${r.stdout}`);
+    assert(/Read\s+2 calls/.test(r.stdout), `read count wrong:\n${r.stdout}`);
+  });
+});
+
+test('REPORT-02 session report --json parses with expected fields', () => {
+  const session = makeSession('rep2', {
+    events: [
+      { ts: '2026-06-08T10:00:01.000Z', tool: 'Bash', input_short: 'nca brief', blocked: false, fallback_after_brief: false, outcome: 'ok' },
+    ],
+    brief_called: true,
+  });
+  withSessionFixtures({ rep2: session }, (cwd) => {
+    const r = cliIn(cwd, 'session report rep2 --json');
+    assert(r.status === 0, `expected exit 0, got ${r.status}: ${r.stderr}`);
+    const parsed = JSON.parse(r.stdout);
+    assert(parsed.session_id === 'rep2', 'session_id missing');
+    assert(parsed.tool_usage.nca_brief === 1, `nca_brief count wrong: ${parsed.tool_usage.nca_brief}`);
+    assert(parsed.behavior.time_to_first_edit === 'n/a', 'ttfe should be n/a');
+  });
+});
+
+test('REPORT-03 time-to-first-edit is n/a when no edit happened', () => {
+  const session = makeSession('rep3', {
+    events: [{ ts: '2026-06-08T10:00:01.000Z', tool: 'Read', input_short: '/a.ts', blocked: false, fallback_after_brief: false, outcome: 'ok' }],
+    first_edit_at: null,
+  });
+  withSessionFixtures({ rep3: session }, (cwd) => {
+    const r = cliIn(cwd, 'session report rep3');
+    assert(r.status === 0, `expected exit 0, got ${r.status}: ${r.stderr}`);
+    assert(/Time-to-first-edit: n\/a/.test(r.stdout), `ttfe should be n/a:\n${r.stdout}`);
+  });
+});
+
 // MIG-01: fresh DB applies all migrations
 test('MIG-01 fresh DB applies all migrations', () => {
   const dbFile = path.join(tmpDir, 'mig01.db');

@@ -13,6 +13,12 @@ import { Evolver } from './evolve.js';
 import { separator, header, formatField, formatStatus, colors } from './format.js';
 import { registerProject } from './registry.js';
 import { generateSkill } from './skill.js';
+import {
+  SessionFile,
+  readSession,
+  listSessions,
+  isBriefEvent,
+} from './hooks/lib/session.js';
 
 // Directories excluded from markdown scanning — mirrors DEFAULT_EXCLUDED_DIRS in scanner.ts
 const PROJECT_MD_EXCLUDED_DIRS = new Set([
@@ -1044,6 +1050,181 @@ program
       process.stdout.write(JSON.stringify(payload, null, 2) + '\n');
     } else {
       process.stdout.write(result.markdown + '\n');
+    }
+  });
+
+// ─── session report / compare ────────────────────────────────────────────────
+
+function formatDuration(ms: number): string {
+  const safe = ms < 0 ? 0 : ms;
+  const totalSec = Math.floor(safe / 1000);
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = totalSec % 60;
+  return minutes === 0 ? `${seconds}s` : `${minutes}m ${seconds}s`;
+}
+
+interface SessionStats {
+  briefCalls: number;
+  grepCalls: number;
+  grepAfterBrief: number;
+  grepBlocked: number;
+  globCalls: number;
+  globAfterBrief: number;
+  globBlocked: number;
+  readCalls: number;
+  editWriteCalls: number;
+  blockedTotal: number;
+  totalCalls: number;
+  durationMs: number;
+  ttfe: string;
+}
+
+function computeSessionStats(session: SessionFile): SessionStats {
+  let briefCalls = 0;
+  let grepCalls = 0, grepAfterBrief = 0, grepBlocked = 0;
+  let globCalls = 0, globAfterBrief = 0, globBlocked = 0;
+  let readCalls = 0;
+  let editWriteCalls = 0;
+
+  for (const e of session.events) {
+    if (isBriefEvent(e)) {
+      briefCalls++;
+    } else if (e.tool === 'Grep') {
+      grepCalls++;
+      if (e.fallback_after_brief) grepAfterBrief++;
+      if (e.blocked) grepBlocked++;
+    } else if (e.tool === 'Glob') {
+      globCalls++;
+      if (e.fallback_after_brief) globAfterBrief++;
+      if (e.blocked) globBlocked++;
+    } else if (e.tool === 'Read') {
+      readCalls++;
+    } else if (e.tool === 'Edit' || e.tool === 'Write') {
+      editWriteCalls++;
+    }
+  }
+
+  const lastTs = session.events.length > 0
+    ? session.events[session.events.length - 1].ts
+    : session.started_at;
+  const durationMs = new Date(lastTs).getTime() - new Date(session.started_at).getTime();
+  const ttfe = session.first_edit_at
+    ? formatDuration(new Date(session.first_edit_at).getTime() - new Date(session.started_at).getTime())
+    : 'n/a';
+
+  return {
+    briefCalls,
+    grepCalls, grepAfterBrief, grepBlocked,
+    globCalls, globAfterBrief, globBlocked,
+    readCalls,
+    editWriteCalls,
+    blockedTotal: session.events.filter((e) => e.blocked).length,
+    totalCalls: session.events.length,
+    durationMs,
+    ttfe,
+  };
+}
+
+function grepDetailSuffix(after: number, blocked: number): string {
+  return ` (${after} after-brief, ${blocked} blocked)`;
+}
+
+function formatSessionReport(session: SessionFile): string {
+  const s = computeSessionStats(session);
+  const lines: string[] = [];
+  lines.push(`NCA Session Report — ${session.started_at}`);
+  lines.push(`Repo: ${session.repo}  ·  Mode: ${session.mode}  ·  Duration: ${formatDuration(s.durationMs)}`);
+  lines.push('');
+  lines.push('Tool usage:');
+  lines.push(`  nca brief        ${s.briefCalls} calls`);
+  lines.push(`  Grep             ${s.grepCalls} calls${grepDetailSuffix(s.grepAfterBrief, s.grepBlocked)}`);
+  lines.push(`  Glob             ${s.globCalls} calls${grepDetailSuffix(s.globAfterBrief, s.globBlocked)}`);
+  lines.push(`  Read             ${s.readCalls} calls`);
+  lines.push(`  Edit/Write       ${s.editWriteCalls} calls`);
+  lines.push('');
+  lines.push('Behavior:');
+  lines.push(`  Time-to-first-edit: ${s.ttfe}`);
+  lines.push(`  Files read before first edit: ${session.files_read_before_first_edit}`);
+  lines.push(`  Reverts detected: ${session.reverts_detected}`);
+  return lines.join('\n');
+}
+
+function sessionReportJSON(session: SessionFile): object {
+  const s = computeSessionStats(session);
+  return {
+    session_id: session.session_id,
+    repo: session.repo,
+    mode: session.mode,
+    started_at: session.started_at,
+    duration_ms: s.durationMs,
+    tool_usage: {
+      nca_brief: s.briefCalls,
+      grep: { calls: s.grepCalls, after_brief: s.grepAfterBrief, blocked: s.grepBlocked },
+      glob: { calls: s.globCalls, after_brief: s.globAfterBrief, blocked: s.globBlocked },
+      read: s.readCalls,
+      edit_write: s.editWriteCalls,
+    },
+    behavior: {
+      time_to_first_edit: s.ttfe,
+      files_read_before_first_edit: session.files_read_before_first_edit,
+      reverts_detected: session.reverts_detected,
+    },
+  };
+}
+
+const sessionCmd = program.command('session').description('Session log analysis commands');
+
+sessionCmd
+  .command('report [session_id]')
+  .description('Report tool usage for a logged session (defaults to the most recent)')
+  .option('--all', 'summarize all sessions in this repo')
+  .option('--json', 'output as JSON')
+  .action((sessionId: string | undefined, opts: { all?: boolean; json?: boolean }) => {
+    const cwd = process.cwd();
+
+    if (opts.all) {
+      const sessions = listSessions(cwd)
+        .map((s) => readSession(cwd, s.id))
+        .filter((s): s is SessionFile => s !== null);
+      if (opts.json) {
+        process.stdout.write(JSON.stringify(sessions.map(sessionReportJSON), null, 2) + '\n');
+        return;
+      }
+      if (sessions.length === 0) {
+        process.stdout.write('No sessions found in this repo.\n');
+        return;
+      }
+      process.stdout.write(`NCA Sessions — ${sessions[0].repo}\n`);
+      for (const session of sessions) {
+        const s = computeSessionStats(session);
+        process.stdout.write(
+          `  ${session.session_id}  mode=${session.mode}  ${formatDuration(s.durationMs)}  ` +
+          `briefs:${s.briefCalls} grep:${s.grepCalls} glob:${s.globCalls} read:${s.readCalls} edits:${s.editWriteCalls}\n`
+        );
+      }
+      return;
+    }
+
+    let id = sessionId;
+    if (!id) {
+      const sessions = listSessions(cwd);
+      if (sessions.length === 0) {
+        process.stderr.write('No sessions found in this repo.\n');
+        process.exit(1);
+      }
+      id = sessions[0].id;
+    }
+
+    const session = readSession(cwd, id);
+    if (!session) {
+      process.stderr.write(`Session not found: ${id}\n`);
+      process.exit(1);
+    }
+
+    if (opts.json) {
+      process.stdout.write(JSON.stringify(sessionReportJSON(session), null, 2) + '\n');
+    } else {
+      process.stdout.write(formatSessionReport(session) + '\n');
     }
   });
 
