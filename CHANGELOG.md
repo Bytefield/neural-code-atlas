@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] — 2026-06-08
+
+### Added
+- `nca vault search` and `nca vault get` CLI commands
+  for querying indexed Obsidian/Markdown vaults
+- `nca related <symbol_or_doc>` — traverse doc↔code edges
+- `nca docs audit` — documentation coverage report
+  (documented %, top undocumented by PageRank, orphaned docs)
+- `nca task` — declare active task intent for context compilation
+- `nca brief --light` — generate focused task brief (≤300 tokens)
+  with relevant symbols, docs, and gotchas
+
+### Fixed
+- Migration schema version mismatch: binary built against v3
+  could not open v4 DBs created by development builds
+
+### Architecture
+- Established motor/compiler boundary (src/compiler/)
+- Per-repo doc sources configuration (.nca/config.json)
+- ensureIndexed guard with hook-aware routing (--from-hook flag)
+
+---
+
 ## [1.4.0] — 2026-06-01
 
 ### Added
