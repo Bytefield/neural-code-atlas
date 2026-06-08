@@ -166,6 +166,202 @@ test('MODE-05 NCA_MODE=whatever defaults to on', () => {
   }
 });
 
+// HOOK tests — PostToolUse structured logging
+test('HOOK-01 first event creates session file correctly', () => {
+  const tempSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-hook-test-'));
+  const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
+
+  try {
+    const input = JSON.stringify({
+      session_id: 'test-session-01',
+      cwd: tempSessionDir,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Read',
+      tool_input: { file_path: '/test/path.ts' },
+      tool_response: { content: 'some content' },
+    });
+
+    const result = require('child_process').spawnSync('node', [hookScript], {
+      input,
+      encoding: 'utf-8',
+    });
+
+    assert(result.status === 0, `Hook exited with status ${result.status}: ${result.stderr}`);
+
+    const sessionPath = path.join(tempSessionDir, '.nca', 'sessions', 'test-session-01.json');
+    assert(fs.existsSync(sessionPath), `Session file not created at ${sessionPath}`);
+
+    const session = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
+    assert(session.session_id === 'test-session-01', 'Incorrect session_id');
+    assert(session.repo === path.basename(tempSessionDir), 'Incorrect repo name');
+    assert(session.started_at, 'Missing started_at');
+    assert(session.mode === 'on' || session.mode === 'off', 'Invalid mode');
+    assert(session.events.length === 1, `Expected 1 event, got ${session.events.length}`);
+    assert(session.events[0].tool === 'Read', 'Incorrect tool');
+    assert(session.events[0].input_short === '/test/path.ts', 'Incorrect input_short');
+    assert(session.events[0].outcome === 'ok', 'Incorrect outcome for successful Read');
+    assert(session.events[0].blocked === false, 'blocked should always be false');
+  } finally {
+    try { fs.rmSync(tempSessionDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
+test('HOOK-02 second event appends to session', () => {
+  const tempSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-hook-test-'));
+  const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
+
+  try {
+    // First event
+    const input1 = JSON.stringify({
+      session_id: 'test-session-02',
+      cwd: tempSessionDir,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Read',
+      tool_input: { file_path: '/test/path.ts' },
+      tool_response: { content: 'data' },
+    });
+
+    require('child_process').spawnSync('node', [hookScript], {
+      input: input1,
+      encoding: 'utf-8',
+    });
+
+    // Second event
+    const input2 = JSON.stringify({
+      session_id: 'test-session-02',
+      cwd: tempSessionDir,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Edit',
+      tool_input: { file_path: '/test/path.ts', old_string: 'x', new_string: 'y' },
+      tool_response: { success: true },
+    });
+
+    require('child_process').spawnSync('node', [hookScript], {
+      input: input2,
+      encoding: 'utf-8',
+    });
+
+    const sessionPath = path.join(tempSessionDir, '.nca', 'sessions', 'test-session-02.json');
+    const session = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
+
+    assert(session.events.length === 2, `Expected 2 events, got ${session.events.length}`);
+    assert(session.events[0].tool === 'Read', 'First event should be Read');
+    assert(session.events[1].tool === 'Edit', 'Second event should be Edit');
+    assert(session.started_at, 'started_at should be set on first event');
+  } finally {
+    try { fs.rmSync(tempSessionDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
+test('HOOK-03 nca_brief detection sets brief_called flag', () => {
+  const tempSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-hook-test-'));
+  const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
+
+  try {
+    const input = JSON.stringify({
+      session_id: 'test-session-03',
+      cwd: tempSessionDir,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Bash',
+      tool_input: { command: 'nca brief --light' },
+      tool_response: null,
+    });
+
+    require('child_process').spawnSync('node', [hookScript], {
+      input,
+      encoding: 'utf-8',
+    });
+
+    const sessionPath = path.join(tempSessionDir, '.nca', 'sessions', 'test-session-03.json');
+    const session = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
+
+    assert(session.brief_called === true, 'brief_called should be true after nca_brief');
+  } finally {
+    try { fs.rmSync(tempSessionDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
+test('HOOK-04 first_edit_at and files_read_before_first_edit tracked correctly', () => {
+  const tempSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-hook-test-'));
+  const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
+
+  try {
+    // First: Read events
+    const input1 = JSON.stringify({
+      session_id: 'test-session-04',
+      cwd: tempSessionDir,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Read',
+      tool_input: { file_path: '/file1.ts' },
+      tool_response: { content: 'x' },
+    });
+
+    require('child_process').spawnSync('node', [hookScript], {
+      input: input1,
+      encoding: 'utf-8',
+    });
+
+    // Second: Read event
+    const input2 = JSON.stringify({
+      session_id: 'test-session-04',
+      cwd: tempSessionDir,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Read',
+      tool_input: { file_path: '/file2.ts' },
+      tool_response: { content: 'y' },
+    });
+
+    require('child_process').spawnSync('node', [hookScript], {
+      input: input2,
+      encoding: 'utf-8',
+    });
+
+    // Third: Edit event (first edit)
+    const input3 = JSON.stringify({
+      session_id: 'test-session-04',
+      cwd: tempSessionDir,
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Edit',
+      tool_input: { file_path: '/file1.ts', old_string: 'x', new_string: 'xx' },
+      tool_response: { success: true },
+    });
+
+    require('child_process').spawnSync('node', [hookScript], {
+      input: input3,
+      encoding: 'utf-8',
+    });
+
+    const sessionPath = path.join(tempSessionDir, '.nca', 'sessions', 'test-session-04.json');
+    const session = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
+
+    assert(session.first_edit_at !== null, 'first_edit_at should be set');
+    assert(session.files_read_before_first_edit === 2, `Expected 2 reads before edit, got ${session.files_read_before_first_edit}`);
+  } finally {
+    try { fs.rmSync(tempSessionDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
+test('HOOK-05 invalid JSON input exits gracefully without crash', () => {
+  const tempSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-hook-test-'));
+  const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
+
+  try {
+    const result = require('child_process').spawnSync('node', [hookScript], {
+      input: 'not-json-{broken}',
+      encoding: 'utf-8',
+    });
+
+    assert(result.status === 0, `Hook should exit 0 on invalid JSON, got ${result.status}`);
+    assert(!result.stderr || result.stderr === '', `Hook should not write stderr: ${result.stderr}`);
+
+    // Session should NOT exist (corrupted input)
+    const sessionPath = path.join(tempSessionDir, '.nca', 'sessions', 'unknown.json');
+    assert(!fs.existsSync(sessionPath), 'Session should not exist for bad input');
+  } finally {
+    try { fs.rmSync(tempSessionDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
 // MIG-01: fresh DB applies all migrations
 test('MIG-01 fresh DB applies all migrations', () => {
   const dbFile = path.join(tmpDir, 'mig01.db');
