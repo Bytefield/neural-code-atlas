@@ -64,18 +64,35 @@ After scanning, `SKILL.md` is written to your project root. Drop it into your Cl
 
 ## Commands
 
-- `nca scan [path]` — build/update the index; auto-generates `SKILL.md` (defaults to cwd)
-- `nca ask <query...>` — query the index (`--json` for structured output)
-- `nca flow <name>` — trace execution flow from an entry point (`--json` supported)
-- `nca evolve` — run architectural heuristics and emit warnings
-- `nca status` — show index stats
-- `nca watch [path]` — watch filesystem and auto-reindex on change
-- `nca insights` — show the most frequently queried nodes
+### Code navigation
+- `nca ask <query...>` — query the index by symbol or keyword; returns code nodes with module, PageRank rank, and god-node flags (`--json` for structured output)
+- `nca flow <name>` — trace execution flow from an entry point; shows all nodes reachable in dependency order (`--json` supported)
+- `nca evolve` — run architectural analysis and emit warnings (high complexity, cycles, deep chains, god nodes)
+
+### Vault & documentation
 - `nca vault scan <path>` — index an Obsidian/Markdown vault with FTS5 full-text search
+- `nca vault search <query>` — search indexed vault docs; returns matched files with excerpts (`--root <vault_path>` to override auto-detected vault)
+- `nca vault get <id_or_path>` — retrieve a specific note by ID or file path (`--root <vault_path>`)
+- `nca related <symbol_or_doc>` — show documentation referencing a code symbol, or code symbols referenced by a doc; traverses doc↔code edges (`--root <vault_path>`)
+- `nca docs audit` — generate documentation coverage report (shows indexed docs and metrics)
+
+### Context compiler
+- `nca task [description]` — set the active task (stored in `.nca/current-task.json`); supply a description or omit to read current task
+- `nca task --show` — print the current task
+- `nca task --clear` — clear the current task
+- `nca brief [--light]` — generate a focused context brief for the active task; `--light` emits a compact version (≤300 tokens)
+
+### Index management
+- `nca scan [path]` — build/update the index; auto-generates `SKILL.md` (defaults to cwd)
+- `nca status` — show index stats (node count, file count, DB location, last scan time)
+- `nca watch [path]` — watch filesystem and auto-reindex on change (requires `chokidar`)
+- `nca insights` — show the most frequently queried nodes
 - `nca projects` — list all registered projects
+
+### Server
 - `nca mcp` — run MCP server over stdio (Claude Code integration)
 
-Run `nca <command> --help` for options.
+Run `nca <command> --help` for full options per command.
 
 ## Graph Analytics
 
