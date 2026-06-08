@@ -1228,4 +1228,60 @@ sessionCmd
     }
   });
 
+program
+  .command('compare <session_id_a> <session_id_b>')
+  .description('Compare two logged sessions side by side')
+  .option('--json', 'output as JSON')
+  .action((idA: string, idB: string, opts: { json?: boolean }) => {
+    const cwd = process.cwd();
+    const a = readSession(cwd, idA);
+    if (!a) {
+      process.stderr.write(`Session not found: ${idA}\n`);
+      process.exit(1);
+    }
+    const b = readSession(cwd, idB);
+    if (!b) {
+      process.stderr.write(`Session not found: ${idB}\n`);
+      process.exit(1);
+    }
+
+    if (a.mode === b.mode) {
+      process.stderr.write(`warning: comparing two sessions with same mode (${a.mode})\n`);
+    }
+
+    const sa = computeSessionStats(a);
+    const sb = computeSessionStats(b);
+
+    if (opts.json) {
+      process.stdout.write(JSON.stringify({
+        a: sessionReportJSON(a),
+        b: sessionReportJSON(b),
+      }, null, 2) + '\n');
+      return;
+    }
+
+    const row = (label: string, valA: string | number, valB: string | number): string =>
+      `  ${label.padEnd(24)}${String(valA).padEnd(10)}${String(valB)}`;
+
+    const out: string[] = [];
+    out.push('NCA Compare');
+    out.push(`A: ${a.session_id} · mode=${a.mode} · ${a.repo} · ${formatDuration(sa.durationMs)}`);
+    out.push(`B: ${b.session_id} · mode=${b.mode} · ${b.repo} · ${formatDuration(sb.durationMs)}`);
+    out.push('');
+    out.push(`  ${''.padEnd(24)}${'A'.padEnd(10)}B`);
+    out.push('  ' + '─'.repeat(40));
+    out.push(row('duration', formatDuration(sa.durationMs), formatDuration(sb.durationMs)));
+    out.push(row('total tool calls', sa.totalCalls, sb.totalCalls));
+    out.push(row('  nca brief', sa.briefCalls, sb.briefCalls));
+    out.push(row('  Grep', sa.grepCalls, sb.grepCalls));
+    out.push(row('  Glob', sa.globCalls, sb.globCalls));
+    out.push(row('  Read', sa.readCalls, sb.readCalls));
+    out.push(row('  Edit/Write', sa.editWriteCalls, sb.editWriteCalls));
+    out.push(row('blocked', sa.blockedTotal, sb.blockedTotal));
+    out.push(row('time-to-first-edit', sa.ttfe, sb.ttfe));
+    out.push(row('files read pre-edit', a.files_read_before_first_edit, b.files_read_before_first_edit));
+    out.push(row('reverts', a.reverts_detected, b.reverts_detected));
+    process.stdout.write(out.join('\n') + '\n');
+  });
+
 program.parse(process.argv);

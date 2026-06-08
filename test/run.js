@@ -559,6 +559,56 @@ test('REPORT-03 time-to-first-edit is n/a when no edit happened', () => {
   });
 });
 
+// ─── compare (COMPARE-01..03) ──────────────────────────────────────────────────
+
+test('COMPARE-01 compares two sessions with correct per-side counts', () => {
+  const a = makeSession('cmpA', {
+    mode: 'on',
+    events: [
+      { ts: '2026-06-08T10:00:01.000Z', tool: 'Bash', input_short: 'nca brief', blocked: false, fallback_after_brief: false, outcome: 'ok' },
+      { ts: '2026-06-08T10:00:02.000Z', tool: 'Read', input_short: '/a.ts', blocked: false, fallback_after_brief: false, outcome: 'ok' },
+    ],
+    brief_called: true,
+  });
+  const b = makeSession('cmpB', {
+    mode: 'off',
+    events: [
+      { ts: '2026-06-08T10:00:01.000Z', tool: 'Grep', input_short: 'x', blocked: false, fallback_after_brief: false, outcome: 'ok' },
+      { ts: '2026-06-08T10:00:02.000Z', tool: 'Grep', input_short: 'y', blocked: false, fallback_after_brief: false, outcome: 'ok' },
+      { ts: '2026-06-08T10:00:03.000Z', tool: 'Read', input_short: '/b.ts', blocked: false, fallback_after_brief: false, outcome: 'ok' },
+    ],
+  });
+  withSessionFixtures({ cmpA: a, cmpB: b }, (cwd) => {
+    const r = cliIn(cwd, 'session report cmpA'); // warm path sanity (report still works)
+    assert(r.status === 0, 'report should still work');
+    const c = cliIn(cwd, 'compare cmpA cmpB');
+    assert(c.status === 0, `compare exit 0, got ${c.status}: ${c.stderr}`);
+    assert(/nca brief\s+1\s+0/.test(c.stdout), `brief row wrong:\n${c.stdout}`);
+    assert(/Grep\s+0\s+2/.test(c.stdout), `grep row wrong:\n${c.stdout}`);
+    assert(/Read\s+1\s+1/.test(c.stdout), `read row wrong:\n${c.stdout}`);
+  });
+});
+
+test('COMPARE-02 --json parses with both sides', () => {
+  const a = makeSession('cj1', { mode: 'on', events: [], brief_called: false });
+  const b = makeSession('cj2', { mode: 'off', events: [] });
+  withSessionFixtures({ cj1: a, cj2: b }, (cwd) => {
+    const r = cliIn(cwd, 'compare cj1 cj2 --json');
+    assert(r.status === 0, `compare --json exit 0, got ${r.status}: ${r.stderr}`);
+    const parsed = JSON.parse(r.stdout);
+    assert(parsed.a.session_id === 'cj1' && parsed.b.session_id === 'cj2', 'both sides should be present');
+  });
+});
+
+test('COMPARE-03 missing session exits non-zero with clear message', () => {
+  const a = makeSession('present', { events: [] });
+  withSessionFixtures({ present: a }, (cwd) => {
+    const r = cliIn(cwd, 'compare present nope-not-here');
+    assert(r.status !== 0, `expected non-zero exit, got ${r.status}`);
+    assert(/Session not found: nope-not-here/.test(r.stderr), `expected clear error, got: ${r.stderr}`);
+  });
+});
+
 // MIG-01: fresh DB applies all migrations
 test('MIG-01 fresh DB applies all migrations', () => {
   const dbFile = path.join(tmpDir, 'mig01.db');
