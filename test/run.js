@@ -104,6 +104,68 @@ test('AC6 evolve returns warning output', () => {
   assert(out.includes('[W]'), 'Expected [W] section');
 });
 
+// MODE tests — NCA_MODE env reader
+const { getMode } = require(path.join(ROOT, 'dist', 'hooks', 'lib', 'mode.js'));
+
+test('MODE-01 undefined NCA_MODE returns on', () => {
+  const prevValue = process.env.NCA_MODE;
+  try {
+    delete process.env.NCA_MODE;
+    const mode = getMode();
+    assert(mode === 'on', `Expected 'on' for undefined, got: ${mode}`);
+  } finally {
+    if (prevValue !== undefined) process.env.NCA_MODE = prevValue;
+  }
+});
+
+test('MODE-02 NCA_MODE=on returns on', () => {
+  const prevValue = process.env.NCA_MODE;
+  try {
+    process.env.NCA_MODE = 'on';
+    const mode = getMode();
+    assert(mode === 'on', `Expected 'on' for 'on', got: ${mode}`);
+  } finally {
+    if (prevValue !== undefined) process.env.NCA_MODE = prevValue;
+    else delete process.env.NCA_MODE;
+  }
+});
+
+test('MODE-03 NCA_MODE=off returns off', () => {
+  const prevValue = process.env.NCA_MODE;
+  try {
+    process.env.NCA_MODE = 'off';
+    const mode = getMode();
+    assert(mode === 'off', `Expected 'off' for 'off', got: ${mode}`);
+  } finally {
+    if (prevValue !== undefined) process.env.NCA_MODE = prevValue;
+    else delete process.env.NCA_MODE;
+  }
+});
+
+test('MODE-04 NCA_MODE=OFF case-insensitive returns off', () => {
+  const prevValue = process.env.NCA_MODE;
+  try {
+    process.env.NCA_MODE = 'OFF';
+    const mode = getMode();
+    assert(mode === 'off', `Expected 'off' for 'OFF', got: ${mode}`);
+  } finally {
+    if (prevValue !== undefined) process.env.NCA_MODE = prevValue;
+    else delete process.env.NCA_MODE;
+  }
+});
+
+test('MODE-05 NCA_MODE=whatever defaults to on', () => {
+  const prevValue = process.env.NCA_MODE;
+  try {
+    process.env.NCA_MODE = 'whatever';
+    const mode = getMode();
+    assert(mode === 'on', `Expected 'on' for 'whatever', got: ${mode}`);
+  } finally {
+    if (prevValue !== undefined) process.env.NCA_MODE = prevValue;
+    else delete process.env.NCA_MODE;
+  }
+});
+
 // MIG-01: fresh DB applies all migrations
 test('MIG-01 fresh DB applies all migrations', () => {
   const dbFile = path.join(tmpDir, 'mig01.db');
