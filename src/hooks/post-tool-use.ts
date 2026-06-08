@@ -57,6 +57,9 @@ interface ToolEvent {
   blocked: boolean;
   fallback_after_brief: boolean;
   outcome: 'ok' | 'error' | null;
+  // Normalized file_path, only set for Edit/Write. Used by revert detection
+  // to compare against prior events touching the same file.
+  file_path?: string;
 }
 
 interface SessionFile {
@@ -162,17 +165,18 @@ function countReverts(session: SessionFile, toolName: string, toolInput: any): n
   if (!filePath) return 0;
 
   const normalizedPath = path.normalize(String(filePath));
-  const recentEvents = session.events.slice(-5);
+  // The current event is already pushed; look at the 5 events BEFORE it so we
+  // never match the file against itself.
+  const priorEvents = session.events.slice(-6, -1);
 
-  // Check if this file was edited recently
-  const foundRecent = recentEvents.some((evt) => {
-    if (!['Edit', 'Write'].includes(evt.tool)) return false;
-    // We don't have file_path in event, but we can check if any Edit/Write happened
-    // For now, a simple heuristic: if last event was Edit/Write, increment
-    return true;
-  });
+  const sameFileRecentlyEdited = priorEvents.some(
+    (evt) =>
+      ['Edit', 'Write'].includes(evt.tool) &&
+      evt.file_path !== undefined &&
+      path.normalize(evt.file_path) === normalizedPath
+  );
 
-  return foundRecent ? 1 : 0;
+  return sameFileRecentlyEdited ? 1 : 0;
 }
 
 /**
@@ -343,6 +347,12 @@ function main(): void {
         fallback_after_brief: fallbackAfterBrief,
         outcome,
       };
+
+      // Store normalized file_path for Edit/Write so revert detection can
+      // compare files across events.
+      if (['Edit', 'Write'].includes(tool_name) && tool_input?.file_path) {
+        event.file_path = path.normalize(String(tool_input.file_path));
+      }
 
       // Append event
       session.events.push(event);

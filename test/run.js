@@ -362,6 +362,40 @@ test('HOOK-05 invalid JSON input exits gracefully without crash', () => {
   }
 });
 
+test('HOOK-06 reverts_detected compares file_path, not just any recent edit', () => {
+  const tempSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-hook-test-'));
+  const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
+  const spawnSync = require('child_process').spawnSync;
+
+  const edit = (filePath) => JSON.stringify({
+    session_id: 'test-session-06',
+    cwd: tempSessionDir,
+    hook_event_name: 'PostToolUse',
+    tool_name: 'Edit',
+    tool_input: { file_path: filePath, old_string: 'x', new_string: 'xx' },
+    tool_response: { success: true },
+  });
+
+  try {
+    // Edit /a.ts, then /b.ts (different file), then /a.ts again (the revert).
+    spawnSync('node', [hookScript], { input: edit('/a.ts'), encoding: 'utf-8' });
+    spawnSync('node', [hookScript], { input: edit('/b.ts'), encoding: 'utf-8' });
+    spawnSync('node', [hookScript], { input: edit('/a.ts'), encoding: 'utf-8' });
+
+    const sessionPath = path.join(tempSessionDir, '.nca', 'sessions', 'test-session-06.json');
+    const session = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
+
+    // Only the 3rd edit re-touches a file edited within the last 5 events.
+    // Editing 3 distinct-then-repeated files must yield exactly 1 revert, not 3.
+    assert(
+      session.reverts_detected === 1,
+      `Expected exactly 1 revert (only /a.ts re-edit), got ${session.reverts_detected}`
+    );
+  } finally {
+    try { fs.rmSync(tempSessionDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
 // MIG-01: fresh DB applies all migrations
 test('MIG-01 fresh DB applies all migrations', () => {
   const dbFile = path.join(tmpDir, 'mig01.db');
