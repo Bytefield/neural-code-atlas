@@ -1016,6 +1016,7 @@ program
   .action((opts: { light?: boolean; root?: string; json?: boolean }) => {
     const { loadTask } = require('./task.js') as typeof import('./task.js');
     const { generateBrief } = require('./compiler/brief.js') as typeof import('./compiler/brief.js');
+    const { resolveVaultRoot } = require('./config.js') as typeof import('./config.js');
 
     const rootPath = process.cwd();
     const task = loadTask(rootPath);
@@ -1025,7 +1026,9 @@ program
       process.exit(1);
     }
 
-    const vaultRoot = opts.root ? path.resolve(opts.root) : undefined;
+    // Precedence: --root flag > .nca/config.local.json external source > .nca/config.json external source > undefined
+    const explicitRoot = opts.root ? path.resolve(opts.root) : undefined;
+    const vaultRoot = resolveVaultRoot(rootPath, explicitRoot);
     const result = generateBrief({ task, repoRoot: rootPath, vaultRoot });
 
     if (opts.json) {

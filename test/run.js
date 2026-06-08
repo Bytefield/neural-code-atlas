@@ -3914,6 +3914,150 @@ let mcpTestDone = false;
   });
 }
 
+// ─── BCONFIG: brief reads vaultRoot from config ───────────────────────────────
+
+{
+  const { resolveVaultRoot, readDocSources } = require(path.join(ROOT, 'dist', 'config.js'));
+  const { generateBrief } = require(path.join(ROOT, 'dist', 'compiler', 'brief.js'));
+
+  // BCONFIG-01: brief reads config.local.json and uses external path as vaultRoot
+  test('BCONFIG-01 brief resolves vaultRoot from config.local.json external source', () => {
+    const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-bconfig-'));
+    const ncaDir = path.join(repoDir, '.nca');
+    fs.mkdirSync(ncaDir, { recursive: true });
+
+    // Create a fake external vault dir (doesn't need a real DB for this test)
+    const vaultDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-bconfig-vault-'));
+
+    try {
+      // Write config.local.json with an external docSource
+      fs.writeFileSync(
+        path.join(ncaDir, 'config.local.json'),
+        JSON.stringify({
+          version: 1,
+          docSources: [{ type: 'external', path: vaultDir, label: 'Test vault' }],
+        }),
+      );
+
+      const resolved = resolveVaultRoot(repoDir, undefined);
+      assert(resolved === vaultDir, `Expected vaultRoot '${vaultDir}', got '${resolved}'`);
+    } finally {
+      try { fs.rmSync(repoDir, { recursive: true, force: true }); } catch {}
+      try { fs.rmSync(vaultDir, { recursive: true, force: true }); } catch {}
+    }
+  });
+
+  // BCONFIG-02: --root explicit takes precedence over config.local.json
+  test('BCONFIG-02 explicit --root overrides config.local.json external source', () => {
+    const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-bconfig-'));
+    const ncaDir = path.join(repoDir, '.nca');
+    fs.mkdirSync(ncaDir, { recursive: true });
+
+    const configVaultDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-bconfig-cvault-'));
+    const explicitVaultDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-bconfig-evault-'));
+
+    try {
+      fs.writeFileSync(
+        path.join(ncaDir, 'config.local.json'),
+        JSON.stringify({
+          version: 1,
+          docSources: [{ type: 'external', path: configVaultDir }],
+        }),
+      );
+
+      // Explicit root must win
+      const resolved = resolveVaultRoot(repoDir, explicitVaultDir);
+      assert(resolved === explicitVaultDir,
+        `Expected explicit vault '${explicitVaultDir}', got '${resolved}'`);
+    } finally {
+      try { fs.rmSync(repoDir, { recursive: true, force: true }); } catch {}
+      try { fs.rmSync(configVaultDir, { recursive: true, force: true }); } catch {}
+      try { fs.rmSync(explicitVaultDir, { recursive: true, force: true }); } catch {}
+    }
+  });
+
+  // BCONFIG-03: no config.local.json → brief works without vault (no crash)
+  test('BCONFIG-03 brief does not crash when config.local.json is absent', () => {
+    const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-bconfig-'));
+    const ncaDir = path.join(repoDir, '.nca');
+    fs.mkdirSync(ncaDir, { recursive: true });
+    const tmpDb = path.join(ncaDir, 'nca.db');
+    const prevDb = process.env.NCA_DB_PATH;
+    process.env.NCA_DB_PATH = tmpDb;
+
+    try {
+      // No config.local.json, no config.json
+      fs.writeFileSync(path.join(repoDir, 'service.ts'), 'export function init() {}\n');
+      execSync(`node ${CLI} scan ${repoDir}`, {
+        encoding: 'utf-8',
+        env: { ...process.env, NCA_DB_PATH: tmpDb },
+      });
+
+      const vaultRoot = resolveVaultRoot(repoDir, undefined);
+      assert(vaultRoot === undefined, `Expected undefined when no config, got '${vaultRoot}'`);
+
+      const result = generateBrief({
+        task: { description: 'initialize service', createdAt: new Date().toISOString(), repoRoot: repoDir },
+        repoRoot: repoDir,
+        vaultRoot,
+      });
+
+      assert(typeof result.markdown === 'string' && result.markdown.length > 0,
+        'Expected non-empty markdown even without config.local.json');
+      assert(result.docs.length === 0, 'Expected 0 docs without vault');
+    } finally {
+      try { fs.rmSync(repoDir, { recursive: true, force: true }); } catch {}
+      if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+      else process.env.NCA_DB_PATH = prevDb;
+    }
+  });
+
+  // BCONFIG-04: config.local.json exists but has no external sources → brief works without vault
+  test('BCONFIG-04 brief works without vault when config.local.json has no external sources', () => {
+    const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-bconfig-'));
+    const ncaDir = path.join(repoDir, '.nca');
+    fs.mkdirSync(ncaDir, { recursive: true });
+    const tmpDb = path.join(ncaDir, 'nca.db');
+    const prevDb = process.env.NCA_DB_PATH;
+    process.env.NCA_DB_PATH = tmpDb;
+
+    try {
+      // config.local.json with only internal sources (no external)
+      fs.writeFileSync(
+        path.join(ncaDir, 'config.local.json'),
+        JSON.stringify({
+          version: 1,
+          docSources: [{ type: 'internal', path: './docs' }],
+        }),
+      );
+
+      fs.writeFileSync(path.join(repoDir, 'handler.ts'), 'export function handle() {}\n');
+      execSync(`node ${CLI} scan ${repoDir}`, {
+        encoding: 'utf-8',
+        env: { ...process.env, NCA_DB_PATH: tmpDb },
+      });
+
+      const vaultRoot = resolveVaultRoot(repoDir, undefined);
+      assert(vaultRoot === undefined,
+        `Expected undefined when no external sources, got '${vaultRoot}'`);
+
+      const result = generateBrief({
+        task: { description: 'handle request', createdAt: new Date().toISOString(), repoRoot: repoDir },
+        repoRoot: repoDir,
+        vaultRoot,
+      });
+
+      assert(typeof result.markdown === 'string' && result.markdown.length > 0,
+        'Expected non-empty markdown when config has no external sources');
+      assert(result.docs.length === 0, 'Expected 0 docs without external vault');
+    } finally {
+      try { fs.rmSync(repoDir, { recursive: true, force: true }); } catch {}
+      if (prevDb === undefined) delete process.env.NCA_DB_PATH;
+      else process.env.NCA_DB_PATH = prevDb;
+    }
+  });
+}
+
 // Results — wait for MCP async test (3000ms timeout above + 500ms init + 1000ms drain window)
 setTimeout(() => {
   // Flush MCP test result into the pass/fail counters
