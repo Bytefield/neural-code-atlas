@@ -104,298 +104,97 @@ test('AC6 evolve returns warning output', () => {
   assert(out.includes('[W]'), 'Expected [W] section');
 });
 
-// MODE tests — NCA_MODE env reader
-const { getMode } = require(path.join(ROOT, 'dist', 'hooks', 'lib', 'mode.js'));
-
-test('MODE-01 undefined NCA_MODE returns on', () => {
-  const prevValue = process.env.NCA_MODE;
-  try {
-    delete process.env.NCA_MODE;
-    const mode = getMode();
-    assert(mode === 'on', `Expected 'on' for undefined, got: ${mode}`);
-  } finally {
-    if (prevValue !== undefined) process.env.NCA_MODE = prevValue;
-  }
-});
-
-test('MODE-02 NCA_MODE=on returns on', () => {
-  const prevValue = process.env.NCA_MODE;
-  try {
-    process.env.NCA_MODE = 'on';
-    const mode = getMode();
-    assert(mode === 'on', `Expected 'on' for 'on', got: ${mode}`);
-  } finally {
-    if (prevValue !== undefined) process.env.NCA_MODE = prevValue;
-    else delete process.env.NCA_MODE;
-  }
-});
-
-test('MODE-03 NCA_MODE=off returns off', () => {
-  const prevValue = process.env.NCA_MODE;
-  try {
-    process.env.NCA_MODE = 'off';
-    const mode = getMode();
-    assert(mode === 'off', `Expected 'off' for 'off', got: ${mode}`);
-  } finally {
-    if (prevValue !== undefined) process.env.NCA_MODE = prevValue;
-    else delete process.env.NCA_MODE;
-  }
-});
-
-test('MODE-04 NCA_MODE=OFF case-insensitive returns off', () => {
-  const prevValue = process.env.NCA_MODE;
-  try {
-    process.env.NCA_MODE = 'OFF';
-    const mode = getMode();
-    assert(mode === 'off', `Expected 'off' for 'OFF', got: ${mode}`);
-  } finally {
-    if (prevValue !== undefined) process.env.NCA_MODE = prevValue;
-    else delete process.env.NCA_MODE;
-  }
-});
-
-test('MODE-05 NCA_MODE=whatever defaults to on', () => {
-  const prevValue = process.env.NCA_MODE;
-  try {
-    process.env.NCA_MODE = 'whatever';
-    const mode = getMode();
-    assert(mode === 'on', `Expected 'on' for 'whatever', got: ${mode}`);
-  } finally {
-    if (prevValue !== undefined) process.env.NCA_MODE = prevValue;
-    else delete process.env.NCA_MODE;
-  }
-});
-
-// HOOK tests — PostToolUse structured logging
-test('HOOK-01 first event creates session file correctly', () => {
-  const tempSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-hook-test-'));
-  const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
-
-  try {
-    const input = JSON.stringify({
-      session_id: 'test-session-01',
-      cwd: tempSessionDir,
-      hook_event_name: 'PostToolUse',
-      tool_name: 'Read',
-      tool_input: { file_path: '/test/path.ts' },
-      tool_response: { content: 'some content' },
-    });
-
-    const result = require('child_process').spawnSync('node', [hookScript], {
-      input,
-      encoding: 'utf-8',
-    });
-
-    assert(result.status === 0, `Hook exited with status ${result.status}: ${result.stderr}`);
-
-    const sessionPath = path.join(tempSessionDir, '.nca', 'sessions', 'test-session-01.json');
-    assert(fs.existsSync(sessionPath), `Session file not created at ${sessionPath}`);
-
-    const session = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
-    assert(session.session_id === 'test-session-01', 'Incorrect session_id');
-    assert(session.repo === path.basename(tempSessionDir), 'Incorrect repo name');
-    assert(session.started_at, 'Missing started_at');
-    assert(session.mode === 'on' || session.mode === 'off', 'Invalid mode');
-    assert(session.events.length === 1, `Expected 1 event, got ${session.events.length}`);
-    assert(session.events[0].tool === 'Read', 'Incorrect tool');
-    assert(session.events[0].input_short === '/test/path.ts', 'Incorrect input_short');
-    assert(session.events[0].outcome === 'ok', 'Incorrect outcome for successful Read');
-    assert(session.events[0].blocked === false, 'blocked should always be false');
-  } finally {
-    try { fs.rmSync(tempSessionDir, { recursive: true, force: true }); } catch {}
-  }
-});
-
-test('HOOK-02 second event appends to session', () => {
-  const tempSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-hook-test-'));
-  const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
-
-  try {
-    // First event
-    const input1 = JSON.stringify({
-      session_id: 'test-session-02',
-      cwd: tempSessionDir,
-      hook_event_name: 'PostToolUse',
-      tool_name: 'Read',
-      tool_input: { file_path: '/test/path.ts' },
-      tool_response: { content: 'data' },
-    });
-
-    require('child_process').spawnSync('node', [hookScript], {
-      input: input1,
-      encoding: 'utf-8',
-    });
-
-    // Second event
-    const input2 = JSON.stringify({
-      session_id: 'test-session-02',
-      cwd: tempSessionDir,
-      hook_event_name: 'PostToolUse',
-      tool_name: 'Edit',
-      tool_input: { file_path: '/test/path.ts', old_string: 'x', new_string: 'y' },
-      tool_response: { success: true },
-    });
-
-    require('child_process').spawnSync('node', [hookScript], {
-      input: input2,
-      encoding: 'utf-8',
-    });
-
-    const sessionPath = path.join(tempSessionDir, '.nca', 'sessions', 'test-session-02.json');
-    const session = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
-
-    assert(session.events.length === 2, `Expected 2 events, got ${session.events.length}`);
-    assert(session.events[0].tool === 'Read', 'First event should be Read');
-    assert(session.events[1].tool === 'Edit', 'Second event should be Edit');
-    assert(session.started_at, 'started_at should be set on first event');
-  } finally {
-    try { fs.rmSync(tempSessionDir, { recursive: true, force: true }); } catch {}
-  }
-});
-
-test('HOOK-03 nca_brief detection sets brief_called flag', () => {
-  const tempSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-hook-test-'));
-  const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
-
-  try {
-    const input = JSON.stringify({
-      session_id: 'test-session-03',
-      cwd: tempSessionDir,
-      hook_event_name: 'PostToolUse',
-      tool_name: 'Bash',
-      tool_input: { command: 'nca brief --light' },
-      tool_response: null,
-    });
-
-    require('child_process').spawnSync('node', [hookScript], {
-      input,
-      encoding: 'utf-8',
-    });
-
-    const sessionPath = path.join(tempSessionDir, '.nca', 'sessions', 'test-session-03.json');
-    const session = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
-
-    assert(session.brief_called === true, 'brief_called should be true after nca_brief');
-  } finally {
-    try { fs.rmSync(tempSessionDir, { recursive: true, force: true }); } catch {}
-  }
-});
-
-test('HOOK-04 first_edit_at and files_read_before_first_edit tracked correctly', () => {
-  const tempSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-hook-test-'));
-  const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
-
-  try {
-    // First: Read events
-    const input1 = JSON.stringify({
-      session_id: 'test-session-04',
-      cwd: tempSessionDir,
-      hook_event_name: 'PostToolUse',
-      tool_name: 'Read',
-      tool_input: { file_path: '/file1.ts' },
-      tool_response: { content: 'x' },
-    });
-
-    require('child_process').spawnSync('node', [hookScript], {
-      input: input1,
-      encoding: 'utf-8',
-    });
-
-    // Second: Read event
-    const input2 = JSON.stringify({
-      session_id: 'test-session-04',
-      cwd: tempSessionDir,
-      hook_event_name: 'PostToolUse',
-      tool_name: 'Read',
-      tool_input: { file_path: '/file2.ts' },
-      tool_response: { content: 'y' },
-    });
-
-    require('child_process').spawnSync('node', [hookScript], {
-      input: input2,
-      encoding: 'utf-8',
-    });
-
-    // Third: Edit event (first edit)
-    const input3 = JSON.stringify({
-      session_id: 'test-session-04',
-      cwd: tempSessionDir,
-      hook_event_name: 'PostToolUse',
-      tool_name: 'Edit',
-      tool_input: { file_path: '/file1.ts', old_string: 'x', new_string: 'xx' },
-      tool_response: { success: true },
-    });
-
-    require('child_process').spawnSync('node', [hookScript], {
-      input: input3,
-      encoding: 'utf-8',
-    });
-
-    const sessionPath = path.join(tempSessionDir, '.nca', 'sessions', 'test-session-04.json');
-    const session = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
-
-    assert(session.first_edit_at !== null, 'first_edit_at should be set');
-    assert(session.files_read_before_first_edit === 2, `Expected 2 reads before edit, got ${session.files_read_before_first_edit}`);
-  } finally {
-    try { fs.rmSync(tempSessionDir, { recursive: true, force: true }); } catch {}
-  }
-});
-
-test('HOOK-05 invalid JSON input exits gracefully without crash', () => {
-  const tempSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-hook-test-'));
-  const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
-
-  try {
-    const result = require('child_process').spawnSync('node', [hookScript], {
-      input: 'not-json-{broken}',
-      encoding: 'utf-8',
-    });
-
-    assert(result.status === 0, `Hook should exit 0 on invalid JSON, got ${result.status}`);
-    assert(!result.stderr || result.stderr === '', `Hook should not write stderr: ${result.stderr}`);
-
-    // Session should NOT exist (corrupted input)
-    const sessionPath = path.join(tempSessionDir, '.nca', 'sessions', 'unknown.json');
-    assert(!fs.existsSync(sessionPath), 'Session should not exist for bad input');
-  } finally {
-    try { fs.rmSync(tempSessionDir, { recursive: true, force: true }); } catch {}
-  }
-});
-
-test('HOOK-06 reverts_detected compares file_path, not just any recent edit', () => {
-  const tempSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-hook-test-'));
+// ─── HOOK + STORE tests — orientation telemetry (PostToolUse → JSONL) ─────────
+{
+  const { readEvents, appendEvent, eventsPath } =
+    require(path.join(ROOT, 'dist', 'hooks', 'lib', 'events-store.js'));
   const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
   const spawnSync = require('child_process').spawnSync;
 
-  const edit = (filePath) => JSON.stringify({
-    session_id: 'test-session-06',
-    cwd: tempSessionDir,
-    hook_event_name: 'PostToolUse',
-    tool_name: 'Edit',
-    tool_input: { file_path: filePath, old_string: 'x', new_string: 'xx' },
-    tool_response: { success: true },
+  const runPostTool = (input) =>
+    spawnSync('node', [hookScript], {
+      input: typeof input === 'string' ? input : JSON.stringify(input),
+      encoding: 'utf-8',
+    });
+  const withTempRepo = (fn) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-orient-'));
+    try { return fn(dir); } finally { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+  };
+
+  test('HOOK-01 PostToolUse appends one post_tool_use event with full envelope', () => {
+    withTempRepo((cwd) => {
+      const r = runPostTool({ session_id: 's1', cwd, hook_event_name: 'PostToolUse', tool_name: 'Read', tool_input: { file_path: '/x/y.ts' }, tool_response: { content: 'ok' } });
+      assert(r.status === 0, `exit ${r.status}: ${r.stderr}`);
+      const events = readEvents(cwd);
+      assert(events.length === 1, `expected 1 event, got ${events.length}`);
+      const e = events[0];
+      assert(e.event_type === 'post_tool_use', `event_type=${e.event_type}`);
+      assert(e.session_id === 's1', 'session_id');
+      assert(e.repo_id === path.basename(cwd), 'repo_id');
+      assert(typeof e.timestamp === 'string' && e.timestamp.length > 0, 'timestamp');
+      assert(e.schema_version === 1, `schema_version=${e.schema_version}`);
+      assert('git_branch' in e, 'git_branch present (may be null)');
+      assert(e.payload.tool_name === 'Read', 'tool_name');
+      assert(e.payload.file_path === path.normalize('/x/y.ts'), `file_path=${e.payload.file_path}`);
+      assert(e.payload.outcome === 'ok', 'outcome');
+    });
   });
 
-  try {
-    // Edit /a.ts, then /b.ts (different file), then /a.ts again (the revert).
-    spawnSync('node', [hookScript], { input: edit('/a.ts'), encoding: 'utf-8' });
-    spawnSync('node', [hookScript], { input: edit('/b.ts'), encoding: 'utf-8' });
-    spawnSync('node', [hookScript], { input: edit('/a.ts'), encoding: 'utf-8' });
+  test('HOOK-02 second invocation appends a second line (append-only, ordered)', () => {
+    withTempRepo((cwd) => {
+      runPostTool({ session_id: 's2', cwd, tool_name: 'Read', tool_input: { file_path: '/a.ts' }, tool_response: { content: 'x' } });
+      runPostTool({ session_id: 's2', cwd, tool_name: 'Edit', tool_input: { file_path: '/a.ts' }, tool_response: { success: true } });
+      const events = readEvents(cwd);
+      assert(events.length === 2, `expected 2, got ${events.length}`);
+      assert(events[0].payload.tool_name === 'Read' && events[1].payload.tool_name === 'Edit', 'order preserved');
+    });
+  });
 
-    const sessionPath = path.join(tempSessionDir, '.nca', 'sessions', 'test-session-06.json');
-    const session = JSON.parse(fs.readFileSync(sessionPath, 'utf-8'));
+  test('HOOK-03 fail-open: invalid JSON stdin exits 0 and writes no events', () => {
+    withTempRepo((cwd) => {
+      const r = runPostTool('not-json-{broken}');
+      assert(r.status === 0, `expected exit 0, got ${r.status}`);
+      assert(!fs.existsSync(eventsPath(cwd)), 'no events file should be created for bad input');
+    });
+  });
 
-    // Only the 3rd edit re-touches a file edited within the last 5 events.
-    // Editing 3 distinct-then-repeated files must yield exactly 1 revert, not 3.
-    assert(
-      session.reverts_detected === 1,
-      `Expected exactly 1 revert (only /a.ts re-edit), got ${session.reverts_detected}`
-    );
-  } finally {
-    try { fs.rmSync(tempSessionDir, { recursive: true, force: true }); } catch {}
-  }
-});
+  test('HOOK-04 fail-open: missing session_id exits 0 and writes no events', () => {
+    withTempRepo((cwd) => {
+      const r = runPostTool({ cwd, tool_name: 'Read' });
+      assert(r.status === 0, `expected exit 0, got ${r.status}`);
+      assert(readEvents(cwd).length === 0, 'no event should be written without session_id');
+    });
+  });
 
+  test('STORE-01 appendEvent + readEvents roundtrip preserves the event', () => {
+    withTempRepo((cwd) => {
+      const evt = { event_type: 'session_start', session_id: 'r1', timestamp: new Date().toISOString(), repo_id: 'repo', cwd, git_branch: 'main', schema_version: 1, payload: { matcher: 'startup' } };
+      assert(appendEvent(cwd, evt) === true, 'append should succeed');
+      const back = readEvents(cwd);
+      assert(back.length === 1 && back[0].payload.matcher === 'startup', 'roundtrip');
+    });
+  });
+
+  test('STORE-02 appendEvent redacts a secret before it hits disk', () => {
+    withTempRepo((cwd) => {
+      const secret = 'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6';
+      const evt = { event_type: 'post_tool_use', session_id: 'r2', timestamp: new Date().toISOString(), repo_id: 'repo', cwd, git_branch: null, schema_version: 1, payload: { tool_name: 'Bash', file_path: `/tmp/${secret}/x`, duration_ms: null, outcome: 'ok' } };
+      appendEvent(cwd, evt);
+      const raw = fs.readFileSync(eventsPath(cwd), 'utf-8');
+      assert(!raw.includes(secret), 'secret must not be on disk');
+      assert(/\[REDACTED/.test(raw), 'redaction marker expected');
+    });
+  });
+
+  test('STORE-03 readEvents skips malformed lines without throwing', () => {
+    withTempRepo((cwd) => {
+      fs.mkdirSync(path.dirname(eventsPath(cwd)), { recursive: true });
+      const good = '{"event_type":"post_tool_use","session_id":"a","timestamp":"2026-01-01T00:00:00Z","repo_id":"r","cwd":"/","git_branch":null,"schema_version":1,"payload":{"tool_name":"Read","file_path":null,"duration_ms":null,"outcome":"ok"}}';
+      fs.writeFileSync(eventsPath(cwd), good + '\nnot json\n\n', 'utf-8');
+      assert(readEvents(cwd).length === 1, 'expected 1 valid event');
+    });
+  });
+}
 
 // MIG-01: fresh DB applies all migrations
 test('MIG-01 fresh DB applies all migrations', () => {
