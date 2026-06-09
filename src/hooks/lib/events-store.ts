@@ -14,7 +14,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { acquireLock, releaseLock, logError } from './io.js';
 import { redact, redactLine } from './redact.js';
-import { OrientationEvent } from './events.js';
+import { OrientationEvent, ORIENTATION_EVENT_TYPES } from './events.js';
 
 export function metricsDir(cwd: string): string {
   return path.join(cwd, '.nca', 'metrics');
@@ -68,7 +68,12 @@ export function readEvents(cwd: string): OrientationEvent[] {
       const line = raw.trim();
       if (!line) continue;
       try {
-        out.push(JSON.parse(line) as OrientationEvent);
+        const ev = JSON.parse(line) as OrientationEvent;
+        // Skip JSON-valid lines with an unknown event_type (guards the read path
+        // against a hand-corrupted log breaking the summary).
+        if ((ORIENTATION_EVENT_TYPES as readonly string[]).includes(ev.event_type)) {
+          out.push(ev);
+        }
       } catch {
         // skip malformed line
       }

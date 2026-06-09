@@ -194,6 +194,18 @@ test('AC6 evolve returns warning output', () => {
       assert(readEvents(cwd).length === 1, 'expected 1 valid event');
     });
   });
+
+  test('STORE-04 readEvents ignores a JSON-valid line with unknown event_type', () => {
+    withTempRepo((cwd) => {
+      fs.mkdirSync(path.dirname(eventsPath(cwd)), { recursive: true });
+      const good = '{"event_type":"post_tool_use","session_id":"a","timestamp":"2026-01-01T00:00:00Z","repo_id":"r","cwd":"/","git_branch":null,"schema_version":1,"payload":{"tool_name":"Read","file_path":null,"duration_ms":null,"outcome":"ok"}}';
+      const unknown = '{"event_type":"something_else","session_id":"b"}';
+      fs.writeFileSync(eventsPath(cwd), good + '\n' + unknown + '\n', 'utf-8');
+      const events = readEvents(cwd);
+      assert(events.length === 1, `expected 1 known event, got ${events.length}`);
+      assert(events[0].event_type === 'post_tool_use', 'kept event should be the known one');
+    });
+  });
 }
 
 // ─── UPS tests — UserPromptSubmit telemetry (hash + length only) ──────────────
