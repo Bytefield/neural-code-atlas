@@ -290,6 +290,92 @@ test('AC6 evolve returns warning output', () => {
   });
 }
 
+// ─── MET tests — nca metrics orientation (summary + variance + purge) ─────────
+{
+  const { eventsPath, readEvents } = require(path.join(ROOT, 'dist', 'hooks', 'lib', 'events-store.js'));
+  const spawnSync = require('child_process').spawnSync;
+  const CLIJS = path.join(ROOT, 'dist', 'cli.js');
+  const cli = (args) => spawnSync('node', [CLIJS, ...args], { encoding: 'utf-8', env: { ...process.env } });
+  const withRepo = (events, fn) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-met-'));
+    try {
+      fs.mkdirSync(path.dirname(eventsPath(dir)), { recursive: true });
+      fs.writeFileSync(eventsPath(dir), events.map((e) => JSON.stringify(e)).join('\n') + '\n', 'utf-8');
+      return fn(dir);
+    } finally { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+  };
+  const base = (sid, ts, type, payload) => ({ event_type: type, session_id: sid, timestamp: ts, repo_id: 'r', cwd: '/x', git_branch: 'main', schema_version: 1, payload });
+  const t = (i) => `2026-06-08T10:00:0${i}.000Z`;
+
+  test('MET-01 --summary --json computes per-session orientation stats', () => {
+    const evts = [
+      base('m1', t(0), 'session_start', { matcher: 'startup' }),
+      base('m1', t(1), 'user_prompt_submit', { prompt_hash: 'abc0000000000000', prompt_length: 5 }),
+      base('m1', t(2), 'post_tool_use', { tool_name: 'Read', file_path: '/a', duration_ms: null, outcome: 'ok' }),
+      base('m1', t(3), 'post_tool_use', { tool_name: 'Grep', file_path: null, duration_ms: null, outcome: 'ok' }),
+      base('m1', t(4), 'post_tool_use', { tool_name: 'Read', file_path: '/b', duration_ms: null, outcome: 'ok' }),
+      base('m1', t(5), 'post_tool_use', { tool_name: 'Edit', file_path: '/a', duration_ms: null, outcome: 'ok' }),
+      base('m1', t(6), 'post_tool_use', { tool_name: 'Read', file_path: '/c', duration_ms: null, outcome: 'ok' }),
+    ];
+    withRepo(evts, (cwd) => {
+      const r = cli(['metrics', 'orientation', '--path', cwd, '--json']);
+      assert(r.status === 0, `exit ${r.status}: ${r.stderr}`);
+      const { sessions } = JSON.parse(r.stdout);
+      assert(sessions.length === 1, 'one session');
+      const s = sessions[0];
+      assert(s.prompts === 1, `prompts=${s.prompts}`);
+      assert(s.tool_calls === 5, `tool_calls=${s.tool_calls}`);
+      assert(s.orientation_tool_calls === 4, `orient=${s.orientation_tool_calls}`);
+      assert(s.reads === 3, `reads=${s.reads}`);
+      assert(s.turns_to_first_edit === 1, `ttfe=${s.turns_to_first_edit}`);
+      assert(s.reads_before_first_edit === 2, `reads_pre=${s.reads_before_first_edit}`);
+    });
+  });
+
+  test('MET-02 aggregate reports cross-session variance (stddev)', () => {
+    const evts = [
+      base('a', t(1), 'post_tool_use', { tool_name: 'Read', file_path: '/a', duration_ms: null, outcome: 'ok' }),
+      base('a', t(2), 'post_tool_use', { tool_name: 'Read', file_path: '/b', duration_ms: null, outcome: 'ok' }),
+      base('a', t(3), 'post_tool_use', { tool_name: 'Read', file_path: '/c', duration_ms: null, outcome: 'ok' }),
+      base('a', t(4), 'post_tool_use', { tool_name: 'Grep', file_path: null, duration_ms: null, outcome: 'ok' }),
+      base('b', t(1), 'post_tool_use', { tool_name: 'Bash', file_path: null, duration_ms: null, outcome: 'ok' }),
+    ];
+    // session a: orient=4, session b: orient=0 → mean 2, stddev 2
+    withRepo(evts, (cwd) => {
+      const r = cli(['metrics', 'orientation', '--path', cwd, '--json']);
+      const { aggregate: agg } = JSON.parse(r.stdout);
+      assert(agg.session_count === 2, 'two sessions');
+      assert(agg.orientation_tool_calls.mean === 2, `mean=${agg.orientation_tool_calls.mean}`);
+      assert(agg.orientation_tool_calls.stddev === 2, `stddev=${agg.orientation_tool_calls.stddev}`);
+    });
+  });
+
+  test('MET-03 --purge --older-than removes old events, keeps recent', () => {
+    const old = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
+    const recent = new Date(Date.now() - 1 * 24 * 3600 * 1000).toISOString();
+    const evts = [
+      base('o', old, 'post_tool_use', { tool_name: 'Read', file_path: '/old', duration_ms: null, outcome: 'ok' }),
+      base('n', recent, 'post_tool_use', { tool_name: 'Read', file_path: '/new', duration_ms: null, outcome: 'ok' }),
+    ];
+    withRepo(evts, (cwd) => {
+      const r = cli(['metrics', 'orientation', '--purge', '--older-than', '30', '--path', cwd, '--json']);
+      assert(r.status === 0, `exit ${r.status}`);
+      assert(JSON.parse(r.stdout).purged === 1, 'one purged');
+      const remaining = readEvents(cwd);
+      assert(remaining.length === 1 && remaining[0].session_id === 'n', 'recent kept');
+    });
+  });
+
+  test('MET-04 empty repo prints a friendly message and exits 0', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-met-empty-'));
+    try {
+      const r = cli(['metrics', 'orientation', '--path', dir]);
+      assert(r.status === 0, `exit ${r.status}`);
+      assert(/No orientation events/.test(r.stdout), `msg: ${r.stdout}`);
+    } finally { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+  });
+}
+
 // MIG-01: fresh DB applies all migrations
 test('MIG-01 fresh DB applies all migrations', () => {
   const dbFile = path.join(tmpDir, 'mig01.db');
