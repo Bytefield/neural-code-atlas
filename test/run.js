@@ -196,6 +196,55 @@ test('AC6 evolve returns warning output', () => {
   });
 }
 
+// ─── UPS tests — UserPromptSubmit telemetry (hash + length only) ──────────────
+{
+  const crypto = require('crypto');
+  const { readEvents, eventsPath } = require(path.join(ROOT, 'dist', 'hooks', 'lib', 'events-store.js'));
+  const hookScript = path.join(ROOT, 'dist', 'hooks', 'user-prompt-submit.js');
+  const spawnSync = require('child_process').spawnSync;
+  const run = (input) =>
+    spawnSync('node', [hookScript], {
+      input: typeof input === 'string' ? input : JSON.stringify(input),
+      encoding: 'utf-8',
+    });
+  const withTempRepo = (fn) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-ups-'));
+    try { return fn(dir); } finally { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+  };
+
+  test('UPS-01 records prompt_hash (16 hex) + prompt_length, matching sha256', () => {
+    withTempRepo((cwd) => {
+      const prompt = 'refactor the auth module and add tests';
+      const r = run({ session_id: 'u1', cwd, hook_event_name: 'UserPromptSubmit', prompt });
+      assert(r.status === 0, `exit ${r.status}: ${r.stderr}`);
+      const events = readEvents(cwd);
+      assert(events.length === 1 && events[0].event_type === 'user_prompt_submit', 'one ups event');
+      const p = events[0].payload;
+      assert(/^[0-9a-f]{16}$/.test(p.prompt_hash), `hash not 16-hex: ${p.prompt_hash}`);
+      assert(p.prompt_length === prompt.length, `length ${p.prompt_length} != ${prompt.length}`);
+      const expected = crypto.createHash('sha256').update(prompt, 'utf8').digest('hex').slice(0, 16);
+      assert(p.prompt_hash === expected, 'hash must equal sha256(prompt) first 16 hex');
+    });
+  });
+
+  test('UPS-02 raw prompt text never appears on disk', () => {
+    withTempRepo((cwd) => {
+      const prompt = 'SUPER-UNIQUE-SENTINEL-mango-42';
+      run({ session_id: 'u2', cwd, prompt });
+      const raw = fs.readFileSync(eventsPath(cwd), 'utf-8');
+      assert(!raw.includes(prompt), 'raw prompt must not be on disk');
+    });
+  });
+
+  test('UPS-03 fail-open: invalid JSON exits 0 and writes nothing', () => {
+    withTempRepo((cwd) => {
+      const r = run('not-json');
+      assert(r.status === 0, `exit ${r.status}`);
+      assert(readEvents(cwd).length === 0, 'no event for bad input');
+    });
+  });
+}
+
 // MIG-01: fresh DB applies all migrations
 test('MIG-01 fresh DB applies all migrations', () => {
   const dbFile = path.join(tmpDir, 'mig01.db');
