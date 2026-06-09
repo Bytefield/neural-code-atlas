@@ -4426,6 +4426,18 @@ let mcpTestDone = false;
     const out = redactLine(line);
     assert(gone(out, tok) && marked(out), `not redacted: ${out}`);
   });
+
+  test('REDACT-11 connection-string credentials are redacted, scheme kept', () => {
+    const out = redactString('DATABASE_URL=postgres://user:s3cr3tPass@db.host:5432/app');
+    assert(gone(out, 'user:s3cr3tPass') && gone(out, 's3cr3tPass'), `creds leaked: ${out}`);
+    assert(out.includes('postgres://[REDACTED]@'), `scheme/marker missing: ${out}`);
+  });
+
+  test('REDACT-12 Bearer tokens are redacted', () => {
+    const out = redactString('Authorization: Bearer xoxb-abc-long-token-here-1234');
+    assert(gone(out, 'xoxb-abc-long-token-here-1234'), `token leaked: ${out}`);
+    assert(out.includes('Bearer [REDACTED]'), `marker missing: ${out}`);
+  });
 }
 
 // Results — wait for MCP async test (3000ms timeout above + 500ms init + 1000ms drain window)

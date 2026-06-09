@@ -74,6 +74,16 @@ const PATTERNS: Pattern[] = [
     re: /\bsk-(?:proj-)?[A-Za-z0-9_-]{6,}/g,
     replace: '[REDACTED_KEY]',
   },
+  // Connection-string credentials: scheme://user:pass@host (postgres, mongodb+srv, redis, ...).
+  {
+    re: /\b([a-z][a-z0-9+.-]*):\/\/[^/\s:@]+:[^/\s@]+@/gi,
+    replace: (_m: string, scheme: string): string => `${scheme}://[REDACTED]@`,
+  },
+  // Bearer tokens (opaque, non-JWT included).
+  {
+    re: /\bBearer\s+[A-Za-z0-9._-]{16,}/g,
+    replace: 'Bearer [REDACTED]',
+  },
   // Generic sensitive env assignment: keep the key name, redact a secret-shaped
   // value. Callback so prose ("SECRET: the plan") is not over-redacted.
   {
