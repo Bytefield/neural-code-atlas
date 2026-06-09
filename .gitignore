@@ -8,7 +8,7 @@ build/
 *.js.map
 *.d.ts.map
 
-# NCA local DB
+# NCA local DB + local telemetry (.nca/ covers .nca/metrics/orientation-events.jsonl)
 .nca/
 *.db
 *.db-shm

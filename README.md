@@ -92,6 +92,14 @@ After scanning, `SKILL.md` is written to your project root. Drop it into your Cl
 ### Server
 - `nca mcp` — run MCP server over stdio (Claude Code integration)
 
+### Orientation telemetry (opt-in, local-first)
+- `nca metrics orientation` — per-session + cross-session summary of orientation cost (the variance of search/read activity before the first edit)
+- `nca metrics orientation --purge --older-than <days>` — prune old local events
+
+Local measurement only; nothing leaves the machine and no raw prompt or tool
+input is stored. Install the capture hooks and read the schema in
+[docs/orientation-telemetry.md](docs/orientation-telemetry.md).
+
 Run `nca <command> --help` for full options per command.
 
 ## Graph Analytics
