@@ -245,6 +245,51 @@ test('AC6 evolve returns warning output', () => {
   });
 }
 
+// ─── SSTART tests — SessionStart telemetry (matcher) ──────────────────────────
+{
+  const { readEvents } = require(path.join(ROOT, 'dist', 'hooks', 'lib', 'events-store.js'));
+  const hookScript = path.join(ROOT, 'dist', 'hooks', 'session-start.js');
+  const spawnSync = require('child_process').spawnSync;
+  const run = (input) =>
+    spawnSync('node', [hookScript], {
+      input: typeof input === 'string' ? input : JSON.stringify(input),
+      encoding: 'utf-8',
+    });
+  const withTempRepo = (fn) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-sstart-'));
+    try { return fn(dir); } finally { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+  };
+
+  test('SSTART-01 records session_start with the host matcher', () => {
+    withTempRepo((cwd) => {
+      const r = run({ session_id: 'a1', cwd, hook_event_name: 'SessionStart', source: 'resume' });
+      assert(r.status === 0, `exit ${r.status}: ${r.stderr}`);
+      const events = readEvents(cwd);
+      assert(events.length === 1 && events[0].event_type === 'session_start', 'one session_start');
+      assert(events[0].payload.matcher === 'resume', `matcher=${events[0].payload.matcher}`);
+      assert(events[0].schema_version === 1, 'schema_version');
+    });
+  });
+
+  test('SSTART-02 unknown/missing source defaults to startup', () => {
+    withTempRepo((cwd) => {
+      run({ session_id: 'a2', cwd, source: 'bogus-value' });
+      run({ session_id: 'a3', cwd });
+      const events = readEvents(cwd);
+      assert(events.length === 2, `expected 2, got ${events.length}`);
+      assert(events.every((e) => e.payload.matcher === 'startup'), 'both default to startup');
+    });
+  });
+
+  test('SSTART-03 fail-open: invalid JSON exits 0 and writes nothing', () => {
+    withTempRepo((cwd) => {
+      const r = run('not-json');
+      assert(r.status === 0, `exit ${r.status}`);
+      assert(readEvents(cwd).length === 0, 'no event for bad input');
+    });
+  });
+}
+
 // MIG-01: fresh DB applies all migrations
 test('MIG-01 fresh DB applies all migrations', () => {
   const dbFile = path.join(tmpDir, 'mig01.db');
