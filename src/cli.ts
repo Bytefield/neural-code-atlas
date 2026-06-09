@@ -13,6 +13,8 @@ import { Evolver } from './evolve.js';
 import { separator, header, formatField, formatStatus, colors } from './format.js';
 import { registerProject } from './registry.js';
 import { generateSkill } from './skill.js';
+import { readEvents, pruneEvents } from './hooks/lib/events-store.js';
+import { summarize, aggregate, SessionSummary } from './hooks/lib/summary.js';
 
 // Directories excluded from markdown scanning — mirrors DEFAULT_EXCLUDED_DIRS in scanner.ts
 const PROJECT_MD_EXCLUDED_DIRS = new Set([
@@ -1045,6 +1047,82 @@ program
     } else {
       process.stdout.write(result.markdown + '\n');
     }
+  });
+
+// ─── metrics orientation — local telemetry summary / purge ────────────────────
+
+const metrics = program
+  .command('metrics')
+  .description('Local orientation telemetry (opt-in, local-first)');
+
+function fmt(n: number): string {
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+function formatOrientationSummary(sessions: SessionSummary[]): string {
+  const agg = aggregate(sessions);
+  const repo = sessions[0]?.repo_id ?? '';
+  const out: string[] = [];
+  out.push(`NCA orientation telemetry — ${repo}  (${agg.session_count} session${agg.session_count === 1 ? '' : 's'})`);
+  out.push('');
+  for (const s of sessions) {
+    const branch = s.git_branch ?? '(no branch)';
+    const ttfe = s.turns_to_first_edit == null ? 'no-edit' : String(s.turns_to_first_edit);
+    const readsPre = s.reads_before_first_edit == null ? '-' : String(s.reads_before_first_edit);
+    out.push(
+      `  ${s.session_id}  ${branch}  ` +
+        `prompts:${s.prompts} tools:${s.tool_calls} orient:${s.orientation_tool_calls} reads:${s.reads}  ` +
+        `ttfe:${ttfe} reads_pre_edit:${readsPre}`
+    );
+  }
+  out.push('');
+  out.push('Across sessions:');
+  const o = agg.orientation_tool_calls;
+  out.push(`  orientation tool calls   mean ${fmt(o.mean)}  stddev ${fmt(o.stddev)}  (${fmt(o.min)}..${fmt(o.max)})`);
+  out.push(`  reads                    mean ${fmt(agg.reads.mean)}  stddev ${fmt(agg.reads.stddev)}`);
+  out.push(
+    `  turns to first edit      mean ${fmt(agg.turns_to_first_edit.mean)}  stddev ${fmt(agg.turns_to_first_edit.stddev)}` +
+      `  (${agg.sessions_with_edit}/${agg.session_count} sessions reached an edit)`
+  );
+  return out.join('\n');
+}
+
+metrics
+  .command('orientation')
+  .description('Summarize (default) or prune local orientation telemetry events')
+  .option('--summary', 'show the per-session + cross-session summary (default)')
+  .option('--purge', 'remove events older than --older-than days')
+  .option('--older-than <days>', 'retention window in days for --purge', '30')
+  .option('--json', 'machine-readable output')
+  .option('--path <dir>', 'repo root (defaults to cwd)')
+  .action((opts: { summary?: boolean; purge?: boolean; olderThan?: string; json?: boolean; path?: string }) => {
+    const cwd = opts.path ? path.resolve(opts.path) : process.cwd();
+
+    if (opts.purge) {
+      const days = Number(opts.olderThan);
+      if (!isFinite(days) || days < 0) {
+        process.stderr.write('--older-than must be a non-negative number of days\n');
+        process.exit(1);
+      }
+      const removed = pruneEvents(cwd, days);
+      if (opts.json) {
+        process.stdout.write(JSON.stringify({ purged: removed, older_than_days: days }) + '\n');
+      } else {
+        process.stdout.write(`Purged ${removed} event(s) older than ${days} day(s).\n`);
+      }
+      return;
+    }
+
+    const sessions = summarize(readEvents(cwd));
+    if (opts.json) {
+      process.stdout.write(JSON.stringify({ sessions, aggregate: aggregate(sessions) }, null, 2) + '\n');
+      return;
+    }
+    if (sessions.length === 0) {
+      process.stdout.write('No orientation events recorded in this repo (.nca/metrics/orientation-events.jsonl).\n');
+      return;
+    }
+    process.stdout.write(formatOrientationSummary(sessions) + '\n');
   });
 
 program.parse(process.argv);

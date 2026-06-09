@@ -104,6 +104,321 @@ test('AC6 evolve returns warning output', () => {
   assert(out.includes('[W]'), 'Expected [W] section');
 });
 
+// ─── HOOK + STORE tests — orientation telemetry (PostToolUse → JSONL) ─────────
+{
+  const { readEvents, appendEvent, eventsPath } =
+    require(path.join(ROOT, 'dist', 'hooks', 'lib', 'events-store.js'));
+  const hookScript = path.join(ROOT, 'dist', 'hooks', 'post-tool-use.js');
+  const spawnSync = require('child_process').spawnSync;
+
+  const runPostTool = (input) =>
+    spawnSync('node', [hookScript], {
+      input: typeof input === 'string' ? input : JSON.stringify(input),
+      encoding: 'utf-8',
+    });
+  const withTempRepo = (fn) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-orient-'));
+    try { return fn(dir); } finally { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+  };
+
+  test('HOOK-01 PostToolUse appends one post_tool_use event with full envelope', () => {
+    withTempRepo((cwd) => {
+      const r = runPostTool({ session_id: 's1', cwd, hook_event_name: 'PostToolUse', tool_name: 'Read', tool_input: { file_path: '/x/y.ts' }, tool_response: { content: 'ok' } });
+      assert(r.status === 0, `exit ${r.status}: ${r.stderr}`);
+      const events = readEvents(cwd);
+      assert(events.length === 1, `expected 1 event, got ${events.length}`);
+      const e = events[0];
+      assert(e.event_type === 'post_tool_use', `event_type=${e.event_type}`);
+      assert(e.session_id === 's1', 'session_id');
+      assert(e.repo_id === path.basename(cwd), 'repo_id');
+      assert(typeof e.timestamp === 'string' && e.timestamp.length > 0, 'timestamp');
+      assert(e.schema_version === 1, `schema_version=${e.schema_version}`);
+      assert('git_branch' in e, 'git_branch present (may be null)');
+      assert(e.payload.tool_name === 'Read', 'tool_name');
+      assert(e.payload.file_path === path.normalize('/x/y.ts'), `file_path=${e.payload.file_path}`);
+      assert(e.payload.outcome === 'ok', 'outcome');
+    });
+  });
+
+  test('HOOK-02 second invocation appends a second line (append-only, ordered)', () => {
+    withTempRepo((cwd) => {
+      runPostTool({ session_id: 's2', cwd, tool_name: 'Read', tool_input: { file_path: '/a.ts' }, tool_response: { content: 'x' } });
+      runPostTool({ session_id: 's2', cwd, tool_name: 'Edit', tool_input: { file_path: '/a.ts' }, tool_response: { success: true } });
+      const events = readEvents(cwd);
+      assert(events.length === 2, `expected 2, got ${events.length}`);
+      assert(events[0].payload.tool_name === 'Read' && events[1].payload.tool_name === 'Edit', 'order preserved');
+    });
+  });
+
+  test('HOOK-03 fail-open: invalid JSON stdin exits 0 and writes no events', () => {
+    withTempRepo((cwd) => {
+      const r = runPostTool('not-json-{broken}');
+      assert(r.status === 0, `expected exit 0, got ${r.status}`);
+      assert(!fs.existsSync(eventsPath(cwd)), 'no events file should be created for bad input');
+    });
+  });
+
+  test('HOOK-04 fail-open: missing session_id exits 0 and writes no events', () => {
+    withTempRepo((cwd) => {
+      const r = runPostTool({ cwd, tool_name: 'Read' });
+      assert(r.status === 0, `expected exit 0, got ${r.status}`);
+      assert(readEvents(cwd).length === 0, 'no event should be written without session_id');
+    });
+  });
+
+  test('STORE-01 appendEvent + readEvents roundtrip preserves the event', () => {
+    withTempRepo((cwd) => {
+      const evt = { event_type: 'session_start', session_id: 'r1', timestamp: new Date().toISOString(), repo_id: 'repo', cwd, git_branch: 'main', schema_version: 1, payload: { matcher: 'startup' } };
+      assert(appendEvent(cwd, evt) === true, 'append should succeed');
+      const back = readEvents(cwd);
+      assert(back.length === 1 && back[0].payload.matcher === 'startup', 'roundtrip');
+    });
+  });
+
+  test('STORE-02 appendEvent redacts a secret before it hits disk', () => {
+    withTempRepo((cwd) => {
+      const secret = 'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6';
+      const evt = { event_type: 'post_tool_use', session_id: 'r2', timestamp: new Date().toISOString(), repo_id: 'repo', cwd, git_branch: null, schema_version: 1, payload: { tool_name: 'Bash', file_path: `/tmp/${secret}/x`, duration_ms: null, outcome: 'ok' } };
+      appendEvent(cwd, evt);
+      const raw = fs.readFileSync(eventsPath(cwd), 'utf-8');
+      assert(!raw.includes(secret), 'secret must not be on disk');
+      assert(/\[REDACTED/.test(raw), 'redaction marker expected');
+    });
+  });
+
+  test('STORE-03 readEvents skips malformed lines without throwing', () => {
+    withTempRepo((cwd) => {
+      fs.mkdirSync(path.dirname(eventsPath(cwd)), { recursive: true });
+      const good = '{"event_type":"post_tool_use","session_id":"a","timestamp":"2026-01-01T00:00:00Z","repo_id":"r","cwd":"/","git_branch":null,"schema_version":1,"payload":{"tool_name":"Read","file_path":null,"duration_ms":null,"outcome":"ok"}}';
+      fs.writeFileSync(eventsPath(cwd), good + '\nnot json\n\n', 'utf-8');
+      assert(readEvents(cwd).length === 1, 'expected 1 valid event');
+    });
+  });
+
+  test('STORE-04 readEvents ignores a JSON-valid line with unknown event_type', () => {
+    withTempRepo((cwd) => {
+      fs.mkdirSync(path.dirname(eventsPath(cwd)), { recursive: true });
+      const good = '{"event_type":"post_tool_use","session_id":"a","timestamp":"2026-01-01T00:00:00Z","repo_id":"r","cwd":"/","git_branch":null,"schema_version":1,"payload":{"tool_name":"Read","file_path":null,"duration_ms":null,"outcome":"ok"}}';
+      const unknown = '{"event_type":"something_else","session_id":"b"}';
+      fs.writeFileSync(eventsPath(cwd), good + '\n' + unknown + '\n', 'utf-8');
+      const events = readEvents(cwd);
+      assert(events.length === 1, `expected 1 known event, got ${events.length}`);
+      assert(events[0].event_type === 'post_tool_use', 'kept event should be the known one');
+    });
+  });
+}
+
+// ─── UPS tests — UserPromptSubmit telemetry (hash + length only) ──────────────
+{
+  const crypto = require('crypto');
+  const { readEvents, eventsPath } = require(path.join(ROOT, 'dist', 'hooks', 'lib', 'events-store.js'));
+  const hookScript = path.join(ROOT, 'dist', 'hooks', 'user-prompt-submit.js');
+  const spawnSync = require('child_process').spawnSync;
+  const run = (input) =>
+    spawnSync('node', [hookScript], {
+      input: typeof input === 'string' ? input : JSON.stringify(input),
+      encoding: 'utf-8',
+    });
+  const withTempRepo = (fn) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-ups-'));
+    try { return fn(dir); } finally { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+  };
+
+  test('UPS-01 records prompt_hash (16 hex) + prompt_length, matching sha256', () => {
+    withTempRepo((cwd) => {
+      const prompt = 'refactor the auth module and add tests';
+      const r = run({ session_id: 'u1', cwd, hook_event_name: 'UserPromptSubmit', prompt });
+      assert(r.status === 0, `exit ${r.status}: ${r.stderr}`);
+      const events = readEvents(cwd);
+      assert(events.length === 1 && events[0].event_type === 'user_prompt_submit', 'one ups event');
+      const p = events[0].payload;
+      assert(/^[0-9a-f]{16}$/.test(p.prompt_hash), `hash not 16-hex: ${p.prompt_hash}`);
+      assert(p.prompt_length === prompt.length, `length ${p.prompt_length} != ${prompt.length}`);
+      const expected = crypto.createHash('sha256').update(prompt, 'utf8').digest('hex').slice(0, 16);
+      assert(p.prompt_hash === expected, 'hash must equal sha256(prompt) first 16 hex');
+    });
+  });
+
+  test('UPS-02 raw prompt text never appears on disk', () => {
+    withTempRepo((cwd) => {
+      const prompt = 'SUPER-UNIQUE-SENTINEL-mango-42';
+      run({ session_id: 'u2', cwd, prompt });
+      const raw = fs.readFileSync(eventsPath(cwd), 'utf-8');
+      assert(!raw.includes(prompt), 'raw prompt must not be on disk');
+    });
+  });
+
+  test('UPS-03 fail-open: invalid JSON exits 0 and writes nothing', () => {
+    withTempRepo((cwd) => {
+      const r = run('not-json');
+      assert(r.status === 0, `exit ${r.status}`);
+      assert(readEvents(cwd).length === 0, 'no event for bad input');
+    });
+  });
+}
+
+// ─── SSTART tests — SessionStart telemetry (matcher) ──────────────────────────
+{
+  const { readEvents } = require(path.join(ROOT, 'dist', 'hooks', 'lib', 'events-store.js'));
+  const hookScript = path.join(ROOT, 'dist', 'hooks', 'session-start.js');
+  const spawnSync = require('child_process').spawnSync;
+  const run = (input) =>
+    spawnSync('node', [hookScript], {
+      input: typeof input === 'string' ? input : JSON.stringify(input),
+      encoding: 'utf-8',
+    });
+  const withTempRepo = (fn) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-sstart-'));
+    try { return fn(dir); } finally { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+  };
+
+  test('SSTART-01 records session_start with the host matcher', () => {
+    withTempRepo((cwd) => {
+      const r = run({ session_id: 'a1', cwd, hook_event_name: 'SessionStart', source: 'resume' });
+      assert(r.status === 0, `exit ${r.status}: ${r.stderr}`);
+      const events = readEvents(cwd);
+      assert(events.length === 1 && events[0].event_type === 'session_start', 'one session_start');
+      assert(events[0].payload.matcher === 'resume', `matcher=${events[0].payload.matcher}`);
+      assert(events[0].schema_version === 1, 'schema_version');
+    });
+  });
+
+  test('SSTART-02 unknown/missing source defaults to startup', () => {
+    withTempRepo((cwd) => {
+      run({ session_id: 'a2', cwd, source: 'bogus-value' });
+      run({ session_id: 'a3', cwd });
+      const events = readEvents(cwd);
+      assert(events.length === 2, `expected 2, got ${events.length}`);
+      assert(events.every((e) => e.payload.matcher === 'startup'), 'both default to startup');
+    });
+  });
+
+  test('SSTART-03 fail-open: invalid JSON exits 0 and writes nothing', () => {
+    withTempRepo((cwd) => {
+      const r = run('not-json');
+      assert(r.status === 0, `exit ${r.status}`);
+      assert(readEvents(cwd).length === 0, 'no event for bad input');
+    });
+  });
+}
+
+// ─── MET tests — nca metrics orientation (summary + variance + purge) ─────────
+{
+  const { eventsPath, readEvents } = require(path.join(ROOT, 'dist', 'hooks', 'lib', 'events-store.js'));
+  const spawnSync = require('child_process').spawnSync;
+  const CLIJS = path.join(ROOT, 'dist', 'cli.js');
+  const cli = (args) => spawnSync('node', [CLIJS, ...args], { encoding: 'utf-8', env: { ...process.env } });
+  const withRepo = (events, fn) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-met-'));
+    try {
+      fs.mkdirSync(path.dirname(eventsPath(dir)), { recursive: true });
+      fs.writeFileSync(eventsPath(dir), events.map((e) => JSON.stringify(e)).join('\n') + '\n', 'utf-8');
+      return fn(dir);
+    } finally { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+  };
+  const base = (sid, ts, type, payload) => ({ event_type: type, session_id: sid, timestamp: ts, repo_id: 'r', cwd: '/x', git_branch: 'main', schema_version: 1, payload });
+  const t = (i) => `2026-06-08T10:00:0${i}.000Z`;
+
+  test('MET-01 --summary --json computes per-session orientation stats', () => {
+    const evts = [
+      base('m1', t(0), 'session_start', { matcher: 'startup' }),
+      base('m1', t(1), 'user_prompt_submit', { prompt_hash: 'abc0000000000000', prompt_length: 5 }),
+      base('m1', t(2), 'post_tool_use', { tool_name: 'Read', file_path: '/a', duration_ms: null, outcome: 'ok' }),
+      base('m1', t(3), 'post_tool_use', { tool_name: 'Grep', file_path: null, duration_ms: null, outcome: 'ok' }),
+      base('m1', t(4), 'post_tool_use', { tool_name: 'Read', file_path: '/b', duration_ms: null, outcome: 'ok' }),
+      base('m1', t(5), 'post_tool_use', { tool_name: 'Edit', file_path: '/a', duration_ms: null, outcome: 'ok' }),
+      base('m1', t(6), 'post_tool_use', { tool_name: 'Read', file_path: '/c', duration_ms: null, outcome: 'ok' }),
+    ];
+    withRepo(evts, (cwd) => {
+      const r = cli(['metrics', 'orientation', '--path', cwd, '--json']);
+      assert(r.status === 0, `exit ${r.status}: ${r.stderr}`);
+      const { sessions } = JSON.parse(r.stdout);
+      assert(sessions.length === 1, 'one session');
+      const s = sessions[0];
+      assert(s.prompts === 1, `prompts=${s.prompts}`);
+      assert(s.tool_calls === 5, `tool_calls=${s.tool_calls}`);
+      assert(s.orientation_tool_calls === 4, `orient=${s.orientation_tool_calls}`);
+      assert(s.reads === 3, `reads=${s.reads}`);
+      assert(s.turns_to_first_edit === 1, `ttfe=${s.turns_to_first_edit}`);
+      assert(s.reads_before_first_edit === 2, `reads_pre=${s.reads_before_first_edit}`);
+    });
+  });
+
+  test('MET-02 aggregate reports cross-session variance (stddev)', () => {
+    const evts = [
+      base('a', t(1), 'post_tool_use', { tool_name: 'Read', file_path: '/a', duration_ms: null, outcome: 'ok' }),
+      base('a', t(2), 'post_tool_use', { tool_name: 'Read', file_path: '/b', duration_ms: null, outcome: 'ok' }),
+      base('a', t(3), 'post_tool_use', { tool_name: 'Read', file_path: '/c', duration_ms: null, outcome: 'ok' }),
+      base('a', t(4), 'post_tool_use', { tool_name: 'Grep', file_path: null, duration_ms: null, outcome: 'ok' }),
+      base('b', t(1), 'post_tool_use', { tool_name: 'Bash', file_path: null, duration_ms: null, outcome: 'ok' }),
+    ];
+    // session a: orient=4, session b: orient=0 → mean 2, stddev 2
+    withRepo(evts, (cwd) => {
+      const r = cli(['metrics', 'orientation', '--path', cwd, '--json']);
+      const { aggregate: agg } = JSON.parse(r.stdout);
+      assert(agg.session_count === 2, 'two sessions');
+      assert(agg.orientation_tool_calls.mean === 2, `mean=${agg.orientation_tool_calls.mean}`);
+      assert(agg.orientation_tool_calls.stddev === 2, `stddev=${agg.orientation_tool_calls.stddev}`);
+    });
+  });
+
+  test('MET-03 --purge --older-than removes old events, keeps recent', () => {
+    const old = new Date(Date.now() - 60 * 24 * 3600 * 1000).toISOString();
+    const recent = new Date(Date.now() - 1 * 24 * 3600 * 1000).toISOString();
+    const evts = [
+      base('o', old, 'post_tool_use', { tool_name: 'Read', file_path: '/old', duration_ms: null, outcome: 'ok' }),
+      base('n', recent, 'post_tool_use', { tool_name: 'Read', file_path: '/new', duration_ms: null, outcome: 'ok' }),
+    ];
+    withRepo(evts, (cwd) => {
+      const r = cli(['metrics', 'orientation', '--purge', '--older-than', '30', '--path', cwd, '--json']);
+      assert(r.status === 0, `exit ${r.status}`);
+      assert(JSON.parse(r.stdout).purged === 1, 'one purged');
+      const remaining = readEvents(cwd);
+      assert(remaining.length === 1 && remaining[0].session_id === 'n', 'recent kept');
+    });
+  });
+
+  test('MET-04 empty repo prints a friendly message and exits 0', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-met-empty-'));
+    try {
+      const r = cli(['metrics', 'orientation', '--path', dir]);
+      assert(r.status === 0, `exit ${r.status}`);
+      assert(/No orientation events/.test(r.stdout), `msg: ${r.stdout}`);
+    } finally { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+  });
+}
+
+// ─── LOCK tests — mkdir mutex stale-lock recovery ─────────────────────────────
+{
+  const { acquireLock, releaseLock } = require(path.join(ROOT, 'dist', 'hooks', 'lib', 'io.js'));
+  const withTempRepo = (fn) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-lock-'));
+    try { return fn(dir); } finally { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+  };
+
+  test('LOCK-01 steals a stale lock (mtime > 5s) and acquires', () => {
+    withTempRepo((dir) => {
+      const lock = path.join(dir, '.lock');
+      fs.mkdirSync(lock);
+      const old = new Date(Date.now() - 10000);
+      fs.utimesSync(lock, old, old);
+      const got = acquireLock(lock, 200);
+      assert(got === true, 'should steal a stale lock and acquire');
+      releaseLock(lock);
+    });
+  });
+
+  test('LOCK-02 does NOT steal a fresh lock (mtime < 5s)', () => {
+    withTempRepo((dir) => {
+      const lock = path.join(dir, '.lock');
+      fs.mkdirSync(lock); // fresh
+      const got = acquireLock(lock, 50);
+      assert(got === false, 'should not steal a fresh lock within the timeout');
+      releaseLock(lock);
+    });
+  });
+}
+
 // MIG-01: fresh DB applies all migrations
 test('MIG-01 fresh DB applies all migrations', () => {
   const dbFile = path.join(tmpDir, 'mig01.db');
@@ -4055,6 +4370,85 @@ let mcpTestDone = false;
       if (prevDb === undefined) delete process.env.NCA_DB_PATH;
       else process.env.NCA_DB_PATH = prevDb;
     }
+  });
+}
+
+// ─── REDACT tests — secret redaction for orientation telemetry ────────────────
+{
+  const { redactString, redact, redactLine } = require(path.join(ROOT, 'dist', 'hooks', 'lib', 'redact.js'));
+  const gone = (out, secret) => !out.includes(secret);
+  const marked = (out) => /\[REDACTED/.test(out);
+
+  test('REDACT-01 API_KEY=sk- value is redacted', () => {
+    const out = redactString('API_KEY=sk-abc123DEF456ghi');
+    assert(gone(out, 'sk-abc123DEF456ghi') && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-02 GitHub ghp_ token is redacted', () => {
+    const tok = 'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6';
+    const out = redactString(`token ${tok} end`);
+    assert(gone(out, tok) && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-03 Stripe sk_live_ key is redacted', () => {
+    const key = 'sk_live_' + '51H8aB2cD3eF4gH5iJ6kL7mN';
+    const out = redactString(`STRIPE=${key}`);
+    assert(gone(out, key) && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-04 AWS AKIA access key id is redacted', () => {
+    const key = 'AKIA' + 'IOSFODNN7EXAMPLE1';
+    const out = redactString(`AWS_ACCESS_KEY_ID=${key}`);
+    assert(gone(out, key) && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-05 JWT is redacted', () => {
+    const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5Nqyz9aBcDeF';
+    const out = redactString(`Authorization: Bearer ${jwt}`);
+    assert(gone(out, jwt) && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-06 PEM block is redacted', () => {
+    const pem = '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcw\nggSjAgEAAoIBAQ==\n-----END PRIVATE KEY-----';
+    const out = redactString(`key:\n${pem}\n`);
+    assert(gone(out, 'MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcw') && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-07 token inside a nested string is redacted (object walk)', () => {
+    const tok = 'ghp_' + 'Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4';
+    const obj = redact({ msg: `calling api with token=${tok}` });
+    assert(gone(obj.msg, tok) && marked(obj.msg), `not redacted: ${obj.msg}`);
+  });
+
+  test('REDACT-08 secret in a deep object (3+ levels) is redacted', () => {
+    const secret = 'sk-deepNested0123456789abcdef';
+    const obj = redact({ a: { b: { c: { val: `API_KEY=${secret}` } } } });
+    assert(gone(obj.a.b.c.val, secret) && marked(obj.a.b.c.val), `not redacted: ${obj.a.b.c.val}`);
+  });
+
+  test('REDACT-09 negative: the word "secret" in prose is not over-redacted', () => {
+    const prose = 'This is a secret feature; please keep it private and do not tell.';
+    const out = redactString(prose);
+    assert(out === prose, `over-redacted prose: ${out}`);
+  });
+
+  test('REDACT-10 redactLine second pass scrubs a raw secret in a serialized line', () => {
+    const tok = 'ghp_' + 'M4n3B2v1C6x5Z8a7S0d9F2g1H4j3K6l5';
+    const line = JSON.stringify({ leaked: tok });
+    const out = redactLine(line);
+    assert(gone(out, tok) && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-11 connection-string credentials are redacted, scheme kept', () => {
+    const out = redactString('DATABASE_URL=postgres://user:s3cr3tPass@db.host:5432/app');
+    assert(gone(out, 'user:s3cr3tPass') && gone(out, 's3cr3tPass'), `creds leaked: ${out}`);
+    assert(out.includes('postgres://[REDACTED]@'), `scheme/marker missing: ${out}`);
+  });
+
+  test('REDACT-12 Bearer tokens are redacted', () => {
+    const out = redactString('Authorization: Bearer xoxb-abc-long-token-here-1234');
+    assert(gone(out, 'xoxb-abc-long-token-here-1234'), `token leaked: ${out}`);
+    assert(out.includes('Bearer [REDACTED]'), `marker missing: ${out}`);
   });
 }
 
