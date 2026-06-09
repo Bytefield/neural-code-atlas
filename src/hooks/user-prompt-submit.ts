@@ -40,8 +40,10 @@ function main(): void {
     let input: HookInput;
     try {
       input = JSON.parse(fs.readFileSync(0, 'utf-8'));
-    } catch (err) {
-      logError(process.cwd(), `UserPromptSubmit stdin parse error: ${String(err).slice(0, 100)}`);
+    } catch {
+      // Static message: the error string could echo a fragment of the malformed
+      // payload (which contains the prompt). Never include it.
+      logError(process.cwd(), 'UserPromptSubmit stdin parse error');
       process.exit(0);
     }
 
