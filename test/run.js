@@ -4563,6 +4563,73 @@ let mcpTestDone = false;
   });
 }
 
+// ─── REDACT tests — secret redaction for orientation telemetry ────────────────
+{
+  const { redactString, redact, redactLine } = require(path.join(ROOT, 'dist', 'hooks', 'lib', 'redact.js'));
+  const gone = (out, secret) => !out.includes(secret);
+  const marked = (out) => /\[REDACTED/.test(out);
+
+  test('REDACT-01 API_KEY=sk- value is redacted', () => {
+    const out = redactString('API_KEY=sk-abc123DEF456ghi');
+    assert(gone(out, 'sk-abc123DEF456ghi') && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-02 GitHub ghp_ token is redacted', () => {
+    const tok = 'ghp_' + 'A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6';
+    const out = redactString(`token ${tok} end`);
+    assert(gone(out, tok) && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-03 Stripe sk_live_ key is redacted', () => {
+    const key = 'sk_live_' + '51H8aB2cD3eF4gH5iJ6kL7mN';
+    const out = redactString(`STRIPE=${key}`);
+    assert(gone(out, key) && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-04 AWS AKIA access key id is redacted', () => {
+    const key = 'AKIA' + 'IOSFODNN7EXAMPLE1';
+    const out = redactString(`AWS_ACCESS_KEY_ID=${key}`);
+    assert(gone(out, key) && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-05 JWT is redacted', () => {
+    const jwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5Nqyz9aBcDeF';
+    const out = redactString(`Authorization: Bearer ${jwt}`);
+    assert(gone(out, jwt) && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-06 PEM block is redacted', () => {
+    const pem = '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcw\nggSjAgEAAoIBAQ==\n-----END PRIVATE KEY-----';
+    const out = redactString(`key:\n${pem}\n`);
+    assert(gone(out, 'MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcw') && marked(out), `not redacted: ${out}`);
+  });
+
+  test('REDACT-07 token inside a nested string is redacted (object walk)', () => {
+    const tok = 'ghp_' + 'Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4';
+    const obj = redact({ msg: `calling api with token=${tok}` });
+    assert(gone(obj.msg, tok) && marked(obj.msg), `not redacted: ${obj.msg}`);
+  });
+
+  test('REDACT-08 secret in a deep object (3+ levels) is redacted', () => {
+    const secret = 'sk-deepNested0123456789abcdef';
+    const obj = redact({ a: { b: { c: { val: `API_KEY=${secret}` } } } });
+    assert(gone(obj.a.b.c.val, secret) && marked(obj.a.b.c.val), `not redacted: ${obj.a.b.c.val}`);
+  });
+
+  test('REDACT-09 negative: the word "secret" in prose is not over-redacted', () => {
+    const prose = 'This is a secret feature; please keep it private and do not tell.';
+    const out = redactString(prose);
+    assert(out === prose, `over-redacted prose: ${out}`);
+  });
+
+  test('REDACT-10 redactLine second pass scrubs a raw secret in a serialized line', () => {
+    const tok = 'ghp_' + 'M4n3B2v1C6x5Z8a7S0d9F2g1H4j3K6l5';
+    const line = JSON.stringify({ leaked: tok });
+    const out = redactLine(line);
+    assert(gone(out, tok) && marked(out), `not redacted: ${out}`);
+  });
+}
+
 // Results — wait for MCP async test (3000ms timeout above + 500ms init + 1000ms drain window)
 setTimeout(() => {
   // Flush MCP test result into the pass/fail counters
