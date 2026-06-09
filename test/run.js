@@ -376,6 +376,37 @@ test('AC6 evolve returns warning output', () => {
   });
 }
 
+// ─── LOCK tests — mkdir mutex stale-lock recovery ─────────────────────────────
+{
+  const { acquireLock, releaseLock } = require(path.join(ROOT, 'dist', 'hooks', 'lib', 'io.js'));
+  const withTempRepo = (fn) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-lock-'));
+    try { return fn(dir); } finally { try { fs.rmSync(dir, { recursive: true, force: true }); } catch {} }
+  };
+
+  test('LOCK-01 steals a stale lock (mtime > 5s) and acquires', () => {
+    withTempRepo((dir) => {
+      const lock = path.join(dir, '.lock');
+      fs.mkdirSync(lock);
+      const old = new Date(Date.now() - 10000);
+      fs.utimesSync(lock, old, old);
+      const got = acquireLock(lock, 200);
+      assert(got === true, 'should steal a stale lock and acquire');
+      releaseLock(lock);
+    });
+  });
+
+  test('LOCK-02 does NOT steal a fresh lock (mtime < 5s)', () => {
+    withTempRepo((dir) => {
+      const lock = path.join(dir, '.lock');
+      fs.mkdirSync(lock); // fresh
+      const got = acquireLock(lock, 50);
+      assert(got === false, 'should not steal a fresh lock within the timeout');
+      releaseLock(lock);
+    });
+  });
+}
+
 // MIG-01: fresh DB applies all migrations
 test('MIG-01 fresh DB applies all migrations', () => {
   const dbFile = path.join(tmpDir, 'mig01.db');
