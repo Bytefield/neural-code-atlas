@@ -55,6 +55,12 @@ export interface DocCodeEdgeSymbol {
   nodeId: string | null;
 }
 
+export interface CallerRef {
+  name: string;
+  file: string;
+  line: number;
+}
+
 
 export class Storage {
   /** @internal — not public API; exposed for testing only. */
@@ -480,6 +486,19 @@ export class Storage {
       ORDER BY symbol_name
     `).all(noteId) as { symbol_name: string; node_id: string | null }[];
     return rows.map(r => ({ symbol: r.symbol_name, nodeId: r.node_id }));
+  }
+
+  /**
+   * Return all nodes whose deps array contains the given symbol name.
+   * Implements reverse-caller lookup via json_each over the stored deps JSON.
+   */
+  getCallersOf(symbolName: string): CallerRef[] {
+    const rows = this.db.prepare(`
+      SELECT name, file, line FROM nodes
+      WHERE EXISTS (SELECT 1 FROM json_each(deps) WHERE value = ?)
+      ORDER BY file, line
+    `).all(symbolName) as { name: string; file: string; line: number }[];
+    return rows.map(r => ({ name: r.name, file: r.file, line: r.line }));
   }
 
   close(): void {
