@@ -1047,4 +1047,52 @@ program
     }
   });
 
+// ─── impact ───────────────────────────────────────────────────────────────────
+
+program
+  .command('impact [diff-spec]')
+  .description('Analyse impact of a diff: callers, docs, security, silent-fallback per symbol')
+  .option('--path <path>', 'project root (default: cwd)')
+  .option('--json', 'output as JSON')
+  .option('--air', 'output AIR record JSON')
+  .option('--out <file>', 'write report to file instead of stdout')
+  .action((diffSpec: string | undefined, opts: { path?: string; json?: boolean; air?: boolean; out?: string }) => {
+    const {
+      ImpactAnalyzer,
+      formatText,
+      formatJSON,
+      formatAIR,
+    } = require('./impact.js') as typeof import('./impact.js');
+
+    const repoRoot = opts.path ? path.resolve(opts.path) : process.cwd();
+    const dbPath = resolveDbPath(repoRoot);
+    const storage = new Storage(dbPath);
+
+    const analyzer = new ImpactAnalyzer(storage, repoRoot);
+    const spec = diffSpec ?? '';
+
+    const diffText = analyzer.getDiffText(spec, repoRoot);
+    const parsed = analyzer.parseGitDiff(diffText);
+    const report = analyzer.analyze(parsed);
+    const taskLabel = analyzer.getTaskLabel(spec, repoRoot);
+
+    storage.close();
+
+    let output: string;
+    if (opts.air) {
+      output = formatAIR(report, taskLabel);
+    } else if (opts.json) {
+      output = formatJSON(report);
+    } else {
+      output = formatText(report, spec);
+    }
+
+    if (opts.out) {
+      fs.writeFileSync(path.resolve(opts.out), output, 'utf-8');
+      process.stdout.write(`Written to ${opts.out}\n`);
+    } else {
+      process.stdout.write(output + '\n');
+    }
+  });
+
 program.parse(process.argv);

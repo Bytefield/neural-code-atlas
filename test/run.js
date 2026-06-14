@@ -4058,6 +4058,119 @@ let mcpTestDone = false;
   });
 }
 
+// ─── IMPACT: nca impact command ───────────────────────────────────────────────
+{
+  const { ImpactAnalyzer } = require(path.join(ROOT, 'dist', 'impact.js'));
+  const { Storage: S } = require(path.join(ROOT, 'dist', 'storage.js'));
+
+  // IMPACT-01: parseGitDiff extracts 2 modified + 1 new symbol
+  test('IMPACT-01 parseGitDiff extracts symbols from diff text', () => {
+    const db = new S(process.env.NCA_DB_PATH);
+    const analyzer = new ImpactAnalyzer(db, ROOT);
+    const fakeDiff = [
+      'diff --git a/src/old.ts b/src/old.ts',
+      'index abc..def 100644',
+      '--- a/src/old.ts',
+      '+++ b/src/old.ts',
+      '@@ -1,3 +1,5 @@',
+      ' export function unchanged() {}',
+      '-export function removed() {}',
+      '+export function modified() {}',
+      '+export const helper = () => {};',
+      'diff --git a/src/new.ts b/src/new.ts',
+      'new file mode 100644',
+      'index 0000000..111111',
+      '--- /dev/null',
+      '+++ b/src/new.ts',
+      '@@ -0,0 +1,3 @@',
+      '+export class BrandNew {',
+      '+  run() {}',
+      '+}',
+    ].join('\n');
+
+    const parsed = analyzer.parseGitDiff(fakeDiff);
+    db.close();
+
+    assert(Array.isArray(parsed.symbols), 'Expected symbols array');
+    const names = parsed.symbols.map(s => s.name);
+    assert(names.includes('modified'), `Expected "modified" in ${JSON.stringify(names)}`);
+    assert(names.includes('helper'), `Expected "helper" in ${JSON.stringify(names)}`);
+    assert(names.includes('BrandNew'), `Expected "BrandNew" in ${JSON.stringify(names)}`);
+
+    const brandNew = parsed.symbols.find(s => s.name === 'BrandNew');
+    assert(brandNew && brandNew.is_new === true, 'Expected BrandNew.is_new=true');
+    const modified = parsed.symbols.find(s => s.name === 'modified');
+    assert(modified && modified.is_new === false, 'Expected modified.is_new=false');
+  });
+
+  // IMPACT-02: getCallersOf returns callers via deps reverse-lookup
+  test('IMPACT-02 getCallersOf returns callers of a known symbol', () => {
+    // AC1 scan already indexed fixtures — transform is called by process and transform (recursive)
+    const db = new S(process.env.NCA_DB_PATH);
+    const callers = db.getCallersOf('transform');
+    db.close();
+
+    assert(Array.isArray(callers), 'Expected array from getCallersOf');
+    const callerNames = callers.map(c => c.name);
+    assert(
+      callerNames.some(n => n === 'process' || n === 'transform'),
+      `Expected "process" or "transform" caller, got: ${JSON.stringify(callerNames)}`
+    );
+    assert(
+      callers.every(c => c.file && typeof c.line === 'number'),
+      'Each CallerRef must have file and line'
+    );
+  });
+
+  // IMPACT-03: silent_fallback detected on file with catch+return []
+  test('IMPACT-03 silent_fallback true for file with catch and return []', () => {
+    const db = new S(process.env.NCA_DB_PATH);
+    const analyzer = new ImpactAnalyzer(db, ROOT);
+    // config.ts has catch blocks that swallow errors and a top-level return []
+    const report = analyzer.analyze({
+      symbols: [{ name: 'readDocSources', file: 'src/config.ts', line: 23, is_new: true }],
+    });
+    db.close();
+
+    assert(report.symbols.length === 1, 'Expected 1 symbol in report');
+    assert(
+      report.symbols[0].silent_fallback === true,
+      `Expected silent_fallback=true for readDocSources, got ${report.symbols[0].silent_fallback}`
+    );
+  });
+
+  // IMPACT-04: --air output is valid JSON with required fields
+  test('IMPACT-04 nca impact --air produces valid JSON with required fields', () => {
+    const out = run(`impact HEAD~1..HEAD --air --path ${ROOT}`);
+    let parsed;
+    try {
+      parsed = JSON.parse(out);
+    } catch (e) {
+      throw new Error(`--air output is not valid JSON: ${e.message}\n${out.slice(0, 300)}`);
+    }
+    assert(parsed.air_version === '0.0.1', `Expected air_version="0.0.1", got ${parsed.air_version}`);
+    assert(typeof parsed.task === 'string', 'Expected task to be a string');
+    assert(parsed.impact && Array.isArray(parsed.impact.callers_affected), 'Expected impact.callers_affected array');
+    assert(Array.isArray(parsed.impact.docs_linked), 'Expected impact.docs_linked array');
+    assert(parsed.approval && parsed.approval.required === true, 'Expected approval.required=true');
+    assert(typeof parsed.timestamp === 'string', 'Expected timestamp string');
+  });
+
+  // IMPACT-05: --json output is parseable and has correct shape
+  test('IMPACT-05 nca impact --json produces parseable JSON with symbols array', () => {
+    const out = run(`impact HEAD~1..HEAD --json --path ${ROOT}`);
+    let parsed;
+    try {
+      parsed = JSON.parse(out);
+    } catch (e) {
+      throw new Error(`--json output is not valid JSON: ${e.message}\n${out.slice(0, 300)}`);
+    }
+    assert(Array.isArray(parsed.symbols), 'Expected symbols array in JSON output');
+    assert(Array.isArray(parsed.gaps), 'Expected gaps array in JSON output');
+    assert(typeof parsed.timestamp === 'string', 'Expected timestamp in JSON output');
+  });
+}
+
 // Results — wait for MCP async test (3000ms timeout above + 500ms init + 1000ms drain window)
 setTimeout(() => {
   // Flush MCP test result into the pass/fail counters
