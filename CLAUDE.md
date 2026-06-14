@@ -16,7 +16,7 @@
 
 ```powershell
 npm run build          # compilar TypeScript → dist/
-node test/run.js       # suite completa (expected: N pass, 1 fail AC5 pre-existing)
+node test/run.js       # suite completa
 node dist/cli.js migrate --status   # estado de migraciones
 node dist/cli.js evolve             # análisis de warnings en live DB
 ```
@@ -33,25 +33,13 @@ src/
   scanner.ts      ← indexado de ficheros
 test/run.js       ← tests de integración (Node.js puro, sin framework)
 .nca/nca.db       ← DB local del repo (gitignored)
-.nca/backups/     ← backups forenses (gitignored)
 ```
 
-## Delegación — routing específico para este repo
+## Contexto de agentes
 
-Aplica la tabla global con estos matices:
-
-| Situación | Acción |
-|-----------|--------|
-| Leer `storage.ts`, `context.ts`, `test/run.js` (>300 líneas) | `nca ask` + Read (nunca grep directo) |
-| Explorar callers de un símbolo en `src/` | `nca ask "<símbolo>"` |
-| Navegar docs y decisiones arquitectónicas | `nca vault search "<tema>"` |
-| Entender ripple effect de un cambio | `nca flow "<función>"` |
-| Ver doc↔code coupling | `nca related "<símbolo_o_doc>"` |
-| Implementar un bug fix acotado | Hacer directo (repo pequeño, <20 ficheros TS) |
-| Review pre-merge de cambios que tocan `migrations/` o contratos públicos | `architect-reviewer` |
-
-> **Nota:** Usar `nca ask` siempre ANTES de grep/cat. Usar `nca vault search` para referencias a
-> decisiones y arquitectura. Para implementación: orquestador o `general-purpose` con `model: sonnet`.
+- Tarjeta base: `.claude/agent-context/all.md`
+- Reglas de herramientas: `.claude/rules/nca-tools.md`
+- Indexar tarjetas: `nca vault scan .claude/agent-context/`
 
 ## Convenciones del proyecto
 
@@ -61,11 +49,11 @@ Aplica la tabla global con estos matices:
 - **Branch naming:** `fix/<descripción>`, `perf/<descripción>`, `feat/<descripción>`
 - **No auto-merge** de PRs — el usuario hace merge desde la UI de GitHub
 
-## Estado del proyecto (auditoría de 7 bugs — actualizado 2026-05-25)
+## No cargar por defecto
 
-De la auditoría original de 7 bugs:
-- **Resueltos y mergeados:** 1 (LMD), 3 (CAC), 4 (BNB), 5 (SRS), 6 (WUR), 7 (AC5) ✅
-- **Pendiente sin documentación:** 2 (desconocido) ⚠️
-
-Auditoría completa → `../../Papi_Obsidian_Vault/02-Projects/nca/AUDITORIA-BUGS.md`
-Tests: 31/31 pasando (100%)
+| Ruta | Motivo |
+|------|--------|
+| `node_modules/` | Siempre excluir |
+| `dist/` | Output compilado, no fuente de verdad |
+| `.nca/` | DB binaria |
+| `src/vault/__fixtures__/` | Fixtures de test, no contexto de dominio |
