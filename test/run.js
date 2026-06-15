@@ -4169,6 +4169,133 @@ let mcpTestDone = false;
     assert(Array.isArray(parsed.gaps), 'Expected gaps array in JSON output');
     assert(typeof parsed.timestamp === 'string', 'Expected timestamp in JSON output');
   });
+
+  // IMPACT-06: docs-only diff → confidence high, no manual review
+  test('IMPACT-06 docs-only diff yields confidence=high, no manual_review_required', () => {
+    const db = new S(process.env.NCA_DB_PATH);
+    const analyzer = new ImpactAnalyzer(db, ROOT);
+
+    const docsDiff = [
+      'diff --git a/README.md b/README.md',
+      'index abc..def 100644',
+      '--- a/README.md',
+      '+++ b/README.md',
+      '@@ -1,2 +1,3 @@',
+      ' # My Project',
+      '+Added a line of docs.',
+      'diff --git a/docs/CHANGELOG.md b/docs/CHANGELOG.md',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/docs/CHANGELOG.md',
+      '@@ -0,0 +1,2 @@',
+      '+## v0.1.0',
+      '+Initial release.',
+    ].join('\n');
+
+    const parsed = analyzer.parseGitDiff(docsDiff);
+    assert(parsed.symbols.length === 0, 'Expected 0 symbols for docs-only diff');
+    assert(parsed.executableFilesChanged.length === 0, 'Expected 0 executable files changed');
+
+    const report = analyzer.analyze(parsed, docsDiff);
+    db.close();
+
+    assert(report.confidence === 'high',
+      `Expected confidence=high for docs-only diff, got: ${report.confidence}`);
+    assert(report.manual_review_required === false,
+      'Expected manual_review_required=false for docs-only diff');
+    assert(report.warnings.length === 0,
+      `Expected no warnings for docs-only diff, got: ${JSON.stringify(report.warnings)}`);
+  });
+
+  // IMPACT-07: executable file changed but no symbol declarations → confidence degraded
+  test('IMPACT-07 body-only executable change yields confidence=degraded', () => {
+    const db = new S(process.env.NCA_DB_PATH);
+    const analyzer = new ImpactAnalyzer(db, ROOT);
+
+    // Diff touches a .ts file but only changes function body (no declaration line)
+    const bodyOnlyDiff = [
+      'diff --git a/src/service.ts b/src/service.ts',
+      'index abc..def 100644',
+      '--- a/src/service.ts',
+      '+++ b/src/service.ts',
+      '@@ -5,7 +5,7 @@',
+      ' export function processData(input) {',
+      '-  return input.trim();',
+      '+  return input.trim().toLowerCase();',
+      ' }',
+    ].join('\n');
+
+    const parsed = analyzer.parseGitDiff(bodyOnlyDiff);
+    assert(parsed.symbols.length === 0, 'Expected 0 symbols (body-only change)');
+    assert(parsed.executableFilesChanged.length === 1, 'Expected 1 executable file changed');
+
+    const report = analyzer.analyze(parsed, bodyOnlyDiff);
+    db.close();
+
+    assert(report.confidence === 'degraded',
+      `Expected confidence=degraded for body-only change, got: ${report.confidence}`);
+    assert(report.manual_review_required === false,
+      'Expected manual_review_required=false for body-only change');
+    assert(report.warnings.some(w => w.includes('Executable files changed')),
+      `Expected body-only warning, got: ${JSON.stringify(report.warnings)}`);
+  });
+
+  // IMPACT-08: security-sensitive path changed → confidence blocked, manual_review_required
+  test('IMPACT-08 security-sensitive path change yields confidence=blocked and manual_review_required', () => {
+    const db = new S(process.env.NCA_DB_PATH);
+    const analyzer = new ImpactAnalyzer(db, ROOT);
+
+    const securityDiff = [
+      'diff --git a/src/security/rbac.ts b/src/security/rbac.ts',
+      'index abc..def 100644',
+      '--- a/src/security/rbac.ts',
+      '+++ b/src/security/rbac.ts',
+      '@@ -1,3 +1,5 @@',
+      ' export function checkPermission(role, resource) {',
+      '-  return role === "admin";',
+      '+  return role === "admin" || role === "superuser";',
+      ' }',
+    ].join('\n');
+
+    const parsed = analyzer.parseGitDiff(securityDiff);
+    const report = analyzer.analyze(parsed, securityDiff);
+    db.close();
+
+    assert(report.confidence === 'blocked',
+      `Expected confidence=blocked for security path, got: ${report.confidence}`);
+    assert(report.manual_review_required === true,
+      'Expected manual_review_required=true for security path change');
+    assert(report.warnings.some(w => w.includes('Security-sensitive paths')),
+      `Expected security warning, got: ${JSON.stringify(report.warnings)}`);
+  });
+
+  // IMPACT-09: SQL/migration file changed → confidence blocked, manual_review_required
+  test('IMPACT-09 SQL migration change yields confidence=blocked and manual_review_required', () => {
+    const db = new S(process.env.NCA_DB_PATH);
+    const analyzer = new ImpactAnalyzer(db, ROOT);
+
+    const sqlDiff = [
+      'diff --git a/db/migrations/0042_add_rls.sql b/db/migrations/0042_add_rls.sql',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/db/migrations/0042_add_rls.sql',
+      '@@ -0,0 +1,5 @@',
+      '+ALTER TABLE users ENABLE ROW LEVEL SECURITY;',
+      '+CREATE POLICY user_isolation ON users',
+      '+  USING (user_id = current_user_id());',
+    ].join('\n');
+
+    const parsed = analyzer.parseGitDiff(sqlDiff);
+    const report = analyzer.analyze(parsed, sqlDiff);
+    db.close();
+
+    assert(report.confidence === 'blocked',
+      `Expected confidence=blocked for SQL migration, got: ${report.confidence}`);
+    assert(report.manual_review_required === true,
+      'Expected manual_review_required=true for SQL migration change');
+    assert(report.warnings.some(w => w.includes('SQL or migration')),
+      `Expected SQL/migration warning, got: ${JSON.stringify(report.warnings)}`);
+  });
 }
 
 // Results — wait for MCP async test (3000ms timeout above + 500ms init + 1000ms drain window)

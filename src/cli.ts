@@ -1073,7 +1073,7 @@ program
 
     const diffText = analyzer.getDiffText(spec, repoRoot);
     const parsed = analyzer.parseGitDiff(diffText);
-    const report = analyzer.analyze(parsed);
+    const report = analyzer.analyze(parsed, diffText);
     const taskLabel = analyzer.getTaskLabel(spec, repoRoot);
 
     storage.close();

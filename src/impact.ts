@@ -21,10 +21,15 @@ export interface SymbolImpact {
   silent_fallback: boolean;
 }
 
+export type ConfidenceLevel = 'high' | 'medium' | 'degraded' | 'blocked';
+
 export interface ImpactReport {
   symbols: SymbolImpact[];
   gaps: string[];
   timestamp: string;
+  confidence: ConfidenceLevel;
+  warnings: string[];
+  manual_review_required: boolean;
 }
 
 export interface ParsedSymbol {
@@ -36,12 +41,15 @@ export interface ParsedSymbol {
 
 export interface ParsedDiff {
   symbols: ParsedSymbol[];
+  executableFilesChanged: string[];
 }
 
 // Matches module-level symbol declarations on added lines (+).
 // const requires export to avoid matching local variable declarations.
 const SYMBOL_RE =
   /^\+\s*(?:(?:export\s+)?(?:(?:async\s+)?function|class|interface|type)|export\s+const)\s+([A-Za-z_$][A-Za-z0-9_$]*)/;
+
+const SECURITY_KEYWORDS = ['security', 'auth', 'rls', 'tenant', 'webhook', 'worker', 'middleware'];
 
 export class ImpactAnalyzer {
   constructor(
@@ -52,6 +60,7 @@ export class ImpactAnalyzer {
   parseGitDiff(diffText: string): ParsedDiff {
     const symbols: ParsedSymbol[] = [];
     const seen = new Set<string>();
+    const executableFilesChanged: string[] = [];
 
     const blocks = diffText.split(/^(?=diff --git )/m);
 
@@ -65,6 +74,8 @@ export class ImpactAnalyzer {
       const file = fileMatch[1].trim();
 
       if (!/\.(ts|js|tsx|jsx)$/.test(file)) continue;
+
+      executableFilesChanged.push(file);
 
       let lineNum = 0;
       for (const raw of block.split('\n')) {
@@ -92,7 +103,7 @@ export class ImpactAnalyzer {
       }
     }
 
-    return { symbols };
+    return { symbols, executableFilesChanged };
   }
 
   getDiffText(diffSpec: string, repoPath: string): string {
@@ -128,7 +139,7 @@ export class ImpactAnalyzer {
       : diffSpec;
   }
 
-  analyze(diff: ParsedDiff): ImpactReport {
+  analyze(diff: ParsedDiff, diffText: string = ''): ImpactReport {
     const gaps: string[] = [];
     const symbols: SymbolImpact[] = [];
 
@@ -169,7 +180,81 @@ export class ImpactAnalyzer {
       });
     }
 
-    return { symbols, gaps, timestamp: new Date().toISOString() };
+    const { confidence, warnings, manual_review_required } = this.computeConfidence(
+      diffText,
+      diff,
+      gaps
+    );
+
+    return { symbols, gaps, timestamp: new Date().toISOString(), confidence, warnings, manual_review_required };
+  }
+
+  private extractAllChangedPaths(diffText: string): string[] {
+    const paths = new Set<string>();
+    for (const m of diffText.matchAll(/^diff --git a\/(.+) b\/(.+)$/gm)) {
+      paths.add(m[1].trim());
+      paths.add(m[2].trim());
+    }
+    for (const m of diffText.matchAll(/^--- a\/(.+)$/gm)) {
+      const p = m[1].trim();
+      if (p !== '/dev/null') paths.add(p);
+    }
+    for (const m of diffText.matchAll(/^\+\+\+ b\/(.+)$/gm)) {
+      const p = m[1].trim();
+      if (p !== '/dev/null') paths.add(p);
+    }
+    return [...paths];
+  }
+
+  private hasSecurityPath(paths: string[]): boolean {
+    return paths.some(p => {
+      const parts = p.toLowerCase().split(/[/._-]/);
+      return parts.some(part => SECURITY_KEYWORDS.some(kw => part.includes(kw)));
+    });
+  }
+
+  private computeConfidence(
+    diffText: string,
+    diff: ParsedDiff,
+    gaps: string[]
+  ): { confidence: ConfidenceLevel; warnings: string[]; manual_review_required: boolean } {
+    const warnings: string[] = [];
+    let manual_review_required = false;
+    let confidence: ConfidenceLevel = 'high';
+
+    const allPaths = this.extractAllChangedPaths(diffText);
+
+    if (this.hasSecurityPath(allPaths)) {
+      warnings.push('Security-sensitive paths changed. Manual review required.');
+      manual_review_required = true;
+      confidence = 'blocked';
+    }
+
+    if (allPaths.some(p => /\.sql$/i.test(p) || /\/migrations\//i.test(p))) {
+      warnings.push('SQL or migration files changed and are not analyzed by nca impact.');
+      manual_review_required = true;
+      confidence = 'blocked';
+    }
+
+    if (confidence === 'blocked') {
+      return { confidence, warnings, manual_review_required };
+    }
+
+    const execCount = diff.executableFilesChanged?.length ?? 0;
+
+    if (execCount > 0 && diff.symbols.length === 0) {
+      warnings.push(
+        'Executable files changed but no symbol declarations were detected. This may be a body-only change.'
+      );
+      return { confidence: 'degraded', warnings, manual_review_required };
+    }
+
+    if (execCount === 0 && diff.symbols.length === 0) {
+      return { confidence: 'high', warnings, manual_review_required };
+    }
+
+    confidence = gaps.length > 0 ? 'medium' : 'high';
+    return { confidence, warnings, manual_review_required };
   }
 
   // File-level heuristic: any function in a file that has both a catch block
@@ -193,6 +278,17 @@ export function formatText(report: ImpactReport, diffSpec: string): string {
   const lines: string[] = [];
   lines.push(`## nca impact — ${diffSpec || 'HEAD (unstaged)'}`);
   lines.push(`Generated: ${report.timestamp}`);
+  lines.push('');
+
+  lines.push(`## Confidence: ${report.confidence.toUpperCase()}`);
+  if (report.manual_review_required) {
+    lines.push('⚠ Manual review required before merging.');
+  }
+  if (report.warnings.length > 0) {
+    for (const w of report.warnings) {
+      lines.push(`- ${w}`);
+    }
+  }
   lines.push('');
 
   if (report.symbols.length === 0) {
@@ -240,7 +336,14 @@ export function formatText(report: ImpactReport, diffSpec: string): string {
 
 export function formatJSON(report: ImpactReport): string {
   return JSON.stringify(
-    { symbols: report.symbols, gaps: report.gaps, timestamp: report.timestamp },
+    {
+      confidence: report.confidence,
+      warnings: report.warnings,
+      manual_review_required: report.manual_review_required,
+      symbols: report.symbols,
+      gaps: report.gaps,
+      timestamp: report.timestamp,
+    },
     null,
     2
   );
@@ -270,6 +373,9 @@ export function formatAIR(report: ImpactReport, taskLabel: string): string {
     task: taskLabel,
     brief: null,
     _note_brief: 'session predates brief injection',
+    confidence: report.confidence,
+    warnings: report.warnings,
+    manual_review_required: report.manual_review_required,
     impact: { callers_affected, security_symbols, docs_linked },
     approval: { required: true, approved: null, reason: null },
     timestamp: report.timestamp,
