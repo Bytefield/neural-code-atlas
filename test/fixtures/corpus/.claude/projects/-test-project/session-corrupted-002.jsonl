@@ -1,0 +1,6 @@
+{"parentUuid":null,"isSidechain":false,"type":"attachment","uuid":"a2","timestamp":"2026-06-01T11:00:00.000Z","sessionId":"session-corrupted-002","cwd":"/test/project","gitBranch":"feat/x","version":"1.0"}
+CORRUPTED LINE NOT JSON {{{{
+{"parentUuid":"a2","isSidechain":false,"type":"user","uuid":"b2","timestamp":"2026-06-01T11:00:01.000Z","sessionId":"session-corrupted-002","cwd":"/test/project","gitBranch":"feat/x","message":{"role":"user","content":"prompt after corrupt line"}}
+{"parentUuid":"b2","isSidechain":false,"type":"assistant","uuid":"c2","timestamp":"2026-06-01T11:00:02.000Z","sessionId":"session-corrupted-002","cwd":"/test/project","gitBranch":"feat/x","message":{"role":"assistant","content":[{"type":"tool_use","id":"tu3","name":"Bash","input":{"command":"ls","description":"list"}}]}}
+{"parentUuid":"c2","isSidechain":false,"type":"user","uuid":"d2","timestamp":"2026-06-01T11:00:03.000Z","sessionId":"session-corrupted-002","cwd":"/test/project","gitBranch":"feat/x","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"tu3","content":"output"}]}}
+{"parentUuid":"d2","isSidechain":false,"type":"user","uuid":"e2","timestamp":"2026-06-01T11:00:10.000Z","sessionId":"session-corrupted-002","cwd":"/test/project","gitBranch":"feat/x","message":{"role":"user","content":"second prompt after corrupt"}}

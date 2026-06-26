@@ -1095,4 +1095,123 @@ program
     }
   });
 
+// ─── corpus ───────────────────────────────────────────────────────────────────
+
+const corpus = program.command('corpus').description('Claude Code corpus extraction');
+
+corpus
+  .command('extract')
+  .description('Extract orientation events from the Claude Code corpus')
+  .requiredOption('--project <name>', 'project name (e.g. synio)')
+  .requiredOption('--project-root <path>', 'absolute path to the project root')
+  .requiredOption('--phase <phase>', 'experiment phase: baseline or treatment')
+  .option('--since <date>', 'include events on or after this ISO date')
+  .option('--until <date>', 'include events on or before this ISO date')
+  .option('--dry-run', 'count events without writing output')
+  .option('--force-rewrite', 'overwrite output even if version differs')
+  .option('--min-events <n>', 'minimum real-event threshold per session (default: 5)', '5')
+  .action((opts: {
+    project: string;
+    projectRoot: string;
+    phase: string;
+    since?: string;
+    until?: string;
+    dryRun?: boolean;
+    forceRewrite?: boolean;
+    minEvents: string;
+  }) => {
+    if (opts.phase !== 'baseline' && opts.phase !== 'treatment') {
+      process.stderr.write(`Error: --phase must be 'baseline' or 'treatment'\n`);
+      process.exit(1);
+    }
+
+    const rootPath = path.resolve(opts.projectRoot);
+    if (!fs.existsSync(rootPath)) {
+      process.stderr.write(`Error: --project-root not found: ${rootPath}\n`);
+      process.exit(1);
+    }
+
+    const {
+      extract: runExtract,
+    } = require('./corpus/index.js') as typeof import('./corpus/index.js');
+
+    let report: ReturnType<typeof runExtract>;
+    try {
+      report = runExtract({
+        projectName: opts.project,
+        projectRoot: rootPath,
+        phase: opts.phase as 'baseline' | 'treatment',
+        since: opts.since,
+        until: opts.until,
+        dryRun: opts.dryRun ?? false,
+        forceRewrite: opts.forceRewrite ?? false,
+        minEventsThreshold: Math.max(1, parseInt(opts.minEvents, 10) || 5),
+      });
+    } catch (err) {
+      process.stderr.write(`Error: ${(err as Error).message}\n`);
+      process.exit(1);
+    }
+
+    const tag = `NCA|corpus_extract|project:${opts.project}|phase:${opts.phase}${opts.dryRun ? '|dry-run' : ''}`;
+    const lines: string[] = [
+      formatStatus(tag),
+      separator(),
+      '  ' + header('CORPUS EXTRACT' + (opts.dryRun ? ' [DRY-RUN]' : '')),
+      separator(),
+      '  ' + formatField('project', opts.project),
+      '  ' + formatField('slug', report.slug),
+      '  ' + formatField('phase', opts.phase),
+      '  ' + formatField('project-root', rootPath),
+      '  ' + formatField('corpus-dir', report.corpusDir),
+      '',
+      '  ' + header('Sessions'),
+      '  ' + formatField('total', report.sessionsTotal),
+      '  ' + formatField('included', report.sessionsIncluded),
+      '  ' + formatField('excluded', report.sessionsExcluded),
+    ];
+
+    for (const [reason, count] of Object.entries(report.exclusionReasons)) {
+      lines.push('  ' + formatField(`  ↳ ${reason}`, count));
+    }
+
+    lines.push('');
+    lines.push('  ' + header('Events'));
+    lines.push('  ' + formatField('session_start', report.eventCounts.session_start));
+    lines.push('  ' + formatField('user_prompt_submit', report.eventCounts.user_prompt_submit));
+    lines.push('  ' + formatField('post_tool_use', report.eventCounts.post_tool_use));
+    lines.push('  ' + formatField('TOTAL', report.totalEvents));
+
+    if (report.temporalRange.earliest) {
+      lines.push('');
+      lines.push('  ' + header('Temporal Range'));
+      lines.push('  ' + formatField('earliest', report.temporalRange.earliest));
+      lines.push('  ' + formatField('latest', report.temporalRange.latest ?? '—'));
+    }
+
+    const sr = report.subagentReport;
+    lines.push('');
+    lines.push('  ' + header('Subagent Detection'));
+    lines.push('  ' + formatField('agent-* prefix', sr.byFilenamePrefix));
+    lines.push('  ' + formatField('isSidechain=true', sr.byIsSidechain));
+    lines.push('  ' + formatField('both signals', sr.both));
+    lines.push('  ' + formatField('conflicts', sr.conflicts.length));
+    if (sr.conflicts.length > 0) {
+      lines.push('');
+      lines.push('  ' + colors.yellow + 'CONFLICTS (signals disagree):' + colors.reset);
+      for (const c of sr.conflicts) {
+        lines.push(`    • ${c.sessionId.slice(0, 8)}… agent-prefix:${c.hasAgentPrefix} isSidechain:${c.hasIsSidechain}`);
+      }
+    }
+
+    if (!opts.dryRun && report.outputPath) {
+      lines.push('');
+      lines.push('  ' + header('Output'));
+      lines.push('  ' + formatField('events', report.outputPath));
+      lines.push('  ' + formatField('manifest', report.manifestPath ?? '—'));
+    }
+
+    lines.push(separator());
+    process.stdout.write(lines.join('\n') + '\n');
+  });
+
 program.parse(process.argv);
