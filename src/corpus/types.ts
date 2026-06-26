@@ -11,7 +11,6 @@ export interface OrientationEvent {
   source: 'claude_corpus';
   source_session_id: string;
   source_project: string;
-  derived_at: string;
   nca_experiment_phase: ExperimentPhase;
   subagent: boolean;
   event_type: EventType;
@@ -85,6 +84,7 @@ export interface Manifest {
   subagent_report: SubagentReport;
   output_path: string;
   output_sha256: string | null;
+  generated_at: string;  // extraction run timestamp (volatile; was derived_at in events pre-0.1.1)
   started_at: string;
   completed_at: string;
 }

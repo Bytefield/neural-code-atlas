@@ -58,7 +58,6 @@ export function deriveSessionEvents(
   session: ParsedSession,
   sourceProject: string,
   phase: ExperimentPhase,
-  derivedAt: string,
   since?: Date,
   until?: Date,
 ): OrientationEvent[] {
@@ -77,13 +76,14 @@ export function deriveSessionEvents(
     if (until && lineDate > until) continue;
 
     const gitBranch = getLineBranch(line, session.sessionGitBranch);
+    // All fields here must be deterministic (corpus-derived or constant) so that
+    // re-running the extractor on the same corpus produces identical JSONL bytes.
     const baseFields = {
       schema_version: SCHEMA_VERSION,
       extractor_version: EXTRACTOR_VERSION,
       source: 'claude_corpus' as const,
       source_session_id: session.sessionId,
       source_project: sourceProject,
-      derived_at: derivedAt,
       nca_experiment_phase: phase,
       subagent: isSubagent,
       git_branch: gitBranch,

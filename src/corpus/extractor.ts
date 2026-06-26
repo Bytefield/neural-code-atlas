@@ -33,7 +33,6 @@ export function extract(opts: RunOptions): RunReport {
   const since = sinceStr ? new Date(sinceStr) : undefined;
   const until = untilStr ? new Date(untilStr) : undefined;
   const startedAt = new Date().toISOString();
-  const derivedAt = startedAt;
 
   const slug = resolveProjectSlug(projectRoot);
   const corpusDir = resolveCorpusDir(slug, corpusHome);
@@ -97,7 +96,7 @@ export function extract(opts: RunOptions): RunReport {
   // ── Derive events for included sessions ───────────────────────────────────
   const allEvents: OrientationEvent[] = [];
   for (const session of includedSessions) {
-    const events = deriveSessionEvents(session, projectName, phase, derivedAt, since, until);
+    const events = deriveSessionEvents(session, projectName, phase, since, until);
     allEvents.push(...events);
   }
 
@@ -152,6 +151,7 @@ export function extract(opts: RunOptions): RunReport {
       subagent_report: subagentReport,
       output_path: resolveOutputPath(projectName, metricsHome),
       output_sha256: null, // filled in by writeOutput
+      generated_at: startedAt, // extraction run timestamp (volatile; kept in manifest, not in events)
       started_at: startedAt,
       completed_at: completedAt,
     };

@@ -76,7 +76,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...session,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', new Date().toISOString());
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
 
     const prompts = events.filter(e => e.event_type === 'user_prompt_submit');
     // Session has 2 real prompts + 1 tool_result response → should yield exactly 2 user_prompt_submit
@@ -103,7 +103,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: true, // filename starts with agent-
       ...agentSession,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', new Date().toISOString());
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
     assert(events.length > 0, 'Expected events from agent session');
     assert(events.every(e => e.subagent === true),
       'All events from agent-* session must have subagent=true');
@@ -119,7 +119,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...sidechainSession,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', new Date().toISOString());
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
     assert(events.every(e => e.subagent === true),
       'All events from isSidechain session must have subagent=true');
   });
@@ -132,7 +132,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...regularSession,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', new Date().toISOString());
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
     assert(events.every(e => e.subagent === false),
       'All events from regular session must have subagent=false');
   });
@@ -147,9 +147,8 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...session,
     };
-    const now = '2026-06-26T00:00:00.000Z';
-    const events1 = deriveSessionEvents(derivedSession, 'test-project', 'baseline', now);
-    const events2 = deriveSessionEvents(derivedSession, 'test-project', 'baseline', now);
+    const events1 = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
+    const events2 = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
 
     assert(events1.length === events2.length, 'Same number of events on both runs');
     for (let i = 0; i < events1.length; i++) {
@@ -173,7 +172,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...session,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', new Date().toISOString());
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
     for (const ev of events) {
       assert(ev.schema_version === SCHEMA_VERSION,
         `Expected schema_version=${SCHEMA_VERSION}, got ${ev.schema_version}`);
@@ -204,13 +203,16 @@ module.exports = function runCorpusTests(test, assert) {
         isAgentPrefixed: false,
         ...session,
       };
-      const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', new Date().toISOString());
+      const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
       const allJson = JSON.stringify(events);
 
       // None of the raw prompt text should appear
       assert(!allJson.includes('first prompt text for testing'), 'Raw prompt text must not appear in events JSON');
       assert(!allJson.includes('second prompt text for testing'), 'Raw prompt text must not appear in events JSON');
       assert(!allJson.includes('file content here'), 'Tool result content must not appear');
+
+      // derived_at must NOT be in events (moved to manifest.generated_at for reproducibility)
+      assert(!allJson.includes('"derived_at"'), 'derived_at must not appear in events after reproducibility fix');
 
       // prompt_hash must be 16-char hex, prompt_length must be a positive number
       const promptEvents = events.filter(e => e.event_type === 'user_prompt_submit');
@@ -279,6 +281,8 @@ module.exports = function runCorpusTests(test, assert) {
       assert(typeof manifest.sessions_seen === 'number', 'Manifest must have sessions_seen');
       assert(typeof manifest.sessions_included === 'number', 'Manifest must have sessions_included');
       assert(manifest.project === 'test-project', 'Manifest must have correct project name');
+      assert(typeof manifest.generated_at === 'string' && manifest.generated_at.length > 0,
+        'Manifest must have generated_at (extraction run timestamp)');
 
       // Verify sha256 matches the actual file content
       const fileContent = fs.readFileSync(report.outputPath);
@@ -290,9 +294,9 @@ module.exports = function runCorpusTests(test, assert) {
     }
   });
 
-  // ── CORPUS-10: idempotence — re-run does not duplicate events ───────────────
+  // ── CORPUS-10: bit-exact reproducibility — same inputs → same output_sha256 ──
 
-  test('CORPUS-10 re-run produces identical output (idempotent)', () => {
+  test('CORPUS-10 re-run with same corpus produces identical JSONL bytes (bit-exact)', () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-corpus-test-'));
     try {
       const run1 = extract({
@@ -323,16 +327,24 @@ module.exports = function runCorpusTests(test, assert) {
 
       assert(count1 === count2,
         `Event count must be identical across runs: ${count1} vs ${count2}`);
-      // sha256 of events JSONL will differ due to derived_at timestamp changing between runs,
-      // but event COUNT and event_ids must be stable
+
+      // Bit-exact reproducibility: same corpus → same JSONL bytes → same sha256.
+      // (derived_at was removed from events; only manifest.generated_at is volatile.)
+      assert(sha1 === sha2,
+        `output_sha256 must be identical across runs.\nRun1: ${sha1}\nRun2: ${sha2}`);
+
+      // Also verify event_ids are stable (independent check)
       const lines1 = fs.readFileSync(run1.outputPath, 'utf-8').split('\n').filter(Boolean);
       const lines2 = fs.readFileSync(run2.outputPath, 'utf-8').split('\n').filter(Boolean);
       const ids1 = lines1.map(l => JSON.parse(l).event_id).sort();
       const ids2 = lines2.map(l => JSON.parse(l).event_id).sort();
       assert(JSON.stringify(ids1) === JSON.stringify(ids2),
-        'event_ids must be identical across runs (deterministic)');
+        'event_ids must be identical across runs');
 
-      void sha1; void sha2; // derived_at changes between runs, sha256 will differ — that's expected
+      // No derived_at in the JSONL output
+      const allContent = fs.readFileSync(run1.outputPath, 'utf-8');
+      assert(!allContent.includes('"derived_at"'),
+        'derived_at must not appear in JSONL output');
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -422,7 +434,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...session,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', new Date().toISOString());
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
     for (const ev of events) {
       assert(ev.git_branch === 'main',
         `Expected git_branch=main on all events, got: ${ev.git_branch}`);
@@ -451,7 +463,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...session,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', new Date().toISOString());
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
     const toolEvents = events.filter(e => e.event_type === 'post_tool_use');
     assert(toolEvents.length >= 1, 'Expected at least one post_tool_use event');
     const readEvent = toolEvents.find(e => e.tool_name === 'Read');
