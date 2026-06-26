@@ -1,4 +1,4 @@
-import { RunOptions, RunReport, Manifest, EventType, SubagentReport, SCHEMA_VERSION, EXTRACTOR_VERSION } from './types.js';
+import { RunOptions, RunReport, Manifest, EventType, SubagentReport, CwdFilterMode, SCHEMA_VERSION, EXTRACTOR_VERSION } from './types.js';
 import { resolveProjectSlug } from './slug.js';
 import { resolveCorpusDir, readAllSessions, ParsedSession } from './reader.js';
 import { deriveSessionEvents } from './events.js';
@@ -26,9 +26,12 @@ export function extract(opts: RunOptions): RunReport {
     dryRun = false,
     forceRewrite = false,
     minEventsThreshold = DEFAULT_MIN_EVENTS,
+    includeWorktrees = false,
     metricsHome,
     corpusHome,
   } = opts;
+
+  const cwdFilterMode: CwdFilterMode = includeWorktrees ? 'include-worktrees' : 'main-only';
 
   const since = sinceStr ? new Date(sinceStr) : undefined;
   const until = untilStr ? new Date(untilStr) : undefined;
@@ -96,7 +99,7 @@ export function extract(opts: RunOptions): RunReport {
   // ── Derive events for included sessions ───────────────────────────────────
   const allEvents: OrientationEvent[] = [];
   for (const session of includedSessions) {
-    const events = deriveSessionEvents(session, projectName, phase, since, until);
+    const events = deriveSessionEvents(session, projectName, phase, projectRoot, includeWorktrees, since, until);
     allEvents.push(...events);
   }
 
@@ -118,10 +121,13 @@ export function extract(opts: RunOptions): RunReport {
   let earliest: string | null = null;
   let latest: string | null = null;
 
+  const cwdEventCounts: Record<string, number> = {};
   for (const ev of allEvents) {
     eventCounts[ev.event_type]++;
     if (earliest === null || ev.timestamp < earliest) earliest = ev.timestamp;
     if (latest === null || ev.timestamp > latest) latest = ev.timestamp;
+    const cwd = ev.source_cwd ?? '(no-cwd)';
+    cwdEventCounts[cwd] = (cwdEventCounts[cwd] ?? 0) + 1;
   }
 
   const totalEvents = allEvents.length;
@@ -149,6 +155,8 @@ export function extract(opts: RunOptions): RunReport {
       event_counts: eventCounts as unknown as Record<string, number>,
       temporal_range: { earliest, latest },
       subagent_report: subagentReport,
+      cwd_filter_mode: cwdFilterMode,
+      cwd_event_counts: cwdEventCounts,
       output_path: resolveOutputPath(projectName, metricsHome),
       output_sha256: null, // filled in by writeOutput
       generated_at: startedAt, // extraction run timestamp (volatile; kept in manifest, not in events)
@@ -172,6 +180,8 @@ export function extract(opts: RunOptions): RunReport {
     totalEvents,
     temporalRange: { earliest, latest },
     subagentReport,
+    cwdFilterMode,
+    cwdEventCounts,
     outputPath,
     manifestPath,
   };

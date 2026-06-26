@@ -76,7 +76,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...session,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
 
     const prompts = events.filter(e => e.event_type === 'user_prompt_submit');
     // Session has 2 real prompts + 1 tool_result response → should yield exactly 2 user_prompt_submit
@@ -103,7 +103,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: true, // filename starts with agent-
       ...agentSession,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
     assert(events.length > 0, 'Expected events from agent session');
     assert(events.every(e => e.subagent === true),
       'All events from agent-* session must have subagent=true');
@@ -119,7 +119,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...sidechainSession,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
     assert(events.every(e => e.subagent === true),
       'All events from isSidechain session must have subagent=true');
   });
@@ -132,7 +132,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...regularSession,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
     assert(events.every(e => e.subagent === false),
       'All events from regular session must have subagent=false');
   });
@@ -147,8 +147,8 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...session,
     };
-    const events1 = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
-    const events2 = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
+    const events1 = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
+    const events2 = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
 
     assert(events1.length === events2.length, 'Same number of events on both runs');
     for (let i = 0; i < events1.length; i++) {
@@ -172,13 +172,20 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...session,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
     for (const ev of events) {
       assert(ev.schema_version === SCHEMA_VERSION,
         `Expected schema_version=${SCHEMA_VERSION}, got ${ev.schema_version}`);
       assert(ev.extractor_version === EXTRACTOR_VERSION,
         `Expected extractor_version=${EXTRACTOR_VERSION}, got ${ev.extractor_version}`);
+      assert('source_cwd' in ev,
+        `Every event must have source_cwd field (schema v2)`);
+      assert(ev.source_cwd === '/test/project',
+        `Expected source_cwd=/test/project, got ${ev.source_cwd}`);
     }
+    // schema_version must be v2 (new field source_cwd was added in v2)
+    assert(SCHEMA_VERSION === 'orientation_event_v2',
+      `Expected SCHEMA_VERSION=orientation_event_v2, got ${SCHEMA_VERSION}`);
   });
 
   // ── CORPUS-7: no raw prompt text in output ───────────────────────────────────
@@ -203,7 +210,7 @@ module.exports = function runCorpusTests(test, assert) {
         isAgentPrefixed: false,
         ...session,
       };
-      const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
+      const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
       const allJson = JSON.stringify(events);
 
       // None of the raw prompt text should appear
@@ -283,6 +290,10 @@ module.exports = function runCorpusTests(test, assert) {
       assert(manifest.project === 'test-project', 'Manifest must have correct project name');
       assert(typeof manifest.generated_at === 'string' && manifest.generated_at.length > 0,
         'Manifest must have generated_at (extraction run timestamp)');
+      assert(manifest.cwd_filter_mode === 'main-only',
+        `Manifest must have cwd_filter_mode=main-only (default), got ${manifest.cwd_filter_mode}`);
+      assert(typeof manifest.cwd_event_counts === 'object' && manifest.cwd_event_counts !== null,
+        'Manifest must have cwd_event_counts object');
 
       // Verify sha256 matches the actual file content
       const fileContent = fs.readFileSync(report.outputPath);
@@ -434,7 +445,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...session,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
     for (const ev of events) {
       assert(ev.git_branch === 'main',
         `Expected git_branch=main on all events, got: ${ev.git_branch}`);
@@ -463,7 +474,7 @@ module.exports = function runCorpusTests(test, assert) {
       isAgentPrefixed: false,
       ...session,
     };
-    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline');
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
     const toolEvents = events.filter(e => e.event_type === 'post_tool_use');
     assert(toolEvents.length >= 1, 'Expected at least one post_tool_use event');
     const readEvent = toolEvents.find(e => e.tool_name === 'Read');
@@ -474,5 +485,116 @@ module.exports = function runCorpusTests(test, assert) {
     assert(writeEvent !== undefined, 'Expected a Write tool_use event');
     assert(writeEvent.file_path === '/test/project/src/out.ts',
       `Expected file_path=/test/project/src/out.ts, got: ${writeEvent.file_path}`);
+  });
+
+  // ── CORPUS-16: main-only filter excludes worktree events ─────────────────────
+
+  test('CORPUS-16 main-only filter excludes events from worktree cwd', () => {
+    const session = parseSessionFile(path.join(TEST_CORPUS_DIR, 'session-worktree-006.jsonl'));
+    const derivedSession = {
+      sessionId: 'session-worktree-006',
+      filename: 'session-worktree-006.jsonl',
+      isAgentPrefixed: false,
+      ...session,
+    };
+
+    // main-only: only events with cwd=/test/project
+    const mainOnlyEvents = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
+    // Session has 4 events with cwd=/test/project: 1 session_start, 2 prompts, 2 tool_use
+    assert(mainOnlyEvents.every(e => e.source_cwd === '/test/project'),
+      'main-only mode: all events must have source_cwd=/test/project');
+    const worktreeEvents = mainOnlyEvents.filter(e => e.source_cwd === '/test/project-worktree');
+    assert(worktreeEvents.length === 0,
+      `main-only mode: 0 worktree events expected, got ${worktreeEvents.length}`);
+
+    // include-worktrees: all events
+    const allEvents = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', true);
+    assert(allEvents.length > mainOnlyEvents.length,
+      `include-worktrees must produce more events than main-only: ${allEvents.length} vs ${mainOnlyEvents.length}`);
+    const worktreeInAll = allEvents.filter(e => e.source_cwd === '/test/project-worktree');
+    assert(worktreeInAll.length > 0,
+      'include-worktrees mode: must include events with worktree cwd');
+  });
+
+  // ── CORPUS-17: --include-worktrees via extract() ──────────────────────────────
+
+  test('CORPUS-17 extract() include-worktrees produces more events than main-only', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-corpus-test-'));
+    try {
+      const mainOnly = extract({
+        projectName: 'test-project',
+        projectRoot: '/test/project',
+        phase: 'baseline',
+        dryRun: true,
+        includeWorktrees: false,
+        corpusHome: FIXTURES_CORPUS_HOME,
+        metricsHome: tmpDir,
+      });
+
+      const withWorktrees = extract({
+        projectName: 'test-project',
+        projectRoot: '/test/project',
+        phase: 'baseline',
+        dryRun: true,
+        includeWorktrees: true,
+        corpusHome: FIXTURES_CORPUS_HOME,
+        metricsHome: tmpDir,
+      });
+
+      assert(mainOnly.cwdFilterMode === 'main-only',
+        `Expected cwdFilterMode=main-only, got ${mainOnly.cwdFilterMode}`);
+      assert(withWorktrees.cwdFilterMode === 'include-worktrees',
+        `Expected cwdFilterMode=include-worktrees, got ${withWorktrees.cwdFilterMode}`);
+      assert(withWorktrees.totalEvents > mainOnly.totalEvents,
+        `include-worktrees (${withWorktrees.totalEvents}) must exceed main-only (${mainOnly.totalEvents})`);
+
+      // The delta must equal exactly the worktree events from session-worktree-006
+      // (2 worktree user_prompt_submit + 2 worktree post_tool_use = 4)
+      assert(withWorktrees.totalEvents - mainOnly.totalEvents === 4,
+        `Delta must be 4 worktree events, got ${withWorktrees.totalEvents - mainOnly.totalEvents}`);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  // ── CORPUS-18: source_cwd present in all events ───────────────────────────────
+
+  test('CORPUS-18 source_cwd field present in every event and reflects line cwd', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-corpus-test-'));
+    try {
+      const report = extract({
+        projectName: 'test-project',
+        projectRoot: '/test/project',
+        phase: 'baseline',
+        dryRun: false,
+        includeWorktrees: true,   // use include-worktrees so we get worktree events too
+        corpusHome: FIXTURES_CORPUS_HOME,
+        metricsHome: tmpDir,
+        forceRewrite: true,
+      });
+
+      assert(report.outputPath && fs.existsSync(report.outputPath), 'Output must exist');
+
+      const lines = fs.readFileSync(report.outputPath, 'utf-8').split('\n').filter(Boolean);
+      assert(lines.length > 0, 'Expected events in output');
+
+      for (const line of lines) {
+        const ev = JSON.parse(line);
+        assert('source_cwd' in ev,
+          `source_cwd must be present in every event, missing in: ${ev.event_id}`);
+        // source_cwd must be a non-empty string or null (not undefined)
+        assert(ev.source_cwd === null || (typeof ev.source_cwd === 'string' && ev.source_cwd.length > 0),
+          `source_cwd must be non-empty string or null, got ${ev.source_cwd} in ${ev.event_id}`);
+      }
+
+      // cwd_event_counts in manifest must match actual event distribution
+      const manifest = JSON.parse(fs.readFileSync(report.manifestPath, 'utf-8'));
+      assert(typeof manifest.cwd_event_counts === 'object', 'Manifest must have cwd_event_counts');
+      const totalFromCwdCounts = Object.values(manifest.cwd_event_counts).reduce((s, v) => s + v, 0);
+      assert(totalFromCwdCounts === report.totalEvents,
+        `cwd_event_counts total (${totalFromCwdCounts}) must equal totalEvents (${report.totalEvents})`);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 };

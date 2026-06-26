@@ -1109,6 +1109,7 @@ corpus
   .option('--until <date>', 'include events on or before this ISO date')
   .option('--dry-run', 'count events without writing output')
   .option('--force-rewrite', 'overwrite output even if version differs')
+  .option('--include-worktrees', 'include events from git worktrees sharing the same corpus slug')
   .option('--min-events <n>', 'minimum real-event threshold per session (default: 5)', '5')
   .action((opts: {
     project: string;
@@ -1118,6 +1119,7 @@ corpus
     until?: string;
     dryRun?: boolean;
     forceRewrite?: boolean;
+    includeWorktrees?: boolean;
     minEvents: string;
   }) => {
     if (opts.phase !== 'baseline' && opts.phase !== 'treatment') {
@@ -1145,6 +1147,7 @@ corpus
         until: opts.until,
         dryRun: opts.dryRun ?? false,
         forceRewrite: opts.forceRewrite ?? false,
+        includeWorktrees: opts.includeWorktrees ?? false,
         minEventsThreshold: Math.max(1, parseInt(opts.minEvents, 10) || 5),
       });
     } catch (err) {
@@ -1176,6 +1179,7 @@ corpus
 
     lines.push('');
     lines.push('  ' + header('Events'));
+    lines.push('  ' + formatField('cwd_filter', report.cwdFilterMode));
     lines.push('  ' + formatField('session_start', report.eventCounts.session_start));
     lines.push('  ' + formatField('user_prompt_submit', report.eventCounts.user_prompt_submit));
     lines.push('  ' + formatField('post_tool_use', report.eventCounts.post_tool_use));

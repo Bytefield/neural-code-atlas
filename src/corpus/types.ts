@@ -1,8 +1,9 @@
-export const SCHEMA_VERSION = 'orientation_event_v1' as const;
+export const SCHEMA_VERSION = 'orientation_event_v2' as const;
 export const EXTRACTOR_VERSION = '0.1.0' as const;
 
 export type ExperimentPhase = 'baseline' | 'treatment';
 export type EventType = 'session_start' | 'user_prompt_submit' | 'post_tool_use';
+export type CwdFilterMode = 'main-only' | 'include-worktrees';
 
 export interface OrientationEvent {
   event_id: string;
@@ -16,6 +17,7 @@ export interface OrientationEvent {
   event_type: EventType;
   timestamp: string;
   git_branch: string | null;
+  source_cwd: string | null;
   // user_prompt_submit only
   prompt_hash?: string;
   prompt_length?: number;
@@ -33,6 +35,7 @@ export interface RunOptions {
   dryRun?: boolean;
   forceRewrite?: boolean;
   minEventsThreshold?: number;
+  includeWorktrees?: boolean;   // default false = main-only (cwd == projectRoot)
   metricsHome?: string; // override output dir for tests (~/.nca/metrics/)
   corpusHome?: string;  // override corpus dir for tests (~/.claude/projects/)
 }
@@ -61,6 +64,8 @@ export interface RunReport {
   totalEvents: number;
   temporalRange: { earliest: string | null; latest: string | null };
   subagentReport: SubagentReport;
+  cwdFilterMode: CwdFilterMode;
+  cwdEventCounts: Record<string, number>;
   outputPath?: string;
   manifestPath?: string;
 }
@@ -82,6 +87,8 @@ export interface Manifest {
   event_counts: Record<string, number>;
   temporal_range: { earliest: string | null; latest: string | null };
   subagent_report: SubagentReport;
+  cwd_filter_mode: CwdFilterMode;
+  cwd_event_counts: Record<string, number>;
   output_path: string;
   output_sha256: string | null;
   generated_at: string;  // extraction run timestamp (volatile; was derived_at in events pre-0.1.1)

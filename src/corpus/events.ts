@@ -58,6 +58,8 @@ export function deriveSessionEvents(
   session: ParsedSession,
   sourceProject: string,
   phase: ExperimentPhase,
+  projectRoot: string,
+  includeWorktrees: boolean,
   since?: Date,
   until?: Date,
 ): OrientationEvent[] {
@@ -69,6 +71,10 @@ export function deriveSessionEvents(
   for (const line of session.lines) {
     const ts = typeof line.timestamp === 'string' ? line.timestamp : null;
     if (!ts) continue;
+
+    // cwd filter: in main-only mode, skip events from worktrees or unknown cwd
+    const lineCwd = typeof line.cwd === 'string' && line.cwd ? line.cwd : null;
+    if (!includeWorktrees && lineCwd !== projectRoot) continue;
 
     // Time-range filter
     const lineDate = new Date(ts);
@@ -87,6 +93,7 @@ export function deriveSessionEvents(
       nca_experiment_phase: phase,
       subagent: isSubagent,
       git_branch: gitBranch,
+      source_cwd: lineCwd,
     };
 
     // session_start: first timestamped event in the session
