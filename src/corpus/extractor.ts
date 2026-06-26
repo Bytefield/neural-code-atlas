@@ -8,10 +8,23 @@ import { OrientationEvent } from './types.js';
 const SMOKE_DIAG_PATTERN = /smoke|diag|test-session|diagnostic/i;
 const DEFAULT_MIN_EVENTS = 5;
 
-// Session-level filter: too few real events means it's likely an aborted/empty session.
-// realEventCount = user + assistant events with timestamps (not metadata events like ai-title).
-function isTooEmpty(session: ParsedSession, threshold: number): boolean {
-  return session.realEventCount < threshold;
+// Count real events that survive the cwd filter.
+// In main-only mode, only user/assistant lines with cwd === projectRoot count.
+// This ensures the threshold is applied AFTER the cwd filter, not before:
+// a session with 100 worktree events + 1 main event must be excluded, not emitted as a 1-event session.
+function countFilteredRealEvents(
+  session: ParsedSession,
+  projectRoot: string,
+  includeWorktrees: boolean,
+): number {
+  if (includeWorktrees) return session.realEventCount;
+  return session.lines.filter(
+    line =>
+      (line.type === 'user' || line.type === 'assistant') &&
+      typeof line.timestamp === 'string' &&
+      line.timestamp !== '' &&
+      line.cwd === projectRoot,
+  ).length;
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
@@ -87,8 +100,8 @@ export function extract(opts: RunOptions): RunReport {
       continue;
     }
 
-    // Filter: too few real events
-    if (isTooEmpty(session, minEventsThreshold)) {
+    // Filter: too few events that survive the cwd filter
+    if (countFilteredRealEvents(session, projectRoot, includeWorktrees) < minEventsThreshold) {
       exclusionReasons['too_few_events'] = (exclusionReasons['too_few_events'] ?? 0) + 1;
       continue;
     }

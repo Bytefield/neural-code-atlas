@@ -500,7 +500,7 @@ module.exports = function runCorpusTests(test, assert) {
 
     // main-only: only events with cwd=/test/project
     const mainOnlyEvents = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
-    // Session has 4 events with cwd=/test/project: 1 session_start, 2 prompts, 2 tool_use
+    // Session has 7 events with cwd=/test/project: 1 session_start, 3 prompts, 3 tool_use
     assert(mainOnlyEvents.every(e => e.source_cwd === '/test/project'),
       'main-only mode: all events must have source_cwd=/test/project');
     const worktreeEvents = mainOnlyEvents.filter(e => e.source_cwd === '/test/project-worktree');
@@ -548,10 +548,12 @@ module.exports = function runCorpusTests(test, assert) {
       assert(withWorktrees.totalEvents > mainOnly.totalEvents,
         `include-worktrees (${withWorktrees.totalEvents}) must exceed main-only (${mainOnly.totalEvents})`);
 
-      // The delta must equal exactly the worktree events from session-worktree-006
-      // (2 worktree user_prompt_submit + 2 worktree post_tool_use = 4)
-      assert(withWorktrees.totalEvents - mainOnly.totalEvents === 4,
-        `Delta must be 4 worktree events, got ${withWorktrees.totalEvents - mainOnly.totalEvents}`);
+      // Delta breakdown:
+      // - session-worktree-006: 4 worktree events (2 user_prompt_submit + 2 post_tool_use)
+      // - session-sparse-main-007: 5 events in include-worktrees (1 session_start + 4 user_prompt_submit);
+      //   excluded in main-only because only 2 main-cwd events < 5 threshold
+      assert(withWorktrees.totalEvents - mainOnly.totalEvents === 9,
+        `Delta must be 9, got ${withWorktrees.totalEvents - mainOnly.totalEvents}`);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
@@ -593,6 +595,50 @@ module.exports = function runCorpusTests(test, assert) {
       const totalFromCwdCounts = Object.values(manifest.cwd_event_counts).reduce((s, v) => s + v, 0);
       assert(totalFromCwdCounts === report.totalEvents,
         `cwd_event_counts total (${totalFromCwdCounts}) must equal totalEvents (${report.totalEvents})`);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  // ── CORPUS-19: threshold applied to cwd-filtered count, not raw count ─────────
+  //
+  // session-sparse-main-007: 2 main events + 5 worktree events = 7 total real events.
+  // Old (wrong) order: count 7 total → pass threshold (≥5) → filter by cwd → emit 2 events.
+  // New (correct) order: filter by cwd → count 2 main events → fail threshold (<5) → exclude.
+
+  test('CORPUS-19 threshold uses cwd-filtered count (main-only excludes sparse-main session)', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-corpus-test-'));
+    try {
+      const mainOnly = extract({
+        projectName: 'test-project',
+        projectRoot: '/test/project',
+        phase: 'baseline',
+        dryRun: true,
+        includeWorktrees: false,
+        corpusHome: FIXTURES_CORPUS_HOME,
+        metricsHome: tmpDir,
+      });
+
+      const withWorktrees = extract({
+        projectName: 'test-project',
+        projectRoot: '/test/project',
+        phase: 'baseline',
+        dryRun: true,
+        includeWorktrees: true,
+        corpusHome: FIXTURES_CORPUS_HOME,
+        metricsHome: tmpDir,
+      });
+
+      // sparse-main-007 passes the raw threshold (7 total ≥ 5) but fails the
+      // main-cwd threshold (2 main events < 5), so it must be excluded in main-only.
+      assert(withWorktrees.sessionsIncluded > mainOnly.sessionsIncluded,
+        `include-worktrees must include sparse-main session: ${withWorktrees.sessionsIncluded} vs ${mainOnly.sessionsIncluded}`);
+
+      // too_few_events exclusion count must be strictly higher in main-only
+      const mainOnlyTooFew = mainOnly.exclusionReasons['too_few_events'] ?? 0;
+      const wtTooFew = withWorktrees.exclusionReasons['too_few_events'] ?? 0;
+      assert(mainOnlyTooFew > wtTooFew,
+        `main-only must exclude more sessions via too_few_events: ${mainOnlyTooFew} vs ${wtTooFew}`);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
