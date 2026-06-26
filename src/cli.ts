@@ -1218,4 +1218,126 @@ corpus
     process.stdout.write(lines.join('\n') + '\n');
   });
 
+corpus
+  .command('orientation')
+  .description('Compute pre-edit exploration proxy metrics from orientation events')
+  .requiredOption('--project <name>', 'project name (e.g. synio)')
+  .requiredOption('--phase <phase>', 'experiment phase: baseline or treatment')
+  .option('--input <path>', 'explicit path to orientation-events.jsonl')
+  .option('--json', 'machine-readable JSON output')
+  .option('--csv <path>', 'export per-session metrics to CSV file')
+  .option('--include-no-write', 'include no-write sessions in the output (not in aggregates)')
+  .action((opts: {
+    project: string;
+    phase: string;
+    input?: string;
+    json?: boolean;
+    csv?: string;
+    includeNoWrite?: boolean;
+  }) => {
+    if (opts.phase !== 'baseline' && opts.phase !== 'treatment') {
+      process.stderr.write(`Error: --phase must be 'baseline' or 'treatment'\n`);
+      process.exit(1);
+    }
+
+    const {
+      analyze: runAnalyze,
+      toCSV,
+    } = require('./corpus/index.js') as typeof import('./corpus/index.js');
+
+    let report: ReturnType<typeof runAnalyze>;
+    try {
+      report = runAnalyze({
+        project: opts.project,
+        phase: opts.phase as 'baseline' | 'treatment',
+        inputPath: opts.input,
+      });
+    } catch (err) {
+      process.stderr.write(`Error: ${(err as Error).message}\n`);
+      process.exit(1);
+    }
+
+    // CSV export (always includes no-write sessions if flag is set)
+    if (opts.csv) {
+      const allSessions = opts.includeNoWrite
+        ? [...report.sessions, ...report.no_write_sessions]
+        : report.sessions;
+      fs.writeFileSync(path.resolve(opts.csv), toCSV(allSessions), 'utf-8');
+      process.stderr.write(`CSV written to ${opts.csv}\n`);
+    }
+
+    if (opts.json) {
+      const output = {
+        dataset_path: report.dataset_path,
+        schema_version: report.schema_version,
+        extractor_version: report.extractor_version,
+        phase: report.phase,
+        cwd_filter_mode: report.cwd_filter_mode,
+        proxy_metric: 'pre_edit_exploration_cost_v1',
+        aggregate: report.aggregate,
+        sessions: report.sessions,
+        ...(opts.includeNoWrite ? { no_write_sessions: report.no_write_sessions } : {}),
+      };
+      process.stdout.write(JSON.stringify(output, null, 2) + '\n');
+      return;
+    }
+
+    const { agg } = { agg: report.aggregate };
+    const fmt = (n: number | null, unit = '') =>
+      n === null ? '—' : (Number.isInteger(n) ? String(n) : n.toFixed(1)) + unit;
+
+    const lines: string[] = [
+      formatStatus(`NCA|corpus_orientation|project:${opts.project}|phase:${opts.phase}`),
+      separator(),
+      '  ' + header('ORIENTATION PROXY METRICS — PRE-EDIT EXPLORATION COST'),
+      '  ' + colors.yellow + '⚠ proxy metric v1, not semantic orientation classifier' + colors.reset,
+      separator(),
+      '  ' + formatField('dataset', report.dataset_path),
+      '  ' + formatField('schema', report.schema_version),
+      '  ' + formatField('extractor', report.extractor_version),
+      '  ' + formatField('phase', report.phase),
+      '  ' + formatField('scope', `${report.cwd_filter_mode}  [cwd_filter_mode from manifest]`),
+      '',
+      '  ' + header('Sessions'),
+      '  ' + formatField('total', agg.sessions_total),
+      '  ' + formatField('with_write', agg.sessions_with_write),
+      '  ' + formatField('without_write', agg.sessions_without_write),
+      '',
+      '  ' + header('Pre-edit read tools  (Read / Grep / Glob / LS before first write)'),
+      '  ' + formatField('median', fmt(agg.median_pre_edit_read_tools)),
+      '  ' + formatField('p75', fmt(agg.p75_pre_edit_read_tools)),
+      '  ' + formatField('mean', fmt(agg.mean_pre_edit_read_tools)),
+      '',
+      '  ' + header('Pre-edit all tools  (all post_tool_use before first write)'),
+      '  ' + formatField('median', fmt(agg.median_pre_edit_all_tools)),
+      '  ' + formatField('p75', fmt(agg.p75_pre_edit_all_tools)),
+      '  ' + formatField('mean', fmt(agg.mean_pre_edit_all_tools)),
+      '',
+      '  ' + header('Time to first write'),
+      '  ' + formatField('median', fmt(agg.median_time_to_first_write_ms, 'ms')),
+      '  ' + formatField('p75', fmt(agg.p75_time_to_first_write_ms, 'ms')),
+    ];
+
+    if (agg.top_10_sessions_by_pre_edit_read_tools.length > 0) {
+      lines.push('');
+      lines.push('  ' + header('Top sessions by pre_edit_read_tools'));
+      for (const s of agg.top_10_sessions_by_pre_edit_read_tools) {
+        const id = s.source_session_id.slice(0, 16);
+        lines.push(
+          `    ${id}…  read:${s.pre_edit_read_tools_count}  all:${s.pre_edit_all_tools_count}` +
+          `  ttfw:${fmt(s.time_to_first_write_ms, 'ms')}`,
+        );
+      }
+    }
+
+    if (opts.includeNoWrite && report.no_write_sessions.length > 0) {
+      lines.push('');
+      lines.push('  ' + header('No-write sessions (excluded from aggregates)'));
+      lines.push('  ' + formatField('count', report.no_write_sessions.length));
+    }
+
+    lines.push(separator());
+    process.stdout.write(lines.join('\n') + '\n');
+  });
+
 program.parse(process.argv);
