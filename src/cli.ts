@@ -1227,6 +1227,7 @@ corpus
   .option('--json', 'machine-readable JSON output')
   .option('--csv <path>', 'export per-session metrics to CSV file')
   .option('--include-no-write', 'include no-write sessions in the output (not in aggregates)')
+  .option('--diagnostic-threshold <n>', 'min total tools for a no-write session to count as diagnostic (v1 default, not universal)', '10')
   .action((opts: {
     project: string;
     phase: string;
@@ -1234,6 +1235,7 @@ corpus
     json?: boolean;
     csv?: string;
     includeNoWrite?: boolean;
+    diagnosticThreshold: string;
   }) => {
     if (opts.phase !== 'baseline' && opts.phase !== 'treatment') {
       process.stderr.write(`Error: --phase must be 'baseline' or 'treatment'\n`);
@@ -1245,12 +1247,15 @@ corpus
       toCSV,
     } = require('./corpus/index.js') as typeof import('./corpus/index.js');
 
+    const diagnosticThreshold = Math.max(0, parseInt(opts.diagnosticThreshold, 10) || 10);
+
     let report: ReturnType<typeof runAnalyze>;
     try {
       report = runAnalyze({
         project: opts.project,
         phase: opts.phase as 'baseline' | 'treatment',
         inputPath: opts.input,
+        diagnosticThreshold,
       });
     } catch (err) {
       process.stderr.write(`Error: ${(err as Error).message}\n`);
@@ -1274,9 +1279,19 @@ corpus
         phase: report.phase,
         cwd_filter_mode: report.cwd_filter_mode,
         proxy_metric: 'pre_edit_exploration_cost_v1',
+        diagnostic_threshold: report.diagnostic_threshold,
+        diagnostic_threshold_note: 'v1 decision, not a universal truth — configurable via --diagnostic-threshold',
         aggregate: report.aggregate,
+        diagnostic_aggregate: report.diagnostic_aggregate,
+        noise_summary: report.noise_summary,
         sessions: report.sessions,
-        ...(opts.includeNoWrite ? { no_write_sessions: report.no_write_sessions } : {}),
+        ...(opts.includeNoWrite
+          ? {
+            no_write_sessions: report.no_write_sessions,
+            diagnostic_sessions: report.diagnostic_sessions,
+            noise_sessions: report.noise_sessions,
+          }
+          : {}),
       };
       process.stdout.write(JSON.stringify(output, null, 2) + '\n');
       return;
@@ -1330,9 +1345,79 @@ corpus
       }
     }
 
+    // ─── Carril B — diagnostic sessions (no write, real orientation activity) ──
+
+    const dagg = report.diagnostic_aggregate;
+    lines.push('');
+    lines.push(separator());
+    lines.push('  ' + header('CARRIL B — DIAGNOSTIC SESSIONS (no write, total_tools >= threshold)'));
+    lines.push(
+      '  ' + colors.yellow +
+      `⚠ diagnostic_threshold = ${report.diagnostic_threshold}  [v1 decision, not a universal truth — see --diagnostic-threshold]` +
+      colors.reset,
+    );
+    lines.push(separator());
+    lines.push('  ' + formatField('sessions', dagg.sessions_total));
+    lines.push('');
+    lines.push('  ' + header('total_tools'));
+    lines.push('  ' + formatField('median', fmt(dagg.median_total_tools)));
+    lines.push('  ' + formatField('p75', fmt(dagg.p75_total_tools)));
+    lines.push('  ' + formatField('mean', fmt(dagg.mean_total_tools)));
+    lines.push('');
+    lines.push('  ' + header('read_tools_total  (Read / Grep / Glob / LS)'));
+    lines.push('  ' + formatField('median', fmt(dagg.median_read_tools_total)));
+    lines.push('  ' + formatField('p75', fmt(dagg.p75_read_tools_total)));
+    lines.push('');
+    lines.push('  ' + header('bash_tools_total  (measured apart from read — Bash dominates here)'));
+    lines.push('  ' + formatField('median', fmt(dagg.median_bash_tools_total)));
+    lines.push('  ' + formatField('p75', fmt(dagg.p75_bash_tools_total)));
+    lines.push('');
+    lines.push('  ' + header('session_duration'));
+    lines.push('  ' + formatField('median', fmt(dagg.median_session_duration_ms, 'ms')));
+    lines.push('  ' + formatField('p75', fmt(dagg.p75_session_duration_ms, 'ms')));
+
+    if (dagg.top_tools.length > 0) {
+      lines.push('');
+      lines.push('  ' + header('Top tools (aggregated across diagnostic sessions)'));
+      for (const t of dagg.top_tools) {
+        lines.push(`    ${t.tool_name}: ${t.count}`);
+      }
+    }
+
+    if (dagg.top_10_diagnostic_sessions_by_total_tools.length > 0) {
+      lines.push('');
+      lines.push('  ' + header('top_10_diagnostic_sessions_by_total_tools  (validates these are real work, not artifacts)'));
+      for (const s of dagg.top_10_diagnostic_sessions_by_total_tools) {
+        const id = s.source_session_id.slice(0, 16);
+        lines.push(
+          `    ${id}…  total:${s.total_tools_count}  read:${s.read_tools_count}` +
+          `  bash:${s.bash_tools_count}  duration:${fmt(s.session_duration_ms, 'ms')}`,
+        );
+      }
+    }
+
+    // ─── Noise population (excluded from both tracks) ───────────────────────────
+
+    const noise = report.noise_summary;
+    lines.push('');
+    lines.push(separator());
+    lines.push('  ' + header('NOISE SESSIONS (no write, total_tools < threshold — excluded from both carriles)'));
+    lines.push(separator());
+    lines.push('  ' + formatField('sessions', noise.sessions_total));
+    lines.push('  ' + formatField('excluded_from_write_track', String(noise.excluded_from_write_track)));
+    lines.push('  ' + formatField('excluded_from_diagnostic_track', String(noise.excluded_from_diagnostic_track)));
+    lines.push('');
+    lines.push(
+      '  ' + colors.yellow +
+      `⚠ subagent-like signal (informative only, not a filter, not proof): ` +
+      `${noise.subagent_like_sessions_count}/${noise.sessions_total} noise sessions have StructuredOutput > 0` +
+      colors.reset,
+    );
+    lines.push('  ' + noise.subagent_like_note);
+
     if (opts.includeNoWrite && report.no_write_sessions.length > 0) {
       lines.push('');
-      lines.push('  ' + header('No-write sessions (excluded from aggregates)'));
+      lines.push('  ' + header('No-write sessions (raw, excluded from write-track aggregates)'));
       lines.push('  ' + formatField('count', report.no_write_sessions.length));
     }
 

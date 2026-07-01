@@ -7,8 +7,15 @@ import { resolveOutputPath, resolveManifestPath } from './writer.js';
 
 const WRITE_TOOLS = new Set(['Edit', 'MultiEdit', 'Write']);
 const READ_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS']);
+const BASH_TOOL = 'Bash';
+const STRUCTURED_OUTPUT_TOOL = 'StructuredOutput';
+
+// v1 decision, not a universal truth — see report output for the value actually used.
+export const DEFAULT_DIAGNOSTIC_THRESHOLD = 10;
 
 // ─── Public types ─────────────────────────────────────────────────────────────
+
+export type SessionCategory = 'write' | 'diagnostic' | 'noise';
 
 export interface SessionMetrics {
   source_session_id: string;
@@ -21,6 +28,14 @@ export interface SessionMetrics {
   time_to_first_write_ms: number | null;
   first_write_tool_name: string | null;
   first_write_file_path: string | null;
+  // Whole-session tallies — populated regardless of has_write.
+  // For no-write sessions these equal the pre_edit_* fields above (no write ever occurs).
+  total_tools_count: number;
+  read_tools_count: number;
+  bash_tools_count: number;
+  structured_output_count: number;
+  session_duration_ms: number | null;
+  tool_counts: Record<string, number>;
 }
 
 export interface AggregateMetrics {
@@ -38,6 +53,31 @@ export interface AggregateMetrics {
   top_10_sessions_by_pre_edit_read_tools: SessionMetrics[];
 }
 
+export interface DiagnosticAggregateMetrics {
+  sessions_total: number;
+  median_total_tools: number;
+  p75_total_tools: number;
+  mean_total_tools: number;
+  median_read_tools_total: number;
+  p75_read_tools_total: number;
+  median_bash_tools_total: number;
+  p75_bash_tools_total: number;
+  median_session_duration_ms: number | null;
+  p75_session_duration_ms: number | null;
+  top_tools: Array<{ tool_name: string; count: number }>;
+  top_10_diagnostic_sessions_by_total_tools: SessionMetrics[];
+}
+
+export interface NoiseSummary {
+  sessions_total: number;
+  excluded_from_write_track: true;
+  excluded_from_diagnostic_track: true;
+  // Informative only — StructuredOutput usage SUGGESTS subagent-like activity,
+  // it does not prove it. Do not treat this as a confirmed subagent count.
+  subagent_like_note: string;
+  subagent_like_sessions_count: number;
+}
+
 export interface AnalysisReport {
   dataset_path: string;
   manifest_path: string;
@@ -46,9 +86,14 @@ export interface AnalysisReport {
   phase: string;
   cwd_filter_mode: string;
   extractor_sessions_included: number;
+  diagnostic_threshold: number;
   sessions: SessionMetrics[];
   aggregate: AggregateMetrics;
   no_write_sessions: SessionMetrics[];
+  diagnostic_sessions: SessionMetrics[];
+  noise_sessions: SessionMetrics[];
+  diagnostic_aggregate: DiagnosticAggregateMetrics;
+  noise_summary: NoiseSummary;
 }
 
 export interface AnalyzerOptions {
@@ -56,6 +101,7 @@ export interface AnalyzerOptions {
   phase: string;
   inputPath?: string;
   metricsHome?: string;
+  diagnosticThreshold?: number;
 }
 
 // ─── Statistics helpers ───────────────────────────────────────────────────────
@@ -132,6 +178,25 @@ export function analyzeEvents(events: OrientationEvent[]): {
         ? new Date(firstWriteEvent.timestamp).getTime() - new Date(session_start_ts).getTime()
         : null;
 
+    // Whole-session tallies (independent of the pre-edit write boundary).
+    const allTools = sorted.filter(e => e.event_type === 'post_tool_use');
+    const tool_counts: Record<string, number> = {};
+    for (const e of allTools) {
+      const name = e.tool_name ?? 'unknown';
+      tool_counts[name] = (tool_counts[name] ?? 0) + 1;
+    }
+    const total_tools_count = allTools.length;
+    const read_tools_count = allTools.filter(
+      e => e.tool_name !== undefined && e.tool_name !== null && READ_TOOLS.has(e.tool_name),
+    ).length;
+    const bash_tools_count = tool_counts[BASH_TOOL] ?? 0;
+    const structured_output_count = tool_counts[STRUCTURED_OUTPUT_TOOL] ?? 0;
+    const lastEventTs = sorted.length > 0 ? sorted[sorted.length - 1].timestamp : null;
+    const session_duration_ms =
+      session_start_ts && lastEventTs
+        ? new Date(lastEventTs).getTime() - new Date(session_start_ts).getTime()
+        : null;
+
     const metrics: SessionMetrics = {
       source_session_id: sessionId,
       source_cwd,
@@ -143,6 +208,12 @@ export function analyzeEvents(events: OrientationEvent[]): {
       time_to_first_write_ms,
       first_write_tool_name: firstWriteEvent?.tool_name ?? null,
       first_write_file_path: firstWriteEvent?.file_path ?? null,
+      total_tools_count,
+      read_tools_count,
+      bash_tools_count,
+      structured_output_count,
+      session_duration_ms,
+      tool_counts,
     };
 
     if (has_write) {
@@ -183,6 +254,81 @@ function computeAggregate(
     top_10_sessions_by_pre_edit_read_tools: [...sessions]
       .sort((a, b) => b.pre_edit_read_tools_count - a.pre_edit_read_tools_count)
       .slice(0, 10),
+  };
+}
+
+// ─── Carril B — diagnostic / noise classification (no-write sessions) ────────
+
+// Splits no-write sessions into "diagnostic" (real orientation activity, no edit)
+// and "noise" (low-activity, subagent-like) populations using diagnosticThreshold
+// on total_tools_count. This is a v1 heuristic, not a semantic classifier.
+export function classifyNoWriteSessions(
+  no_write_sessions: SessionMetrics[],
+  diagnosticThreshold: number,
+): { diagnostic_sessions: SessionMetrics[]; noise_sessions: SessionMetrics[] } {
+  const diagnostic_sessions: SessionMetrics[] = [];
+  const noise_sessions: SessionMetrics[] = [];
+  for (const s of no_write_sessions) {
+    if (s.total_tools_count >= diagnosticThreshold) {
+      diagnostic_sessions.push(s);
+    } else {
+      noise_sessions.push(s);
+    }
+  }
+  return { diagnostic_sessions, noise_sessions };
+}
+
+function computeDiagnosticAggregate(diagnostic_sessions: SessionMetrics[]): DiagnosticAggregateMetrics {
+  const totalCounts = diagnostic_sessions.map(s => s.total_tools_count).sort((a, b) => a - b);
+  const readCounts = diagnostic_sessions.map(s => s.read_tools_count).sort((a, b) => a - b);
+  const bashCounts = diagnostic_sessions.map(s => s.bash_tools_count).sort((a, b) => a - b);
+  const durations = diagnostic_sessions
+    .filter(s => s.session_duration_ms !== null)
+    .map(s => s.session_duration_ms as number)
+    .sort((a, b) => a - b);
+
+  const toolTotals = new Map<string, number>();
+  for (const s of diagnostic_sessions) {
+    for (const [name, count] of Object.entries(s.tool_counts)) {
+      toolTotals.set(name, (toolTotals.get(name) ?? 0) + count);
+    }
+  }
+  const top_tools = [...toolTotals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([tool_name, count]) => ({ tool_name, count }));
+
+  return {
+    sessions_total: diagnostic_sessions.length,
+    median_total_tools: percentile(totalCounts, 50),
+    p75_total_tools: percentile(totalCounts, 75),
+    mean_total_tools: mean(totalCounts),
+    median_read_tools_total: percentile(readCounts, 50),
+    p75_read_tools_total: percentile(readCounts, 75),
+    median_bash_tools_total: percentile(bashCounts, 50),
+    p75_bash_tools_total: percentile(bashCounts, 75),
+    median_session_duration_ms: durations.length > 0 ? percentile(durations, 50) : null,
+    p75_session_duration_ms: durations.length > 0 ? percentile(durations, 75) : null,
+    top_tools,
+    top_10_diagnostic_sessions_by_total_tools: [...diagnostic_sessions]
+      .sort((a, b) => b.total_tools_count - a.total_tools_count)
+      .slice(0, 10),
+  };
+}
+
+function computeNoiseSummary(noise_sessions: SessionMetrics[]): NoiseSummary {
+  const subagent_like_sessions_count = noise_sessions.filter(
+    s => s.structured_output_count > 0,
+  ).length;
+
+  return {
+    sessions_total: noise_sessions.length,
+    excluded_from_write_track: true,
+    excluded_from_diagnostic_track: true,
+    subagent_like_note:
+      'StructuredOutput usage suggests subagent-like activity; it does not prove it. ' +
+      'This is an informative signal, not a filter or an absolute classification.',
+    subagent_like_sessions_count,
   };
 }
 
@@ -262,6 +408,7 @@ function readManifest(manifestPath: string): ManifestFields {
 
 export function analyze(opts: AnalyzerOptions): AnalysisReport {
   const { project, phase, inputPath, metricsHome } = opts;
+  const diagnosticThreshold = opts.diagnosticThreshold ?? DEFAULT_DIAGNOSTIC_THRESHOLD;
 
   const jsonlPath = inputPath ?? resolveOutputPath(project, metricsHome);
   const manifestPath = inputPath
@@ -317,6 +464,12 @@ export function analyze(opts: AnalyzerOptions): AnalysisReport {
   }
 
   const aggregate = computeAggregate(sessions, no_write_sessions);
+  const { diagnostic_sessions, noise_sessions } = classifyNoWriteSessions(
+    no_write_sessions,
+    diagnosticThreshold,
+  );
+  const diagnostic_aggregate = computeDiagnosticAggregate(diagnostic_sessions);
+  const noise_summary = computeNoiseSummary(noise_sessions);
 
   return {
     dataset_path: jsonlPath,
@@ -326,8 +479,13 @@ export function analyze(opts: AnalyzerOptions): AnalysisReport {
     phase: manifest.phase ?? phase,
     cwd_filter_mode: manifest.cwd_filter_mode,
     extractor_sessions_included: manifest.sessions_included,
+    diagnostic_threshold: diagnosticThreshold,
     sessions,
     aggregate,
     no_write_sessions,
+    diagnostic_sessions,
+    noise_sessions,
+    diagnostic_aggregate,
+    noise_summary,
   };
 }

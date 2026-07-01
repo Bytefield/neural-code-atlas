@@ -882,4 +882,108 @@ module.exports = function runCorpusTests(test, assert) {
     assert(lines.length === 2, `expected header + 1 data row, got ${lines.length} lines`);
     assert(lines[1].includes('csv-s1'), `data row must contain session id`);
   });
+
+  // ── DIAG tests: carril B — diagnostic / noise classification ─────────────────
+
+  // Helper: build a no-write session with N generic post_tool_use events (default tool_name Read).
+  function mkNoWriteSession(sessionId, toolNames) {
+    const events = [
+      mkEvent({ event_type: 'session_start', source_session_id: sessionId, timestamp: '2026-06-01T10:00:00.000Z' }),
+    ];
+    toolNames.forEach((toolName, i) => {
+      events.push(mkEvent({
+        event_type: 'post_tool_use',
+        source_session_id: sessionId,
+        timestamp: `2026-06-01T10:00:${String(i + 1).padStart(2, '0')}.000Z`,
+        tool_name: toolName,
+        file_path: null,
+      }));
+    });
+    return events;
+  }
+
+  test('DIAG-01 write session is unaffected by carril B classification', () => {
+    const { analyzeEvents, classifyNoWriteSessions } = loadAnalyzer();
+    const events = [
+      mkEvent({ event_type: 'session_start', source_session_id: 'w1', timestamp: '2026-06-01T10:00:00.000Z' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 'w1', timestamp: '2026-06-01T10:00:01.000Z', tool_name: 'Edit', file_path: '/a.ts' }),
+    ];
+    const { sessions, no_write_sessions } = analyzeEvents(events);
+    assert(sessions.length === 1, 'write session must land in sessions (carril A)');
+    assert(no_write_sessions.length === 0, 'write session must not appear in no_write_sessions');
+    const { diagnostic_sessions, noise_sessions } = classifyNoWriteSessions(no_write_sessions, 10);
+    assert(diagnostic_sessions.length === 0, 'no diagnostic sessions expected');
+    assert(noise_sessions.length === 0, 'no noise sessions expected');
+  });
+
+  test('DIAG-02 no-write session with 15 tools classifies as diagnostic', () => {
+    const { analyzeEvents, classifyNoWriteSessions } = loadAnalyzer();
+    const toolNames = Array.from({ length: 15 }, () => 'Read');
+    const events = mkNoWriteSession('d1', toolNames);
+    const { no_write_sessions } = analyzeEvents(events);
+    assert(no_write_sessions.length === 1, 'expected 1 no-write session');
+    assert(no_write_sessions[0].total_tools_count === 15, `total_tools_count should be 15, got ${no_write_sessions[0].total_tools_count}`);
+    const { diagnostic_sessions, noise_sessions } = classifyNoWriteSessions(no_write_sessions, 10);
+    assert(diagnostic_sessions.length === 1, 'session with 15 tools must classify as diagnostic');
+    assert(noise_sessions.length === 0, 'diagnostic session must not also be noise');
+  });
+
+  test('DIAG-03 no-write session with 4 tools classifies as noise, excluded from write and diagnostic', () => {
+    const { analyzeEvents, classifyNoWriteSessions } = loadAnalyzer();
+    const toolNames = Array.from({ length: 4 }, () => 'Read');
+    const events = mkNoWriteSession('n1', toolNames);
+    const { sessions, no_write_sessions } = analyzeEvents(events);
+    assert(sessions.length === 0, 'session with no write must not appear in write track');
+    assert(no_write_sessions.length === 1, 'expected 1 no-write session');
+    const { diagnostic_sessions, noise_sessions } = classifyNoWriteSessions(no_write_sessions, 10);
+    assert(diagnostic_sessions.length === 0, 'session with 4 tools must not classify as diagnostic');
+    assert(noise_sessions.length === 1, 'session with 4 tools must classify as noise');
+  });
+
+  test('DIAG-04 carril B measures bash_tools separately from read_tools', () => {
+    const { analyzeEvents } = loadAnalyzer();
+    const toolNames = ['Bash', 'Bash', 'Bash', 'Read', 'Read', 'Grep', 'Bash', 'Bash', 'Bash', 'Bash'];
+    const events = mkNoWriteSession('d2', toolNames);
+    const { no_write_sessions } = analyzeEvents(events);
+    const s = no_write_sessions[0];
+    assert(s.bash_tools_count === 7, `bash_tools_count should be 7, got ${s.bash_tools_count}`);
+    assert(s.read_tools_count === 3, `read_tools_count should be 3, got ${s.read_tools_count}`);
+    assert(s.total_tools_count === 10, `total_tools_count should be 10, got ${s.total_tools_count}`);
+  });
+
+  test('DIAG-05 diagnostic threshold is configurable', () => {
+    const { analyzeEvents, classifyNoWriteSessions } = loadAnalyzer();
+    const toolNames = Array.from({ length: 8 }, () => 'Read');
+    const events = mkNoWriteSession('d3', toolNames);
+    const { no_write_sessions } = analyzeEvents(events);
+
+    const atDefault = classifyNoWriteSessions(no_write_sessions, 10);
+    assert(atDefault.diagnostic_sessions.length === 0, '8 tools must be noise at threshold=10');
+    assert(atDefault.noise_sessions.length === 1, '8 tools must be noise at threshold=10');
+
+    const atLower = classifyNoWriteSessions(no_write_sessions, 5);
+    assert(atLower.diagnostic_sessions.length === 1, '8 tools must be diagnostic at threshold=5');
+    assert(atLower.noise_sessions.length === 0, '8 tools must be diagnostic at threshold=5');
+  });
+
+  test('DIAG-06 analyze() report includes the diagnostic_threshold actually used', () => {
+    const { analyze } = loadAnalyzer();
+    const reportDefault = analyze({ project: 'test', phase: 'baseline', inputPath: SAMPLE_JSONL });
+    assert(reportDefault.diagnostic_threshold === 10, `default threshold should be 10, got ${reportDefault.diagnostic_threshold}`);
+
+    const reportCustom = analyze({ project: 'test', phase: 'baseline', inputPath: SAMPLE_JSONL, diagnosticThreshold: 3 });
+    assert(reportCustom.diagnostic_threshold === 3, `custom threshold should be 3, got ${reportCustom.diagnostic_threshold}`);
+  });
+
+  test('DIAG-07 noise summary reports StructuredOutput signal as informative, not a filter', () => {
+    const { analyzeEvents, classifyNoWriteSessions } = loadAnalyzer();
+    // 3 tools total, one of which is StructuredOutput → noise session with a subagent-like signal
+    const events = mkNoWriteSession('n2', ['Read', 'Read', 'StructuredOutput']);
+    const { no_write_sessions } = analyzeEvents(events);
+    const s = no_write_sessions[0];
+    assert(s.structured_output_count === 1, `structured_output_count should be 1, got ${s.structured_output_count}`);
+    const { noise_sessions } = classifyNoWriteSessions(no_write_sessions, 10);
+    assert(noise_sessions.length === 1, 'expected 1 noise session');
+    assert(noise_sessions[0].structured_output_count === 1, 'noise session must carry structured_output_count');
+  });
 };
