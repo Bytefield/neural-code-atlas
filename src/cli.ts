@@ -1218,4 +1218,211 @@ corpus
     process.stdout.write(lines.join('\n') + '\n');
   });
 
+corpus
+  .command('orientation')
+  .description('Compute pre-edit exploration proxy metrics from orientation events')
+  .requiredOption('--project <name>', 'project name (e.g. synio)')
+  .requiredOption('--phase <phase>', 'experiment phase: baseline or treatment')
+  .option('--input <path>', 'explicit path to orientation-events.jsonl')
+  .option('--json', 'machine-readable JSON output')
+  .option('--csv <path>', 'export per-session metrics to CSV file')
+  .option('--include-no-write', 'include no-write sessions in the output (not in aggregates)')
+  .option('--diagnostic-threshold <n>', 'min total tools for a no-write session to count as diagnostic (v1 default, not universal)', '10')
+  .action((opts: {
+    project: string;
+    phase: string;
+    input?: string;
+    json?: boolean;
+    csv?: string;
+    includeNoWrite?: boolean;
+    diagnosticThreshold: string;
+  }) => {
+    if (opts.phase !== 'baseline' && opts.phase !== 'treatment') {
+      process.stderr.write(`Error: --phase must be 'baseline' or 'treatment'\n`);
+      process.exit(1);
+    }
+
+    const {
+      analyze: runAnalyze,
+      toCSV,
+    } = require('./corpus/index.js') as typeof import('./corpus/index.js');
+
+    const diagnosticThreshold = Math.max(0, parseInt(opts.diagnosticThreshold, 10) || 10);
+
+    let report: ReturnType<typeof runAnalyze>;
+    try {
+      report = runAnalyze({
+        project: opts.project,
+        phase: opts.phase as 'baseline' | 'treatment',
+        inputPath: opts.input,
+        diagnosticThreshold,
+      });
+    } catch (err) {
+      process.stderr.write(`Error: ${(err as Error).message}\n`);
+      process.exit(1);
+    }
+
+    // CSV export (always includes no-write sessions if flag is set)
+    if (opts.csv) {
+      const allSessions = opts.includeNoWrite
+        ? [...report.sessions, ...report.no_write_sessions]
+        : report.sessions;
+      fs.writeFileSync(path.resolve(opts.csv), toCSV(allSessions), 'utf-8');
+      process.stderr.write(`CSV written to ${opts.csv}\n`);
+    }
+
+    if (opts.json) {
+      const output = {
+        dataset_path: report.dataset_path,
+        schema_version: report.schema_version,
+        extractor_version: report.extractor_version,
+        phase: report.phase,
+        cwd_filter_mode: report.cwd_filter_mode,
+        proxy_metric: 'pre_edit_exploration_cost_v1',
+        diagnostic_threshold: report.diagnostic_threshold,
+        diagnostic_threshold_note: 'v1 decision, not a universal truth — configurable via --diagnostic-threshold',
+        aggregate: report.aggregate,
+        diagnostic_aggregate: report.diagnostic_aggregate,
+        noise_summary: report.noise_summary,
+        sessions: report.sessions,
+        ...(opts.includeNoWrite
+          ? {
+            no_write_sessions: report.no_write_sessions,
+            diagnostic_sessions: report.diagnostic_sessions,
+            noise_sessions: report.noise_sessions,
+          }
+          : {}),
+      };
+      process.stdout.write(JSON.stringify(output, null, 2) + '\n');
+      return;
+    }
+
+    const { agg } = { agg: report.aggregate };
+    const fmt = (n: number | null, unit = '') =>
+      n === null ? '—' : (Number.isInteger(n) ? String(n) : n.toFixed(1)) + unit;
+
+    const lines: string[] = [
+      formatStatus(`NCA|corpus_orientation|project:${opts.project}|phase:${opts.phase}`),
+      separator(),
+      '  ' + header('ORIENTATION PROXY METRICS — PRE-EDIT EXPLORATION COST'),
+      '  ' + colors.yellow + '⚠ proxy metric v1, not semantic orientation classifier' + colors.reset,
+      separator(),
+      '  ' + formatField('dataset', report.dataset_path),
+      '  ' + formatField('schema', report.schema_version),
+      '  ' + formatField('extractor', report.extractor_version),
+      '  ' + formatField('phase', report.phase),
+      '  ' + formatField('scope', `${report.cwd_filter_mode}  [cwd_filter_mode from manifest]`),
+      '',
+      '  ' + header('Sessions'),
+      '  ' + formatField('total', agg.sessions_total),
+      '  ' + formatField('with_write', agg.sessions_with_write),
+      '  ' + formatField('without_write', agg.sessions_without_write),
+      '',
+      '  ' + header('Pre-edit read tools  (Read / Grep / Glob / LS before first write)'),
+      '  ' + formatField('median', fmt(agg.median_pre_edit_read_tools)),
+      '  ' + formatField('p75', fmt(agg.p75_pre_edit_read_tools)),
+      '  ' + formatField('mean', fmt(agg.mean_pre_edit_read_tools)),
+      '',
+      '  ' + header('Pre-edit all tools  (all post_tool_use before first write)'),
+      '  ' + formatField('median', fmt(agg.median_pre_edit_all_tools)),
+      '  ' + formatField('p75', fmt(agg.p75_pre_edit_all_tools)),
+      '  ' + formatField('mean', fmt(agg.mean_pre_edit_all_tools)),
+      '',
+      '  ' + header('Time to first write'),
+      '  ' + formatField('median', fmt(agg.median_time_to_first_write_ms, 'ms')),
+      '  ' + formatField('p75', fmt(agg.p75_time_to_first_write_ms, 'ms')),
+    ];
+
+    if (agg.top_10_sessions_by_pre_edit_read_tools.length > 0) {
+      lines.push('');
+      lines.push('  ' + header('Top sessions by pre_edit_read_tools'));
+      for (const s of agg.top_10_sessions_by_pre_edit_read_tools) {
+        const id = s.source_session_id.slice(0, 16);
+        lines.push(
+          `    ${id}…  read:${s.pre_edit_read_tools_count}  all:${s.pre_edit_all_tools_count}` +
+          `  ttfw:${fmt(s.time_to_first_write_ms, 'ms')}`,
+        );
+      }
+    }
+
+    // ─── Carril B — diagnostic sessions (no write, real orientation activity) ──
+
+    const dagg = report.diagnostic_aggregate;
+    lines.push('');
+    lines.push(separator());
+    lines.push('  ' + header('CARRIL B — DIAGNOSTIC SESSIONS (no write, total_tools >= threshold)'));
+    lines.push(
+      '  ' + colors.yellow +
+      `⚠ diagnostic_threshold = ${report.diagnostic_threshold}  [v1 decision, not a universal truth — see --diagnostic-threshold]` +
+      colors.reset,
+    );
+    lines.push(separator());
+    lines.push('  ' + formatField('sessions', dagg.sessions_total));
+    lines.push('');
+    lines.push('  ' + header('total_tools'));
+    lines.push('  ' + formatField('median', fmt(dagg.median_total_tools)));
+    lines.push('  ' + formatField('p75', fmt(dagg.p75_total_tools)));
+    lines.push('  ' + formatField('mean', fmt(dagg.mean_total_tools)));
+    lines.push('');
+    lines.push('  ' + header('read_tools_total  (Read / Grep / Glob / LS)'));
+    lines.push('  ' + formatField('median', fmt(dagg.median_read_tools_total)));
+    lines.push('  ' + formatField('p75', fmt(dagg.p75_read_tools_total)));
+    lines.push('');
+    lines.push('  ' + header('bash_tools_total  (measured apart from read — Bash dominates here)'));
+    lines.push('  ' + formatField('median', fmt(dagg.median_bash_tools_total)));
+    lines.push('  ' + formatField('p75', fmt(dagg.p75_bash_tools_total)));
+    lines.push('');
+    lines.push('  ' + header('session_duration'));
+    lines.push('  ' + formatField('median', fmt(dagg.median_session_duration_ms, 'ms')));
+    lines.push('  ' + formatField('p75', fmt(dagg.p75_session_duration_ms, 'ms')));
+
+    if (dagg.top_tools.length > 0) {
+      lines.push('');
+      lines.push('  ' + header('Top tools (aggregated across diagnostic sessions)'));
+      for (const t of dagg.top_tools) {
+        lines.push(`    ${t.tool_name}: ${t.count}`);
+      }
+    }
+
+    if (dagg.top_10_diagnostic_sessions_by_total_tools.length > 0) {
+      lines.push('');
+      lines.push('  ' + header('top_10_diagnostic_sessions_by_total_tools  (validates these are real work, not artifacts)'));
+      for (const s of dagg.top_10_diagnostic_sessions_by_total_tools) {
+        const id = s.source_session_id.slice(0, 16);
+        lines.push(
+          `    ${id}…  total:${s.total_tools_count}  read:${s.read_tools_count}` +
+          `  bash:${s.bash_tools_count}  duration:${fmt(s.session_duration_ms, 'ms')}`,
+        );
+      }
+    }
+
+    // ─── Noise population (excluded from both tracks) ───────────────────────────
+
+    const noise = report.noise_summary;
+    lines.push('');
+    lines.push(separator());
+    lines.push('  ' + header('NOISE SESSIONS (no write, total_tools < threshold — excluded from both carriles)'));
+    lines.push(separator());
+    lines.push('  ' + formatField('sessions', noise.sessions_total));
+    lines.push('  ' + formatField('excluded_from_write_track', String(noise.excluded_from_write_track)));
+    lines.push('  ' + formatField('excluded_from_diagnostic_track', String(noise.excluded_from_diagnostic_track)));
+    lines.push('');
+    lines.push(
+      '  ' + colors.yellow +
+      `⚠ subagent-like signal (informative only, not a filter, not proof): ` +
+      `${noise.subagent_like_sessions_count}/${noise.sessions_total} noise sessions have StructuredOutput > 0` +
+      colors.reset,
+    );
+    lines.push('  ' + noise.subagent_like_note);
+
+    if (opts.includeNoWrite && report.no_write_sessions.length > 0) {
+      lines.push('');
+      lines.push('  ' + header('No-write sessions (raw, excluded from write-track aggregates)'));
+      lines.push('  ' + formatField('count', report.no_write_sessions.length));
+    }
+
+    lines.push(separator());
+    process.stdout.write(lines.join('\n') + '\n');
+  });
+
 program.parse(process.argv);

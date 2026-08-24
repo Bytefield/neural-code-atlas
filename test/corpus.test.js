@@ -643,4 +643,347 @@ module.exports = function runCorpusTests(test, assert) {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  // ── PROXY tests: orientation proxy analyzer ───────────────────────────────────
+
+  const FIXTURES_ANALYZER = path.join(__dirname, 'fixtures', 'analyzer');
+  const SAMPLE_JSONL = path.join(FIXTURES_ANALYZER, 'sample-events.jsonl');
+  const SAMPLE_MANIFEST = path.join(FIXTURES_ANALYZER, 'sample-events.manifest.json');
+
+  function loadAnalyzer() {
+    return require(path.join(ROOT, 'dist', 'corpus', 'analyzer.js'));
+  }
+
+  // Helper: build a minimal OrientationEvent
+  function mkEvent(overrides) {
+    return Object.assign({
+      event_id: 'ev-' + Math.random().toString(36).slice(2, 8),
+      schema_version: SCHEMA_VERSION,
+      extractor_version: EXTRACTOR_VERSION,
+      source: 'claude_corpus',
+      source_project: 'test',
+      nca_experiment_phase: 'baseline',
+      subagent: false,
+      git_branch: 'main',
+      source_cwd: '/proj',
+    }, overrides);
+  }
+
+  // ── PROXY-01: Read+Grep before Edit counted correctly ─────────────────────────
+
+  test('PROXY-01 pre_edit_read_tools counts Read and Grep before first write', () => {
+    const { analyzeEvents } = loadAnalyzer();
+    const events = [
+      mkEvent({ event_type: 'session_start', source_session_id: 's1', timestamp: '2026-06-01T10:00:00.000Z' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 's1', timestamp: '2026-06-01T10:00:01.000Z', tool_name: 'Read', file_path: '/a.ts' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 's1', timestamp: '2026-06-01T10:00:02.000Z', tool_name: 'Grep', file_path: null }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 's1', timestamp: '2026-06-01T10:00:03.000Z', tool_name: 'Edit', file_path: '/a.ts' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 's1', timestamp: '2026-06-01T10:00:04.000Z', tool_name: 'Read', file_path: '/b.ts' }),
+    ];
+    const { sessions } = analyzeEvents(events);
+    assert(sessions.length === 1, `expected 1 write session, got ${sessions.length}`);
+    const s = sessions[0];
+    assert(s.pre_edit_read_tools_count === 2, `pre_edit_read_tools should be 2, got ${s.pre_edit_read_tools_count}`);
+    assert(s.pre_edit_all_tools_count === 2, `pre_edit_all_tools should be 2, got ${s.pre_edit_all_tools_count}`);
+    assert(s.first_write_tool_name === 'Edit', `first_write_tool=${s.first_write_tool_name}`);
+    assert(s.has_write === true, 'has_write should be true');
+  });
+
+  // ── PROXY-02: tools AFTER first write are excluded ────────────────────────────
+
+  test('PROXY-02 tools after first write are excluded from pre-edit counts', () => {
+    const { analyzeEvents } = loadAnalyzer();
+    const events = [
+      mkEvent({ event_type: 'session_start', source_session_id: 's2', timestamp: '2026-06-01T10:00:00.000Z' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 's2', timestamp: '2026-06-01T10:00:01.000Z', tool_name: 'Edit', file_path: '/a.ts' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 's2', timestamp: '2026-06-01T10:00:02.000Z', tool_name: 'Read', file_path: '/b.ts' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 's2', timestamp: '2026-06-01T10:00:03.000Z', tool_name: 'Grep', file_path: null }),
+    ];
+    const { sessions } = analyzeEvents(events);
+    const s = sessions[0];
+    assert(s.pre_edit_read_tools_count === 0, `expected 0 read_tools, got ${s.pre_edit_read_tools_count}`);
+    assert(s.pre_edit_all_tools_count === 0, `expected 0 all_tools, got ${s.pre_edit_all_tools_count}`);
+  });
+
+  // ── PROXY-03: no-write session → no_write_sessions, excluded from aggregates ──
+
+  test('PROXY-03 session without write tool goes to no_write_sessions', () => {
+    const { analyzeEvents } = loadAnalyzer();
+    const events = [
+      mkEvent({ event_type: 'session_start', source_session_id: 's3', timestamp: '2026-06-01T10:00:00.000Z' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 's3', timestamp: '2026-06-01T10:00:01.000Z', tool_name: 'Read', file_path: '/a.ts' }),
+      mkEvent({ event_type: 'user_prompt_submit', source_session_id: 's3', timestamp: '2026-06-01T10:00:02.000Z', prompt_hash: 'x', prompt_length: 10 }),
+    ];
+    const { sessions, no_write_sessions } = analyzeEvents(events);
+    assert(sessions.length === 0, `write-sessions should be empty, got ${sessions.length}`);
+    assert(no_write_sessions.length === 1, `no_write_sessions should be 1, got ${no_write_sessions.length}`);
+    assert(no_write_sessions[0].has_write === false, 'has_write must be false');
+  });
+
+  // ── PROXY-04: Bash counts in all_tools but NOT in read_tools ─────────────────
+
+  test('PROXY-04 Bash counts in pre_edit_all_tools but not pre_edit_read_tools', () => {
+    const { analyzeEvents } = loadAnalyzer();
+    const events = [
+      mkEvent({ event_type: 'session_start', source_session_id: 's4', timestamp: '2026-06-01T10:00:00.000Z' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 's4', timestamp: '2026-06-01T10:00:01.000Z', tool_name: 'Bash', file_path: null }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 's4', timestamp: '2026-06-01T10:00:02.000Z', tool_name: 'Write', file_path: '/a.ts' }),
+    ];
+    const { sessions } = analyzeEvents(events);
+    const s = sessions[0];
+    assert(s.pre_edit_read_tools_count === 0, `read_tools should be 0, got ${s.pre_edit_read_tools_count}`);
+    assert(s.pre_edit_all_tools_count === 1, `all_tools should be 1, got ${s.pre_edit_all_tools_count}`);
+  });
+
+  // ── PROXY-05: MultiEdit and Write count as first_write_event ─────────────────
+
+  test('PROXY-05 MultiEdit is recognised as a write tool', () => {
+    const { analyzeEvents } = loadAnalyzer();
+    const events = [
+      mkEvent({ event_type: 'session_start', source_session_id: 's5', timestamp: '2026-06-01T10:00:00.000Z' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 's5', timestamp: '2026-06-01T10:00:01.000Z', tool_name: 'Read', file_path: '/a.ts' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 's5', timestamp: '2026-06-01T10:00:02.000Z', tool_name: 'MultiEdit', file_path: '/b.ts' }),
+    ];
+    const { sessions } = analyzeEvents(events);
+    const s = sessions[0];
+    assert(s.has_write === true, 'has_write should be true');
+    assert(s.first_write_tool_name === 'MultiEdit', `first_write_tool=${s.first_write_tool_name}`);
+    assert(s.pre_edit_read_tools_count === 1, `read_tools before MultiEdit should be 1`);
+  });
+
+  // ── PROXY-06: aggregate median/p75/mean correct on sample fixture ─────────────
+  //
+  // Fixture sessions:
+  //   sess-A: read=3, all=3   sess-B: read=0, all=1
+  //   sess-D: read=0, all=0   sess-E: read=2, all=2
+  // (sess-C is no_write, excluded from aggregates)
+  // read sorted: [0,0,2,3]  →  p50=1, p75=2.25, mean=1.25
+  // all  sorted: [0,1,2,3]  →  p50=1.5, p75=2.25, mean=1.5
+
+  test('PROXY-06 aggregate median/p75/mean computed correctly from sample fixture', () => {
+    const { analyze } = loadAnalyzer();
+    const report = analyze({
+      project: 'test',
+      phase: 'baseline',
+      inputPath: SAMPLE_JSONL,
+    });
+    const agg = report.aggregate;
+    assert(agg.sessions_total === 5, `sessions_total should be 5, got ${agg.sessions_total}`);
+    assert(agg.sessions_with_write === 4, `sessions_with_write should be 4, got ${agg.sessions_with_write}`);
+    assert(agg.sessions_without_write === 1, `sessions_without_write should be 1, got ${agg.sessions_without_write}`);
+    // pre_edit_read_tools: sorted [0,0,2,3]
+    assert(agg.median_pre_edit_read_tools === 1, `median_read should be 1, got ${agg.median_pre_edit_read_tools}`);
+    assert(agg.p75_pre_edit_read_tools === 2.25, `p75_read should be 2.25, got ${agg.p75_pre_edit_read_tools}`);
+    assert(Math.abs(agg.mean_pre_edit_read_tools - 1.25) < 0.001, `mean_read should be 1.25, got ${agg.mean_pre_edit_read_tools}`);
+    // pre_edit_all_tools: sorted [0,1,2,3]
+    assert(agg.median_pre_edit_all_tools === 1.5, `median_all should be 1.5, got ${agg.median_pre_edit_all_tools}`);
+    assert(agg.p75_pre_edit_all_tools === 2.25, `p75_all should be 2.25, got ${agg.p75_pre_edit_all_tools}`);
+    assert(Math.abs(agg.mean_pre_edit_all_tools - 1.5) < 0.001, `mean_all should be 1.5, got ${agg.mean_pre_edit_all_tools}`);
+    // top_10 should contain all 4 write sessions, sorted descending by read count
+    assert(agg.top_10_sessions_by_pre_edit_read_tools.length === 4, 'top_10 should have 4 entries');
+    assert(agg.top_10_sessions_by_pre_edit_read_tools[0].pre_edit_read_tools_count === 3, 'top session should have read=3');
+  });
+
+  // ── PROXY-07: --json returns stable structure ─────────────────────────────────
+
+  test('PROXY-07 analyze() returns stable JSON-serialisable structure', () => {
+    const { analyze } = loadAnalyzer();
+    const report = analyze({ project: 'test', phase: 'baseline', inputPath: SAMPLE_JSONL });
+    const json = JSON.parse(JSON.stringify(report));
+    assert(typeof json.dataset_path === 'string', 'dataset_path must be string');
+    assert(json.schema_version === SCHEMA_VERSION, `schema_version mismatch: ${json.schema_version}`);
+    assert(json.phase === 'baseline', `phase should be baseline`);
+    assert(json.cwd_filter_mode === 'main-only', `cwd_filter_mode should be main-only`);
+    assert(Array.isArray(json.sessions), 'sessions must be array');
+    assert(Array.isArray(json.no_write_sessions), 'no_write_sessions must be array');
+    assert(typeof json.aggregate.sessions_total === 'number', 'aggregate.sessions_total must be number');
+    assert(Array.isArray(json.aggregate.top_10_sessions_by_pre_edit_read_tools), 'top_10 must be array');
+  });
+
+  // ── PROXY-08: schema_version mismatch aborts with clear error ────────────────
+
+  test('PROXY-08 wrong schema_version in events aborts with clear error', () => {
+    const { analyze } = loadAnalyzer();
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-proxy-test-'));
+    try {
+      const badJsonl = path.join(tmpDir, 'orientation-events.jsonl');
+      const badManifest = path.join(tmpDir, 'orientation-events.manifest.json');
+      fs.writeFileSync(badJsonl,
+        JSON.stringify({ event_id: 'x', schema_version: 'orientation_event_v1',
+          extractor_version: '0.0.9', source: 'claude_corpus', source_session_id: 's1',
+          source_project: 'p', nca_experiment_phase: 'baseline', subagent: false,
+          event_type: 'session_start', timestamp: '2026-01-01T00:00:00.000Z',
+          git_branch: null, source_cwd: '/x' }) + '\n', 'utf-8');
+      fs.writeFileSync(badManifest, JSON.stringify({
+        schema_version: 'orientation_event_v1', extractor_version: '0.0.9',
+        phase: 'baseline', cwd_filter_mode: 'main-only', sessions_included: 1,
+      }), 'utf-8');
+
+      let threw = false;
+      try {
+        analyze({ project: 'p', phase: 'baseline', inputPath: badJsonl });
+      } catch (err) {
+        threw = true;
+        assert(err.message.includes('schema_version'), `error must mention schema_version: ${err.message}`);
+      }
+      assert(threw, 'analyze() must throw on wrong schema_version');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  // ── PROXY-09: sessions_total mismatch aborts with clear error ────────────────
+
+  test('PROXY-09 sessions_total / manifest.sessions_included mismatch aborts', () => {
+    const { analyze } = loadAnalyzer();
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-proxy-test-'));
+    try {
+      const jsonl = path.join(tmpDir, 'orientation-events.jsonl');
+      const manifest = path.join(tmpDir, 'orientation-events.manifest.json');
+      // 1 session in JSONL but manifest says 99
+      fs.writeFileSync(jsonl,
+        JSON.stringify({ event_id: 'x', schema_version: SCHEMA_VERSION,
+          extractor_version: EXTRACTOR_VERSION, source: 'claude_corpus',
+          source_session_id: 'only-session', source_project: 'p',
+          nca_experiment_phase: 'baseline', subagent: false,
+          event_type: 'session_start', timestamp: '2026-01-01T00:00:00.000Z',
+          git_branch: null, source_cwd: '/x' }) + '\n', 'utf-8');
+      fs.writeFileSync(manifest, JSON.stringify({
+        schema_version: SCHEMA_VERSION, extractor_version: EXTRACTOR_VERSION,
+        phase: 'baseline', cwd_filter_mode: 'main-only', sessions_included: 99,
+      }), 'utf-8');
+
+      let threw = false;
+      try {
+        analyze({ project: 'p', phase: 'baseline', inputPath: jsonl });
+      } catch (err) {
+        threw = true;
+        assert(err.message.includes('mismatch'), `error must mention mismatch: ${err.message}`);
+      }
+      assert(threw, 'analyze() must throw on sessions_total mismatch');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  // ── PROXY-10: toCSV generates correct headers and rows ───────────────────────
+
+  test('PROXY-10 toCSV generates headers and per-session rows', () => {
+    const { analyzeEvents, toCSV } = loadAnalyzer();
+    const events = [
+      mkEvent({ event_type: 'session_start', source_session_id: 'csv-s1', timestamp: '2026-06-01T10:00:00.000Z' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 'csv-s1', timestamp: '2026-06-01T10:00:01.000Z', tool_name: 'Read', file_path: '/a.ts' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 'csv-s1', timestamp: '2026-06-01T10:00:02.000Z', tool_name: 'Edit', file_path: '/b.ts' }),
+    ];
+    const { sessions } = analyzeEvents(events);
+    const csv = toCSV(sessions);
+    const lines = csv.trim().split('\n');
+    assert(lines[0].startsWith('source_session_id,'), `first line must be header: ${lines[0]}`);
+    assert(lines.length === 2, `expected header + 1 data row, got ${lines.length} lines`);
+    assert(lines[1].includes('csv-s1'), `data row must contain session id`);
+  });
+
+  // ── DIAG tests: carril B — diagnostic / noise classification ─────────────────
+
+  // Helper: build a no-write session with N generic post_tool_use events (default tool_name Read).
+  function mkNoWriteSession(sessionId, toolNames) {
+    const events = [
+      mkEvent({ event_type: 'session_start', source_session_id: sessionId, timestamp: '2026-06-01T10:00:00.000Z' }),
+    ];
+    toolNames.forEach((toolName, i) => {
+      events.push(mkEvent({
+        event_type: 'post_tool_use',
+        source_session_id: sessionId,
+        timestamp: `2026-06-01T10:00:${String(i + 1).padStart(2, '0')}.000Z`,
+        tool_name: toolName,
+        file_path: null,
+      }));
+    });
+    return events;
+  }
+
+  test('DIAG-01 write session is unaffected by carril B classification', () => {
+    const { analyzeEvents, classifyNoWriteSessions } = loadAnalyzer();
+    const events = [
+      mkEvent({ event_type: 'session_start', source_session_id: 'w1', timestamp: '2026-06-01T10:00:00.000Z' }),
+      mkEvent({ event_type: 'post_tool_use', source_session_id: 'w1', timestamp: '2026-06-01T10:00:01.000Z', tool_name: 'Edit', file_path: '/a.ts' }),
+    ];
+    const { sessions, no_write_sessions } = analyzeEvents(events);
+    assert(sessions.length === 1, 'write session must land in sessions (carril A)');
+    assert(no_write_sessions.length === 0, 'write session must not appear in no_write_sessions');
+    const { diagnostic_sessions, noise_sessions } = classifyNoWriteSessions(no_write_sessions, 10);
+    assert(diagnostic_sessions.length === 0, 'no diagnostic sessions expected');
+    assert(noise_sessions.length === 0, 'no noise sessions expected');
+  });
+
+  test('DIAG-02 no-write session with 15 tools classifies as diagnostic', () => {
+    const { analyzeEvents, classifyNoWriteSessions } = loadAnalyzer();
+    const toolNames = Array.from({ length: 15 }, () => 'Read');
+    const events = mkNoWriteSession('d1', toolNames);
+    const { no_write_sessions } = analyzeEvents(events);
+    assert(no_write_sessions.length === 1, 'expected 1 no-write session');
+    assert(no_write_sessions[0].total_tools_count === 15, `total_tools_count should be 15, got ${no_write_sessions[0].total_tools_count}`);
+    const { diagnostic_sessions, noise_sessions } = classifyNoWriteSessions(no_write_sessions, 10);
+    assert(diagnostic_sessions.length === 1, 'session with 15 tools must classify as diagnostic');
+    assert(noise_sessions.length === 0, 'diagnostic session must not also be noise');
+  });
+
+  test('DIAG-03 no-write session with 4 tools classifies as noise, excluded from write and diagnostic', () => {
+    const { analyzeEvents, classifyNoWriteSessions } = loadAnalyzer();
+    const toolNames = Array.from({ length: 4 }, () => 'Read');
+    const events = mkNoWriteSession('n1', toolNames);
+    const { sessions, no_write_sessions } = analyzeEvents(events);
+    assert(sessions.length === 0, 'session with no write must not appear in write track');
+    assert(no_write_sessions.length === 1, 'expected 1 no-write session');
+    const { diagnostic_sessions, noise_sessions } = classifyNoWriteSessions(no_write_sessions, 10);
+    assert(diagnostic_sessions.length === 0, 'session with 4 tools must not classify as diagnostic');
+    assert(noise_sessions.length === 1, 'session with 4 tools must classify as noise');
+  });
+
+  test('DIAG-04 carril B measures bash_tools separately from read_tools', () => {
+    const { analyzeEvents } = loadAnalyzer();
+    const toolNames = ['Bash', 'Bash', 'Bash', 'Read', 'Read', 'Grep', 'Bash', 'Bash', 'Bash', 'Bash'];
+    const events = mkNoWriteSession('d2', toolNames);
+    const { no_write_sessions } = analyzeEvents(events);
+    const s = no_write_sessions[0];
+    assert(s.bash_tools_count === 7, `bash_tools_count should be 7, got ${s.bash_tools_count}`);
+    assert(s.read_tools_count === 3, `read_tools_count should be 3, got ${s.read_tools_count}`);
+    assert(s.total_tools_count === 10, `total_tools_count should be 10, got ${s.total_tools_count}`);
+  });
+
+  test('DIAG-05 diagnostic threshold is configurable', () => {
+    const { analyzeEvents, classifyNoWriteSessions } = loadAnalyzer();
+    const toolNames = Array.from({ length: 8 }, () => 'Read');
+    const events = mkNoWriteSession('d3', toolNames);
+    const { no_write_sessions } = analyzeEvents(events);
+
+    const atDefault = classifyNoWriteSessions(no_write_sessions, 10);
+    assert(atDefault.diagnostic_sessions.length === 0, '8 tools must be noise at threshold=10');
+    assert(atDefault.noise_sessions.length === 1, '8 tools must be noise at threshold=10');
+
+    const atLower = classifyNoWriteSessions(no_write_sessions, 5);
+    assert(atLower.diagnostic_sessions.length === 1, '8 tools must be diagnostic at threshold=5');
+    assert(atLower.noise_sessions.length === 0, '8 tools must be diagnostic at threshold=5');
+  });
+
+  test('DIAG-06 analyze() report includes the diagnostic_threshold actually used', () => {
+    const { analyze } = loadAnalyzer();
+    const reportDefault = analyze({ project: 'test', phase: 'baseline', inputPath: SAMPLE_JSONL });
+    assert(reportDefault.diagnostic_threshold === 10, `default threshold should be 10, got ${reportDefault.diagnostic_threshold}`);
+
+    const reportCustom = analyze({ project: 'test', phase: 'baseline', inputPath: SAMPLE_JSONL, diagnosticThreshold: 3 });
+    assert(reportCustom.diagnostic_threshold === 3, `custom threshold should be 3, got ${reportCustom.diagnostic_threshold}`);
+  });
+
+  test('DIAG-07 noise summary reports StructuredOutput signal as informative, not a filter', () => {
+    const { analyzeEvents, classifyNoWriteSessions } = loadAnalyzer();
+    // 3 tools total, one of which is StructuredOutput → noise session with a subagent-like signal
+    const events = mkNoWriteSession('n2', ['Read', 'Read', 'StructuredOutput']);
+    const { no_write_sessions } = analyzeEvents(events);
+    const s = no_write_sessions[0];
+    assert(s.structured_output_count === 1, `structured_output_count should be 1, got ${s.structured_output_count}`);
+    const { noise_sessions } = classifyNoWriteSessions(no_write_sessions, 10);
+    assert(noise_sessions.length === 1, 'expected 1 noise session');
+    assert(noise_sessions[0].structured_output_count === 1, 'noise session must carry structured_output_count');
+  });
 };
