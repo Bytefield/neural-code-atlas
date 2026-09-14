@@ -196,7 +196,10 @@ export class ContextExpander {
       );
     }
 
-    if (flows.length > 0) {
+    // Flows are query-independent (getAllFlows() returns the whole DB), so only
+    // show them alongside real matches — otherwise a "no matches" response gets
+    // padded with an unrelated flow dump that reads as a substantive answer.
+    if (ranked.length > 0 && flows.length > 0) {
       lines.push('[F]');
       for (const f of flows) {
         lines.push(`#${f.name}[${f.steps.join('>')}]`);

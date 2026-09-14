@@ -178,7 +178,10 @@ function toolAsk(
     pathFallback = nodes.length > 0;
   }
 
-  const flows = storage.getAllFlows();
+  // Skip the global flow dump entirely when there's nothing to anchor it to —
+  // getAllFlows() is query-independent, so on a true miss it just pads the
+  // response with unrelated noise dressed up as a substantive answer.
+  const flows = nodes.length > 0 ? storage.getAllFlows() : [];
   const warnings = storage.getWarnings();
   const notes = storage.searchNotes(query);
   const result = ctx.formatFull({ query, nodes, timestamp: ts }, flows, warnings, notes, pathFallback);
