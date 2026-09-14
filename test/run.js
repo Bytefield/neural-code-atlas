@@ -2147,6 +2147,43 @@ test('VAULT-05 --dry-run does not write to DB', () => {
     assert(out.includes('dir:src'), `Expected dir:src (from /proj/src/) in output:\n${out.slice(0, 500)}`);
   });
 
+  // AE-05: no-match query → clean "no matches" text, no [F] section
+  test('AE-05 no-match query has no [F] section', () => {
+    const out = aeCtx.formatFull({ query: 'zzz-nonexistent-symbol', nodes: [], timestamp: ts }, noFlows, noWarnings);
+    assert(out.includes("no matches for 'zzz-nonexistent-symbol'"),
+      `Expected clean no-match message, got:\n${out}`);
+    assert(!out.includes('[F]'), `Expected no [F] section on a miss, got:\n${out}`);
+  });
+
+  // AE-06: no-match query still suppresses [F] even if flows are passed in
+  // (defense in depth — formatFull itself gates on ranked.length, not just the caller)
+  test('AE-06 no-match query suppresses [F] even when flows are non-empty', () => {
+    const fakeFlows = [{ name: 'genericFlow', steps: ['a', 'b', 'c'] }];
+    const out = aeCtx.formatFull({ query: 'zzz-nonexistent-symbol', nodes: [], timestamp: ts }, fakeFlows, noWarnings);
+    assert(!out.includes('[F]'), `Expected no [F] section despite non-empty flows, got:\n${out}`);
+    assert(!out.includes('genericFlow'), `Expected no leaked flow content, got:\n${out}`);
+  });
+
+  // AE-07: two different no-match queries never return the same flow blob
+  // (regression for the getAllFlows() fallback bug — was byte-identical across unrelated queries)
+  test('AE-07 two distinct no-match queries do not share a flow blob', () => {
+    const fakeFlows = [{ name: 'genericFlow', steps: ['a', 'b', 'c'] }];
+    const outA = aeCtx.formatFull({ query: 'billing subscription plan', nodes: [], timestamp: ts }, fakeFlows, noWarnings);
+    const outB = aeCtx.formatFull({ query: 'auth session middleware', nodes: [], timestamp: ts }, fakeFlows, noWarnings);
+    assert(!outA.includes('[F]') && !outB.includes('[F]'),
+      `Expected neither miss to carry a [F] section, got:\nA:${outA}\nB:${outB}`);
+  });
+
+  // AE-08: real hit is unaffected — [F] section still renders with flow data
+  test('AE-08 direct hit still renders [F] section with symbol data intact', () => {
+    const fakeFlows = [{ name: 'genericFlow', steps: ['a', 'b', 'c'] }];
+    const nodes = aeStorage.getAllNodes().filter(n => n.name === 'hub');
+    const out = aeCtx.formatFull({ query: 'hub', nodes, timestamp: ts }, fakeFlows, noWarnings);
+    assert(out.includes('@function.hub{'), `Expected real symbol data for a direct hit, got:\n${out.slice(0, 500)}`);
+    assert(out.includes('[F]'), `Expected [F] section preserved on a direct hit, got:\n${out}`);
+    assert(out.includes('#genericFlow[a>b>c]'), `Expected flow content on a direct hit, got:\n${out}`);
+  });
+
   aeStorage.close();
   try { fs.rmSync(aeDir, { recursive: true }); } catch {}
 }
