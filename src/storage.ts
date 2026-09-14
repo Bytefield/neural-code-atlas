@@ -2,7 +2,8 @@ import BetterSqlite3 from 'better-sqlite3';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { runMigrations, MigrationError, getMigrationStatus } from './migrations/index.js';
+import { runMigrations, MigrationError, getMigrationStatus, SchemaVersionSkewError } from './migrations/index.js';
+export { SchemaVersionSkewError };
 import { vaultSearch as _vaultSearch, type VaultSearchResult, type VaultSearchFilters } from './vault/search.js';
 import { vaultGet as _vaultGet, type VaultNoteDetail } from './vault/get.js';
 
@@ -115,6 +116,12 @@ export class Storage {
       }
     } catch (err) {
       if (err instanceof MigrationError) {
+        if (err.dbVersion !== undefined && err.buildVersion !== undefined) {
+          process.stderr.write(
+            `NCA|fatal|schema_skew|db:${err.dbVersion}|build:${err.buildVersion}|${dbPath}\n`
+          );
+          throw new SchemaVersionSkewError(err.dbVersion, err.buildVersion, dbPath);
+        }
         process.stderr.write(`NCA|fatal|migration_failed|v${err.version}|${err.migrationName}|${err.message}\n`);
       }
       throw err;

@@ -25,11 +25,44 @@ export class MigrationError extends Error {
     message: string,
     public readonly version: number,
     public readonly migrationName: string,
-    public readonly cause?: Error
+    public readonly cause?: Error,
+    /** Set only for the schema-version-skew case (DB newer than this build). */
+    public readonly dbVersion?: number,
+    /** Set only for the schema-version-skew case (DB newer than this build). */
+    public readonly buildVersion?: number
   ) {
     super(message);
     this.name = 'MigrationError';
   }
+}
+
+/**
+ * Thrown by Storage when a DB's schema_version is newer than what this build's
+ * migrations support — e.g. a long-lived MCP server process still running an
+ * older in-memory migrations list after the repo it was started from got
+ * rebuilt, while a freshly-invoked CLI command (always loading the current
+ * dist/) advanced the DB past it. Carries both versions and the DB path so
+ * callers can surface a short, actionable message instead of a raw exception.
+ */
+export class SchemaVersionSkewError extends Error {
+  constructor(
+    public readonly dbVersion: number,
+    public readonly buildVersion: number,
+    public readonly dbPath: string
+  ) {
+    super(
+      `NCA schema version mismatch: db_version=${dbVersion} build_version=${buildVersion} db_path=${dbPath} — ` +
+      `this build only understands schema up to v${buildVersion}, but the DB is at v${dbVersion}. ` +
+      `Fix: restart/upgrade the NCA build serving this request to one that supports v${dbVersion}, ` +
+      `or re-run 'nca scan' with the current build to regenerate a compatible DB at that path.`
+    );
+    this.name = 'SchemaVersionSkewError';
+  }
+}
+
+/** The highest schema version this build's migrations support. */
+export function getBuildSchemaVersion(): number {
+  return ALL_MIGRATIONS.length > 0 ? Math.max(...ALL_MIGRATIONS.map(m => m.version)) : 0;
 }
 
 /**
@@ -75,7 +108,10 @@ export function runMigrations(db: Database): { applied: number[]; from: number; 
       `DB schema_version (${startVersion}) is newer than this build supports (${targetVersion}). ` +
       `Upgrade NCA or restore a compatible DB.`,
       startVersion,
-      'runMigrations'
+      'runMigrations',
+      undefined,
+      startVersion,
+      targetVersion
     );
   }
 

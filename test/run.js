@@ -53,7 +53,7 @@ if (!fs.existsSync(CLI)) {
 
 const Database = require('better-sqlite3');
 const { Storage: StorageClass } = require(path.join(ROOT, 'dist', 'storage.js'));
-const { MigrationError } = require(path.join(ROOT, 'dist', 'migrations', 'index.js'));
+const { MigrationError, SchemaVersionSkewError, getBuildSchemaVersion } = require(path.join(ROOT, 'dist', 'migrations', 'index.js'));
 
 // AC1: scan works
 test('AC1 scan indexes fixture files', () => {
@@ -180,6 +180,89 @@ test('MIG-03 future schema_version aborts', () => {
       );
     }
     assert(threw, 'Expected Storage constructor to throw on future schema_version');
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// MIG-03b: future schema_version raises a structured SchemaVersionSkewError
+// (db version, build version, db path — no stack trace leaking to the caller)
+test('MIG-03b schema skew raises structured error with both versions and db path', () => {
+  const dbFile = path.join(tmpDir, 'mig03b.db');
+  try {
+    const db = new Database(dbFile);
+    db.exec(`
+      CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      INSERT INTO schema_meta (key, value) VALUES ('schema_version', '999');
+    `);
+    db.close();
+
+    let caught = null;
+    try {
+      const storage = new StorageClass(dbFile);
+      storage.close();
+    } catch (err) {
+      caught = err;
+    }
+
+    assert(caught, 'Expected Storage constructor to throw on future schema_version');
+    assert(caught instanceof SchemaVersionSkewError,
+      `Expected SchemaVersionSkewError, got: ${caught.name}`);
+    assert(caught.dbVersion === 999, `Expected dbVersion=999, got: ${caught.dbVersion}`);
+    assert(caught.buildVersion === getBuildSchemaVersion(),
+      `Expected buildVersion=${getBuildSchemaVersion()}, got: ${caught.buildVersion}`);
+    assert(caught.dbPath === dbFile, `Expected dbPath=${dbFile}, got: ${caught.dbPath}`);
+    assert(caught.message.includes('db_version=999'), `Expected db_version=999 in message, got: ${caught.message}`);
+    assert(caught.message.includes(`build_version=${getBuildSchemaVersion()}`),
+      `Expected build_version=${getBuildSchemaVersion()} in message, got: ${caught.message}`);
+    assert(caught.message.includes(dbFile), `Expected db path in message, got: ${caught.message}`);
+    assert(/fix:/i.test(caught.message), `Expected a suggested action in message, got: ${caught.message}`);
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// MIG-03c: a real (non-skew) migration failure still throws a plain MigrationError
+// with dbVersion/buildVersion left undefined — skew handling must not swallow other cases
+test('MIG-03c non-skew MigrationError leaves dbVersion/buildVersion undefined', () => {
+  const dbFile = path.join(tmpDir, 'mig03c.db');
+  try {
+    const db = new Database(dbFile);
+    db.exec(`
+      CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      INSERT INTO schema_meta (key, value) VALUES ('schema_version', 'not_a_number');
+    `);
+    db.close();
+
+    let caught = null;
+    try {
+      const storage = new StorageClass(dbFile);
+      storage.close();
+    } catch (err) {
+      caught = err;
+    }
+
+    assert(caught, 'Expected Storage constructor to throw on invalid schema_version');
+    assert(caught.name === 'MigrationError', `Expected plain MigrationError, got: ${caught.name}`);
+    assert(caught.dbVersion === undefined, `Expected dbVersion undefined for non-skew error, got: ${caught.dbVersion}`);
+    assert(caught.buildVersion === undefined, `Expected buildVersion undefined for non-skew error, got: ${caught.buildVersion}`);
+  } finally {
+    try { fs.unlinkSync(dbFile); } catch {}
+  }
+});
+
+// MIG-03d: normal (non-skewed) DB open is unaffected — no skew error, no behavior change
+test('MIG-03d non-skewed DB opens normally with no skew error', () => {
+  const dbFile = path.join(tmpDir, 'mig03d.db');
+  try {
+    const storage = new StorageClass(dbFile);
+    storage.close();
+
+    const db = new Database(dbFile);
+    const versionRow = db.prepare("SELECT value FROM schema_meta WHERE key = 'schema_version'").get();
+    assert(versionRow && parseInt(versionRow.value, 10) === getBuildSchemaVersion(),
+      `Expected schema_version=${getBuildSchemaVersion()}, got: ${JSON.stringify(versionRow)}`);
+    db.close();
   } finally {
     try { fs.unlinkSync(dbFile); } catch {}
   }
