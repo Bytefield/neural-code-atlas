@@ -10,6 +10,11 @@
  *
  * Test-side only. Not a product command — there is no `nca replay` anywhere in src/.
  *
+ * Requires test/fixtures/replay/historical-classes.json to exist (run
+ * `node test/replay/historical.js` once to generate it) — the gate's
+ * direct_hit criterion reads baseline_scoped_direct_hits from it rather than
+ * a hardcoded number.
+ *
  * Usage:
  *   node test/replay/run.js [--dist <path>] [--out-prefix <path>]
  *       [--capture-golden <dir>] [--check]
@@ -218,7 +223,23 @@ function classify(response) {
 
 // ─── Report ─────────────────────────────────────────────────────────────────
 
-function buildReport(distDir, results) {
+/**
+ * baseline_scoped_direct_hits = number of historical (June baseline) direct_hit
+ * classifications among the 58 in-scope queries, per
+ * test/fixtures/replay/historical-classes.json (test/replay/historical.js).
+ * This replaces the earlier hardcoded ">= 12" (which mixed the in-scope and
+ * out-of-scope populations) with a number read from that file, not assumed.
+ */
+function loadBaselineScopedDirectHits() {
+  const histPath = path.join(FIXTURE_DIR, 'historical-classes.json');
+  if (!fs.existsSync(histPath)) {
+    throw new Error(`${histPath} not found — run \`node test/replay/historical.js\` first to compute the scoped baseline.`);
+  }
+  const hist = JSON.parse(fs.readFileSync(histPath, 'utf-8'));
+  return hist.filter(h => h.in_scope && h.cls === 'direct_hit').length;
+}
+
+function buildReport(distDir, results, baselineScopedDirectHits, goldenDiffs) {
   const counts = { direct_hit: 0, clean_no_match: 0, noisy_fallback: 0, known_env_error: 0, product_error: 0, out_of_scope: 0 };
   for (const r of results) counts[r.cls]++;
 
@@ -233,7 +254,13 @@ function buildReport(distDir, results) {
   const gate = {
     noisy_fallback_zero: { pass: inScopeCounts.noisy_fallback === 0, value: inScopeCounts.noisy_fallback, required: '== 0' },
     product_error_zero: { pass: inScopeCounts.product_error === 0, value: inScopeCounts.product_error, required: '== 0 (known_env_error excluded)' },
-    direct_hit_at_least_12: { pass: inScopeCounts.direct_hit >= 12, value: inScopeCounts.direct_hit, required: '>= 12' },
+    direct_hit_at_least_scoped_baseline: {
+      pass: inScopeCounts.direct_hit >= baselineScopedDirectHits && (goldenDiffs ?? []).length === 0,
+      value: inScopeCounts.direct_hit,
+      required: `>= ${baselineScopedDirectHits} (baseline_scoped_direct_hits, from historical-classes.json) AND 0 golden diffs`,
+      baseline_scoped_direct_hits: baselineScopedDirectHits,
+      golden_diffs_count: (goldenDiffs ?? []).length,
+    },
     clean_no_match_explicit: {
       pass: inScope.filter(r => r.cls === 'clean_no_match' || r.cls === 'noisy_fallback').every(r => r.cls === 'clean_no_match'),
       value: inScopeCounts.clean_no_match,
@@ -263,7 +290,7 @@ function buildReport(distDir, results) {
   };
 }
 
-function toMarkdown(report, goldenDiffs) {
+function toMarkdown(report, goldenDiffs, historical) {
   const lines = [];
   lines.push('# nca_ask replay report — Phase A exit gate');
   lines.push('');
@@ -287,6 +314,54 @@ function toMarkdown(report, goldenDiffs) {
   lines.push('');
   lines.push(`**Overall gate: ${report.gate.overall_pass ? 'PASS' : 'FAIL'}**`);
   lines.push('');
+
+  if (historical) {
+    const allCounts = {};
+    for (const h of historical) allCounts[h.cls] = (allCounts[h.cls] || 0) + 1;
+    const scoped = historical.filter(h => h.in_scope);
+    const scopedCounts = {};
+    for (const h of scoped) scopedCounts[h.cls] = (scopedCounts[h.cls] || 0) + 1;
+    const baselineHits = scoped.filter(h => h.cls === 'direct_hit');
+
+    lines.push('## Historical baseline (June 2026 live sessions), same classifier');
+    lines.push('');
+    lines.push(`All 64: ${JSON.stringify(allCounts)}`);
+    lines.push('');
+    lines.push(`In-scope 58: ${JSON.stringify(scopedCounts)}`);
+    lines.push('');
+    lines.push(`**baseline_scoped_direct_hits = ${baselineHits.length}**`);
+    lines.push('');
+    lines.push('### Traceability: historical in-scope direct_hit -> today\'s replay class');
+    lines.push('');
+    lines.push('| event_id | query | replay class today | drift verdict | anomaly |');
+    lines.push('|---|---|---|---|---|');
+    const byId = new Map(report.results.map(r => [r.event_id, r]));
+    const anomalies = [];
+    for (const h of baselineHits) {
+      const r = byId.get(h.event_id);
+      const verdict = r && r.drift ? r.drift.verdict : 'n/a';
+      const isAnomaly = !!(r && r.cls === 'clean_no_match' && verdict === 'symbol_present_but_missed');
+      if (isAnomaly) anomalies.push({ event_id: h.event_id, query: h.query, verdict, candidates: r.drift.candidates });
+      lines.push(`| ${h.event_id} | ${JSON.stringify(h.query)} | ${r ? r.cls : 'MISSING'} | ${verdict} | ${isAnomaly ? '**ANOMALY**' : ''} |`);
+    }
+    lines.push('');
+    if (anomalies.length > 0) {
+      lines.push(`### Anomalies (${anomalies.length}): historical direct_hit, today symbol_present_but_missed`);
+      lines.push('');
+      lines.push('Reported, not fixed, per task scope.');
+      lines.push('');
+      for (const a of anomalies) {
+        const cands = a.candidates.map(c => `${c.token}${c.exists ? ' (exists: ' + c.evidence + ')' : ' (absent)'}`).join('; ');
+        lines.push(`- \`${a.event_id}\` (${JSON.stringify(a.query)}): candidates — ${cands}`);
+      }
+      lines.push('');
+    } else {
+      lines.push('### Anomalies');
+      lines.push('');
+      lines.push('None.');
+      lines.push('');
+    }
+  }
   if (goldenDiffs && goldenDiffs.length > 0) {
     lines.push('## Golden diffs (direct_hit content changed vs pre-fix build)');
     lines.push('');
@@ -485,13 +560,17 @@ async function main() {
     }
   }
 
-  const report = buildReport(opts.dist, ordered);
+  const baselineScopedDirectHits = loadBaselineScopedDirectHits();
+  const report = buildReport(opts.dist, ordered, baselineScopedDirectHits, goldenDiffs);
   report.golden_diffs = goldenDiffs;
+
+  const histPath = path.join(FIXTURE_DIR, 'historical-classes.json');
+  const historical = fs.existsSync(histPath) ? JSON.parse(fs.readFileSync(histPath, 'utf-8')) : null;
 
   const jsonPath = `${opts.outPrefix}.json`;
   const mdPath = `${opts.outPrefix}.md`;
   fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2) + '\n', 'utf-8');
-  fs.writeFileSync(mdPath, toMarkdown(report, goldenDiffs), 'utf-8');
+  fs.writeFileSync(mdPath, toMarkdown(report, goldenDiffs, historical), 'utf-8');
 
   console.log(`Report written to ${jsonPath} and ${mdPath}`);
   console.log(`Counts: ${JSON.stringify(report.counts)}`);
@@ -521,7 +600,15 @@ async function main() {
   process.exit(report.gate.overall_pass ? 0 : 1);
 }
 
-main().catch(err => {
-  console.error('FATAL:', err.stack || err.message);
-  process.exit(2);
-});
+// Exported so other scripts (e.g. test/replay/historical.js) can reuse the exact
+// same classification rules against differently-sourced input, without copying
+// or re-implementing them. Guarded below so requiring this module never
+// triggers main() — only `node test/replay/run.js` does.
+module.exports = { classify, normalizeOutput, KNOWN_ENV_ERROR_RE };
+
+if (require.main === module) {
+  main().catch(err => {
+    console.error('FATAL:', err.stack || err.message);
+    process.exit(2);
+  });
+}

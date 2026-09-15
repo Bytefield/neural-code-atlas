@@ -1,6 +1,6 @@
 {
-  "dist": "/mnt/c/dev/nca-replay-fixture/dist",
-  "generated_at": "2026-09-15T09:10:23.866Z",
+  "dist": "/mnt/c/dev/nca-replay-scoped-baseline/dist",
+  "generated_at": "2026-09-15T09:29:02.005Z",
   "fixture_query_count": 64,
   "in_scope_count": 58,
   "out_of_scope_count": 6,
@@ -30,10 +30,12 @@
       "value": 0,
       "required": "== 0 (known_env_error excluded)"
     },
-    "direct_hit_at_least_12": {
+    "direct_hit_at_least_scoped_baseline": {
       "pass": false,
       "value": 7,
-      "required": ">= 12"
+      "required": ">= 12 (baseline_scoped_direct_hits, from historical-classes.json) AND 0 golden diffs",
+      "baseline_scoped_direct_hits": 12,
+      "golden_diffs_count": 0
     },
     "clean_no_match_explicit": {
       "pass": true,
@@ -66,12 +68,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/companies/page.tsx:216:  const [showArchived, setShowArchived] = useState(false);"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -118,12 +115,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/companies/new/page.tsx:28:  type WizardStep,"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -179,12 +171,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/lib/notifications/discord.ts:14: * Silent-fails if DISCORD_NOTIFICATION_WEBHOOK is not configured or if the request fails."
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -204,12 +191,7 @@
             "exists": true,
             "evidence": "src/lib/services/__tests__/company-assistant.service.test.ts"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -294,12 +276,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:scripts/push-retell-prompt-staging.ts:16:import { loadCompanyConfigForPrompt } from \"../src/lib/services/company-assistant.service\";"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -364,12 +341,7 @@
             "exists": false,
             "evidence": null
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -389,12 +361,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/context.ts:103:  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -414,12 +381,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/api/calendar/google/authorize/route.ts:76:  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -459,12 +421,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/migrations/20260101000000_synio_core_schema/migration.sql:5:CREATE TYPE \"SubscriptionStatus\" AS ENUM ('TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELLED');"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -484,12 +441,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/schema.prisma:936:  @@index([companyId, start]) // Primary query index for checkAvailability"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -509,12 +461,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/api/calendar/microsoft/authorize/route.ts:75:  const clientId = process.env.AZURE_CALENDAR_CLIENT_ID;"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -572,12 +519,7 @@
             "exists": true,
             "evidence": "src/lib/prompt/__tests__/token-estimator.test.ts"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -605,12 +547,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:scripts/backup-daily.sh:14:DISCORD_WEBHOOK=\"${DISCORD_ERROR_WEBHOOK:-}\""
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -706,12 +643,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/migrations/FULL_TEXT_SEARCH_MIGRATION.sql:235:-- const results = await prisma.$queryRaw`"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -757,12 +689,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/layout.tsx:9:export default async function AdminLayout({"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -788,12 +715,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/layout.tsx:9:export default async function AdminLayout({"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -839,12 +761,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/lib/external/retell-api.ts:176:export async function updateRetellAgent("
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -898,12 +815,7 @@
             "exists": false,
             "evidence": null
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -923,12 +835,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/migrations/add-row-level-security.sql:286:In your application code (tRPC context or middleware), add:"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -961,12 +868,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/companies/[id]/page.tsx:115:  const archiveCompany = trpc.synio.archiveCompany.useMutation({"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -1030,12 +932,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/manual/_archived_2026_04_30/017_client_outbound.sql:9:-- 4. Add isNoShowRecovery to PipelineStage"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -1107,12 +1004,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/context.ts:103:  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -1181,12 +1073,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/schema.prisma:2279:  requiredTools  Json @default(\"[]\") // ToolAssertion[] — [{name: \"manageAppointment\", mode?: \"cancel\"}]"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -1206,12 +1093,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/context.ts:103:  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -1249,12 +1131,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/migrations/add-row-level-security.sql:286:In your application code (tRPC context or middleware), add:"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     },
     {
@@ -1274,12 +1151,7 @@
             "exists": true,
             "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/manual/_archived_2026_04_30/017_client_outbound.sql:22:    \"companyId\"     TEXT NOT NULL,"
           }
-        ],
-        "regression_check": {
-          "compare_dist": "/tmp/nca-june-build/dist",
-          "compare_cls": "noisy_fallback",
-          "regression_confirmed": false
-        }
+        ]
       }
     }
   ],

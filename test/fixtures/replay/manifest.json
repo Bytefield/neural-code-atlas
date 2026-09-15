@@ -65,8 +65,19 @@
     "scope": "Computed over the 58 in-scope queries only (64 minus the 6 out_of_scope). out_of_scope queries are reported (class + reason) but never enter a gate denominator.",
     "noisy_fallback_count": "must be 0",
     "product_error_count": "must be 0 (known_env_error excluded)",
-    "direct_hit_count": "must be >= 12, and content must be byte-identical (after normalization) to the pre-fix golden output for the same query",
+    "direct_hit_count": "must be >= baseline_scoped_direct_hits (read from test/fixtures/replay/historical-classes.json — the number of historical, June-2026 direct_hit classifications among the 58 in-scope queries, NOT the original unscoped 12; see historical_baseline below), AND 0 golden diffs against the pre-fix build's direct_hit content",
     "clean_no_match": "every non-hit, non-error query must land in clean_no_match, not noisy_fallback"
+  },
+
+  "historical_baseline": {
+    "purpose": "The original gate used a hardcoded '>= 12', which mixed two populations: the 12 historical direct_hit calls could in principle have included some of the 6 out_of_scope queries, making the 12-vs-58 comparison apples-to-oranges. This computes the correct reference number instead of assuming it.",
+    "method": "test/replay/historical.js locates, for each of the 64 frozen event_ids, the tool_use block that produced it in the raw May/June 2026 baseline transcripts (same bijective event_id-hash matching used to build queries.jsonl — see queries.reconstruction_method) and its paired tool_result, adapts that {content, is_error} block losslessly into the {result:{content}}|{error:{message}} shape test/replay/run.js:classify() expects, and classifies it with that exact function (imported, not reimplemented or modified — run.js now exports it behind a require.main guard so `node test/replay/run.js` behavior is unchanged). Writes test/fixtures/replay/historical-classes.json (64 entries: event_id, session_id, query, project_arg, in_scope, cls, detail).",
+    "result_all_64": { "noisy_fallback": 43, "direct_hit": 12, "known_env_error": 4, "clean_no_match": 5 },
+    "result_in_scope_58": { "noisy_fallback": 42, "direct_hit": 12, "known_env_error": 4 },
+    "note_on_distribution": "Matches Phase 0's original 12/48/4 essentially exactly once accounted for: the classifier's finer clean_no_match/noisy_fallback split of the 48 no-match calls (43 noisy_fallback + 5 clean_no_match — the 5 are precisely the 5 out-of-scope vault queries, whose target index has an empty flows table so even the pre-#54 build never printed [F] for them) and the classifier's known_env_error regex correctly recognizing the pre-#55 raw message form ('schema_version (4) is newer than this build supports (3)') for all 4 historical hard errors, not just the post-#55 SchemaVersionSkewError message.",
+    "baseline_scoped_direct_hits": 12,
+    "note_on_this_number": "All 12 historical direct_hit calls happen to be in-scope (0 among the 6 out_of_scope) — so baseline_scoped_direct_hits equals the original 12 anyway. This is a coincidence of this specific fixture, not something assumed going in; the calculation exists so it stays correct if the query population ever changes.",
+    "traceability_anomalies": "2 of the 12 historical in-scope direct_hit queries are 'vapi tools manage-appointment build-prompt token-estimator' and 'withRLSContext' — today both classify clean_no_match with drift verdict symbol_present_but_missed (not symbol_absent), meaning at least one candidate token drift.js extracted from them still exists in the source tree, yet nca_ask no longer finds a match, unlike a clean drift case. Reported as anomalies in report.md, not investigated further or fixed — see manifest.drift_vs_regression_analysis.caveat above on git-grep matching comments/non-node text, which likely explains 'withRLSContext' (its only surviving occurrence is inside a comment, not a declaration)."
   },
 
   "drift_vs_regression_analysis": {
