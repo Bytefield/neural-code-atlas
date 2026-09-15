@@ -29,6 +29,15 @@
  *                          run it as its own step, not part of test/run.js, since
  *                          it spawns a real child process and is slow relative to
  *                          that suite.
+ *   --compare-dist <path>  Directory containing an mcp.js from an earlier NCA
+ *                          build (e.g. the last commit at/before the baseline
+ *                          window's end). For every in-scope clean_no_match query
+ *                          whose drift analysis says symbol_present_but_missed,
+ *                          re-runs that exact query against this build (same
+ *                          frozen index) and records whether it found a match —
+ *                          this is the empirical drift-vs-regression test
+ *                          (task: "ejecuta la misma query contra el build del
+ *                          final de la ventana baseline").
  */
 
 const { spawn } = require('child_process');
@@ -37,6 +46,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const { classifyQuery } = require('./drift.js');
 
 const REPLAY_DIR = __dirname;
 const FIXTURE_DIR = path.join(REPLAY_DIR, '..', 'fixtures', 'replay');
@@ -45,12 +55,13 @@ const REPO_ROOT = path.join(REPLAY_DIR, '..', '..');
 // ─── CLI args ───────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-  const out = { dist: path.join(REPO_ROOT, 'dist'), outPrefix: path.join(REPLAY_DIR, 'report'), captureGolden: null, check: false };
+  const out = { dist: path.join(REPO_ROOT, 'dist'), outPrefix: path.join(REPLAY_DIR, 'report'), captureGolden: null, check: false, compareDist: null };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--dist') out.dist = path.resolve(argv[++i]);
     else if (argv[i] === '--out-prefix') out.outPrefix = path.resolve(argv[++i]);
     else if (argv[i] === '--capture-golden') out.captureGolden = path.resolve(argv[++i]);
     else if (argv[i] === '--check') out.check = true;
+    else if (argv[i] === '--compare-dist') out.compareDist = path.resolve(argv[++i]);
   }
   return out;
 }
@@ -208,16 +219,24 @@ function classify(response) {
 // ─── Report ─────────────────────────────────────────────────────────────────
 
 function buildReport(distDir, results) {
-  const counts = { direct_hit: 0, clean_no_match: 0, noisy_fallback: 0, known_env_error: 0, product_error: 0 };
+  const counts = { direct_hit: 0, clean_no_match: 0, noisy_fallback: 0, known_env_error: 0, product_error: 0, out_of_scope: 0 };
   for (const r of results) counts[r.cls]++;
 
+  // The gate is defined over in-scope queries only (task: "el gate se calcula
+  // sobre las 58 in-scope"). out_of_scope queries are reported but excluded
+  // from every gate denominator and from the pass/fail criteria below.
+  const inScope = results.filter(r => r.cls !== 'out_of_scope');
+  const outOfScope = results.filter(r => r.cls === 'out_of_scope');
+  const inScopeCounts = { direct_hit: 0, clean_no_match: 0, noisy_fallback: 0, known_env_error: 0, product_error: 0 };
+  for (const r of inScope) inScopeCounts[r.cls]++;
+
   const gate = {
-    noisy_fallback_zero: { pass: counts.noisy_fallback === 0, value: counts.noisy_fallback, required: '== 0' },
-    product_error_zero: { pass: counts.product_error === 0, value: counts.product_error, required: '== 0 (known_env_error excluded)' },
-    direct_hit_at_least_12: { pass: counts.direct_hit >= 12, value: counts.direct_hit, required: '>= 12' },
+    noisy_fallback_zero: { pass: inScopeCounts.noisy_fallback === 0, value: inScopeCounts.noisy_fallback, required: '== 0' },
+    product_error_zero: { pass: inScopeCounts.product_error === 0, value: inScopeCounts.product_error, required: '== 0 (known_env_error excluded)' },
+    direct_hit_at_least_12: { pass: inScopeCounts.direct_hit >= 12, value: inScopeCounts.direct_hit, required: '>= 12' },
     clean_no_match_explicit: {
-      pass: results.filter(r => r.cls === 'clean_no_match' || r.cls === 'noisy_fallback').every(r => r.cls === 'clean_no_match'),
-      value: counts.clean_no_match,
+      pass: inScope.filter(r => r.cls === 'clean_no_match' || r.cls === 'noisy_fallback').every(r => r.cls === 'clean_no_match'),
+      value: inScopeCounts.clean_no_match,
       required: 'every non-hit, non-error query is clean_no_match (0 noisy_fallback)',
     },
   };
@@ -227,9 +246,20 @@ function buildReport(distDir, results) {
     dist: distDir,
     generated_at: new Date().toISOString(),
     fixture_query_count: results.length,
+    in_scope_count: inScope.length,
+    out_of_scope_count: outOfScope.length,
     counts,
+    in_scope_counts: inScopeCounts,
     gate,
-    results: results.map(r => ({ event_id: r.event_id, session_id: r.session_id, query: r.query, project_arg: r.project_arg, cls: r.cls, out_of_scope_project: r.outOfScope })),
+    results: results.map(r => ({
+      event_id: r.event_id,
+      session_id: r.session_id,
+      query: r.query,
+      project_arg: r.project_arg,
+      cls: r.cls,
+      out_of_scope_project: r.outOfScope,
+      drift: r.drift ?? undefined,
+    })),
   };
 }
 
@@ -238,15 +268,15 @@ function toMarkdown(report, goldenDiffs) {
   lines.push('# nca_ask replay report — Phase A exit gate');
   lines.push('');
   lines.push(`Dist under test: \`${report.dist}\``);
-  lines.push(`Queries replayed: ${report.fixture_query_count}`);
+  lines.push(`Queries replayed: ${report.fixture_query_count} (${report.in_scope_count} in-scope + ${report.out_of_scope_count} out_of_scope, not executed — see below)`);
   lines.push('');
-  lines.push('## Counts by class');
+  lines.push('## Counts by class (all 64)');
   lines.push('');
   lines.push('| class | count |');
   lines.push('|---|---|');
   for (const [k, v] of Object.entries(report.counts)) lines.push(`| ${k} | ${v} |`);
   lines.push('');
-  lines.push('## Gate');
+  lines.push(`## Gate (computed over the ${report.in_scope_count} in-scope queries only)`);
   lines.push('');
   lines.push('| criterion | required | value | result |');
   lines.push('|---|---|---|---|');
@@ -281,6 +311,28 @@ function toMarkdown(report, goldenDiffs) {
     for (const r of outOfScope) lines.push(`| ${r.event_id} | ${JSON.stringify(r.query)} | ${r.project_arg} | ${r.cls} |`);
   }
   lines.push('');
+  lines.push('## Drift vs regression (clean_no_match, in-scope only)');
+  lines.push('');
+  const driftRows = report.results.filter(r => r.drift);
+  const driftCounts = { symbol_absent: 0, symbol_present_but_missed: 0, undeterminable: 0 };
+  for (const r of driftRows) driftCounts[r.drift.verdict]++;
+  lines.push(`Counts — symbol_absent (drift): ${driftCounts.symbol_absent} · symbol_present_but_missed: ${driftCounts.symbol_present_but_missed} · undeterminable: ${driftCounts.undeterminable}`);
+  lines.push('');
+  lines.push('| event_id | query | candidate(s) | exists in synio@commit | verdict | regression check |');
+  lines.push('|---|---|---|---|---|---|');
+  for (const r of driftRows) {
+    const cands = r.drift.candidates.length > 0
+      ? r.drift.candidates.map(c => `${c.token}${c.exists ? ' ✓' : ' ✗'}`).join(', ')
+      : '—';
+    const anyExists = r.drift.candidates.some(c => c.exists);
+    const rc = r.drift.regression_check
+      ? (r.drift.regression_check.regression_confirmed
+          ? `**REGRESSION** (compare build: ${r.drift.regression_check.compare_cls})`
+          : `not a regression (compare build: ${r.drift.regression_check.compare_cls})`)
+      : (r.drift.verdict === 'symbol_present_but_missed' ? 'not checked' : 'n/a');
+    lines.push(`| ${r.event_id} | ${JSON.stringify(r.query)} | ${cands} | ${anyExists ? 'yes' : 'no'} | ${r.drift.verdict} | ${rc} |`);
+  }
+  lines.push('');
   lines.push('## All queries');
   lines.push('');
   lines.push('| event_id | class | query |');
@@ -288,6 +340,36 @@ function toMarkdown(report, goldenDiffs) {
   for (const r of report.results) lines.push(`| ${r.event_id} | ${r.cls} | ${JSON.stringify(r.query)} |`);
   lines.push('');
   return lines.join('\n');
+}
+
+// ─── Replay: run a set of queries against one dist, over the real MCP transport ──
+
+async function replay(distDir, queriesToRun, manifest) {
+  const workdir = prepareWorkdir(manifest);
+  const server = startServer(distDir, workdir.dbPath, workdir.registryPath);
+  const results = [];
+
+  try {
+    await new Promise(r => setTimeout(r, 500)); // server init, mirrors AC5
+
+    const calls = queriesToRun.map((q, i) => {
+      const args = { query: q.query };
+      if (q.project_arg) args.project = q.project_arg;
+      return server.call('nca_ask', args, i + 1).then(response => {
+        const { cls, detail } = classify(response);
+        results.push({ event_id: q.event_id, session_id: q.session_id, query: q.query, project_arg: q.project_arg, cls, detail, outOfScope: false });
+      }).catch(err => {
+        results.push({ event_id: q.event_id, session_id: q.session_id, query: q.query, project_arg: q.project_arg, cls: 'product_error', detail: `harness error: ${err.message}`, outOfScope: false });
+      });
+    });
+
+    await Promise.all(calls);
+  } finally {
+    await server.close();
+    workdir.cleanup();
+  }
+
+  return results;
 }
 
 // ─── Main ───────────────────────────────────────────────────────────────────
@@ -316,52 +398,67 @@ async function main() {
     process.exit(2);
   }
 
-  const workdir = prepareWorkdir(manifest);
-  const server = startServer(opts.dist, workdir.dbPath, workdir.registryPath);
-
-  const OUT_OF_SCOPE_ROOTS = ['/mnt/c/Users/jesus/Desktop/Papi_Obsidian_Vault', '/mnt/c/dev/webs/synio-web'];
+  // A query is in scope iff it targets the frozen index's project root, either
+  // implicitly (no project arg -> resolves via NCA_DB_PATH) or explicitly. Any
+  // other project arg points at an index this fixture does not freeze (see
+  // manifest.queries.caveat_out_of_scope_project_args) — classify it without
+  // executing nca_ask at all, so the report never depends on that live state.
+  const isOutOfScope = (q) => !!q.project_arg && q.project_arg !== manifest.index.root;
+  const inScopeQueries = queries.filter(q => !isOutOfScope(q));
+  const outOfScopeQueries = queries.filter(isOutOfScope);
 
   const results = [];
-  try {
-    await new Promise(r => setTimeout(r, 500)); // server init, mirrors AC5
-
-    const calls = queries.map((q, i) => {
-      const args = { query: q.query };
-      if (q.project_arg) args.project = q.project_arg;
-      return server.call('nca_ask', args, i + 1).then(response => {
-        const { cls, detail } = classify(response);
-        results.push({
-          event_id: q.event_id,
-          session_id: q.session_id,
-          query: q.query,
-          project_arg: q.project_arg,
-          cls,
-          detail,
-          outOfScope: !!(q.project_arg && OUT_OF_SCOPE_ROOTS.some(root => q.project_arg.startsWith(root))),
-        });
-      }).catch(err => {
-        results.push({
-          event_id: q.event_id,
-          session_id: q.session_id,
-          query: q.query,
-          project_arg: q.project_arg,
-          cls: 'product_error',
-          detail: `harness error: ${err.message}`,
-          outOfScope: !!(q.project_arg && OUT_OF_SCOPE_ROOTS.some(root => q.project_arg.startsWith(root))),
-        });
-      });
+  for (const q of outOfScopeQueries) {
+    results.push({
+      event_id: q.event_id,
+      session_id: q.session_id,
+      query: q.query,
+      project_arg: q.project_arg,
+      cls: 'out_of_scope',
+      detail: `project_arg='${q.project_arg}' is not the frozen index root ('${manifest.index.root}') — not executed; excluded from the gate.`,
+      outOfScope: true,
     });
-
-    await Promise.all(calls);
-  } finally {
-    await server.close();
-    workdir.cleanup();
   }
+
+  const inScopeResults = await replay(opts.dist, inScopeQueries, manifest);
+  results.push(...inScopeResults);
 
   // Restore fixture order (Promise.all preserves array order of pushes only if
   // sequential; results were pushed in resolution order, so re-sort by fixture order)
   const byEventId = new Map(results.map(r => [r.event_id, r]));
   const ordered = queries.map(q => byEventId.get(q.event_id));
+
+  // Drift vs regression discrimination (task item 2) — for every in-scope
+  // clean_no_match, check whether the query's target still exists in synio at
+  // the commit the frozen index was built from.
+  for (const r of ordered) {
+    if (r.cls === 'clean_no_match' && !r.outOfScope) {
+      r.drift = classifyQuery(r.query, manifest.index.root, manifest.index.synio_commit);
+    }
+  }
+
+  // Empirical regression check (task item 2, final paragraph): for every
+  // symbol_present_but_missed candidate, replay the SAME query against an
+  // earlier NCA build (the one passed via --compare-dist) against the SAME
+  // frozen index, and compare classes. A flip (earlier build found it, this
+  // one doesn't) is a confirmed regression; identical behavior on both builds
+  // means the miss predates (or is unrelated to) anything between the two.
+  if (opts.compareDist) {
+    const candidates = ordered.filter(r => r.drift && r.drift.verdict === 'symbol_present_but_missed');
+    if (candidates.length > 0) {
+      const compareQueries = candidates.map(r => ({ event_id: r.event_id, session_id: r.session_id, query: r.query, project_arg: r.project_arg }));
+      const compareResults = await replay(opts.compareDist, compareQueries, manifest);
+      const compareByEvent = new Map(compareResults.map(c => [c.event_id, c]));
+      for (const r of candidates) {
+        const cmp = compareByEvent.get(r.event_id);
+        r.drift.regression_check = {
+          compare_dist: opts.compareDist,
+          compare_cls: cmp ? cmp.cls : 'no_response',
+          regression_confirmed: !!cmp && cmp.cls === 'direct_hit' && r.cls !== 'direct_hit',
+        };
+      }
+    }
+  }
 
   if (opts.captureGolden) {
     fs.mkdirSync(opts.captureGolden, { recursive: true });
