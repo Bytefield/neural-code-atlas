@@ -1,0 +1,21 @@
+NCA|q:validateCompanyAccess|t:<TS>
+[N]
+@arrow.validateCompanyAccess{m:src/server/trpc/init|i:{ ctx, next, input, path, type }|o:|d:@trpc/server,@prisma/client,getSession,createContext,createServerContext|e:db|cx:11|f:/tmp/synio-baseline-checkout/src/server/trpc/init.ts:168|dir:trpc|pr:#14/2801|gn:yes(291)}
+@arrow.updateUser{m:src/server/trpc/routers/user.router|i:{ ctx, input }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:16|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/user.router.ts:72|dir:routers|pr:#897/2801|gn:no}
+@arrow.getUserProfile{m:src/server/trpc/routers/user.router|i:{ ctx, input }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:6|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/user.router.ts:20|dir:routers|pr:#896/2801|gn:no}
+@arrow.updateEmailSettings{m:src/server/trpc/routers/systemConfig.router|i:{ input, ctx }|o:|d:errorFormatter,errorTracking,csrf,isAuthed,validateCompanyAccess|e:db|cx:6|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/systemConfig.router.ts:174|dir:routers|pr:#2353/2801|gn:no}
+@arrow.update{m:src/server/trpc/routers/apikey.router|i:{ ctx, input }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:6|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/apikey.router.ts:194|dir:routers|pr:#803/2801|gn:no}
+@arrow.create{m:src/server/trpc/routers/notifications.router|i:{ ctx, input }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:5|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/notifications.router.ts:184|dir:routers|pr:#2278/2801|gn:no}
+@arrow.getByKey{m:src/server/trpc/routers/systemConfig.router|i:{ input, ctx }|o:|d:errorFormatter,errorTracking,csrf,isAuthed,validateCompanyAccess|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/systemConfig.router.ts:33|dir:routers|pr:#2350/2801|gn:no}
+@arrow.set{m:src/server/trpc/routers/systemConfig.router|i:{ input, ctx }|o:|d:errorFormatter,errorTracking,csrf,isAuthed,validateCompanyAccess|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/systemConfig.router.ts:89|dir:routers|pr:#2352/2801|gn:no}
+@arrow.markAsRead{m:src/server/trpc/routers/notifications.router|i:{ ctx, input }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/notifications.router.ts:80|dir:routers|pr:#759/2801|gn:no}
+@arrow.getReminde
+NCA|truncated|220_nodes_omitted
+[DOCS]
+~/tmp/synio-baseline-checkout/docs/security/SECURITY_FIXES_SUMMARY.md|title:SECURITY_FIXES_SUMMARY|excerpt:**Secure alternatives available:**
+- **Company staff:** Admin panel (server-side companyId assignment)
+- **Clients:** `registerClient` with invite tokens (already implemented)
+
+---
+
+## 🛡️ Security...

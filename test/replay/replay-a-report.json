@@ -1,0 +1,391 @@
+{
+  "generated_at": "2026-09-15T09:47:22.329Z",
+  "reference_dist": "/tmp/nca-june-build/dist",
+  "test_dist": "/mnt/c/dev/nca-replay-scoped/dist",
+  "baseline_index": {
+    "synio_commit": "13c01e51b152a6db13b6aa062a70d35f71053187",
+    "sha256": "653a7ce574611899ebc2702ba22848616f62dec42c9d03a9168abfc2f3d2d530"
+  },
+  "in_scope_count": 58,
+  "reference_direct_hit_count": 8,
+  "test_direct_hit_count": 8,
+  "regressions": [],
+  "golden_diffs": [],
+  "historical_reconstruction_limits": [
+    {
+      "event_id": "32b1871be396d7ff",
+      "query": "manage-appointment.ts imports dependencies",
+      "reference_cls": "noisy_fallback",
+      "note": "the real June session found this, but the reference build (95d52b4) against the RECONSTRUCTED baseline index (synio@13c01e51) does not — a limit of using one fixed commit to stand in for a session window spanning 2026-05-28 to 2026-06-26, not an NCA regression."
+    },
+    {
+      "event_id": "6cb66c55da1a16af",
+      "query": "vapi tools manage-appointment build-prompt token-estimator",
+      "reference_cls": "noisy_fallback",
+      "note": "the real June session found this, but the reference build (95d52b4) against the RECONSTRUCTED baseline index (synio@13c01e51) does not — a limit of using one fixed commit to stand in for a session window spanning 2026-05-28 to 2026-06-26, not an NCA regression."
+    },
+    {
+      "event_id": "aeb3bf5484f84ce2",
+      "query": "files inside src/lib/vapi that import from outside vapi directory",
+      "reference_cls": "noisy_fallback",
+      "note": "the real June session found this, but the reference build (95d52b4) against the RECONSTRUCTED baseline index (synio@13c01e51) does not — a limit of using one fixed commit to stand in for a session window spanning 2026-05-28 to 2026-06-26, not an NCA regression."
+    },
+    {
+      "event_id": "ec16fddb3b924ab5",
+      "query": "files that import from src/lib/vapi",
+      "reference_cls": "noisy_fallback",
+      "note": "the real June session found this, but the reference build (95d52b4) against the RECONSTRUCTED baseline index (synio@13c01e51) does not — a limit of using one fixed commit to stand in for a session window spanning 2026-05-28 to 2026-06-26, not an NCA regression."
+    }
+  ],
+  "gate_pass": true,
+  "results": [
+    {
+      "event_id": "02bec69b581249ca",
+      "query": "getCompanies showArchived filter archived companies list",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "040d683498e3f5ef",
+      "query": "RLS row level security tenant isolation middleware prisma",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "0e6d4f2686cc7ee4",
+      "query": "ActivateCompanyWizard WizardStep",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "14a67463491e142e",
+      "query": "shouldApplyRLS",
+      "reference_cls": "direct_hit",
+      "test_cls": "direct_hit"
+    },
+    {
+      "event_id": "197691b9e095a925",
+      "query": "archiveCompany",
+      "reference_cls": "direct_hit",
+      "test_cls": "direct_hit"
+    },
+    {
+      "event_id": "1b1d03ff9287827e",
+      "query": "SENTRY_AUTH_TOKEN",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "210e9e2349d5d4f3",
+      "query": "DISCORD_NOTIFICATION_WEBHOOK",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "2b9b331ed61e8fce",
+      "query": "company-assistant retell agent prompt push update",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "2fa8c2c4430f5efe",
+      "query": "admin superuser role permission",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "313f77cf78f369d4",
+      "query": "entitlements subscription status",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "32b1871be396d7ff",
+      "query": "manage-appointment.ts imports dependencies",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "4347cae108cc3fa6",
+      "query": "public API integration endpoint external",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "4394b0df6c0b9b5f",
+      "query": "CompanyConfig loadCompanyConfigForPrompt",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "4551b054011ce9fc",
+      "query": "CompanyConfigForm EditVoiceConfig",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "4989090c149d0489",
+      "query": "marketing page landing page design",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "4ad09ac3d96c74b8",
+      "query": "applyTemplate verticalTemplate",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "4e927cb09554e948",
+      "query": "companyProcedure",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "4edb26fd8e16329a",
+      "query": "GOOGLE_CALENDAR_CLIENT_ID",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "53ecd51c6d9bcca0",
+      "query": "voiceRules",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "58bfe33a38d8f8fa",
+      "query": "CANCELLED PAST_DUE subscription",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "59655a4daa54901e",
+      "query": "checkAvailability slot locking",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "65c5338cc438e195",
+      "query": "AZURE_CALENDAR_CLIENT_ID",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "67274fea04730e94",
+      "query": "ioredis client connection",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "6b4156696acef1f7",
+      "query": "webhook handler retell flash telecom vapi signature verification",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "6cb66c55da1a16af",
+      "query": "vapi tools manage-appointment build-prompt token-estimator",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "77fb9296660c0382",
+      "query": "DISCORD_ERROR_WEBHOOK",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "7e64f2f2f5efd605",
+      "query": "admin UI dashboard changes redesign",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "825bb4cea88370ab",
+      "query": "ecosystem config pm2 staging",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "83096b383d93dd6f",
+      "query": "buildIdentity",
+      "reference_cls": "direct_hit",
+      "test_cls": "direct_hit"
+    },
+    {
+      "event_id": "8df1ea0b273f7ae9",
+      "query": "EditAgentConfig",
+      "reference_cls": "direct_hit",
+      "test_cls": "direct_hit"
+    },
+    {
+      "event_id": "974eebee86ba263f",
+      "query": "plan limits enforcement agent number",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "97567728eef0ce40",
+      "query": "onboarding setup wizard",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "a1a7d0eb0589f758",
+      "query": "$queryRaw raw SQL injection unsafe query",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "a27fca3cecad2b12",
+      "query": "voiceRules",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "a66eeca3b64f454b",
+      "query": "AdminDashboardPage AdminLayout components",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "abbddeebb9010aaa",
+      "query": "AdminDashboardPage AdminLayout",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "aeb3bf5484f84ce2",
+      "query": "files inside src/lib/vapi that import from outside vapi directory",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "af01ab0d7d9db27b",
+      "query": "syncAgent updateRetellAgent",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "bb8b4883f5f9370c",
+      "query": "RETELL_WEBHOOK_SECRET",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "c7e6f783e1a51c8a",
+      "query": "createCompany CreateCompanyForm",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "c871e30d25e2c90b",
+      "query": "overall system architecture entry points routers tRPC auth middleware tenancy",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "c9b5a8d8329b3e3a",
+      "query": "webhook routes API endpoints retell",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "ca87e4124cdec550",
+      "query": "archiveCompany mutation 400 bad request already archived",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "ccf25e844034d5a9",
+      "query": "buildIdentity",
+      "reference_cls": "direct_hit",
+      "test_cls": "direct_hit"
+    },
+    {
+      "event_id": "d06f5159254435df",
+      "query": "SENTRY_ORG",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "d6886dd681fb9808",
+      "query": "isNoShowRecovery",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "d71a781a02a5997e",
+      "query": "authentication authorization middleware session",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "e0ddfc66d37dd1b0",
+      "query": "appointment concurrency transaction",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "e0fcc5cc3939ac1c",
+      "query": "SENTRY_PROJECT",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "e344329d8432f075",
+      "query": "companyProcedure staffProcedure definition middleware",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "e7b174a282aeff21",
+      "query": "agent locale country language config",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "e98570b337329a37",
+      "query": "validateCompanyAccess",
+      "reference_cls": "direct_hit",
+      "test_cls": "direct_hit"
+    },
+    {
+      "event_id": "eae7f5317a98311b",
+      "query": "getCompanies",
+      "reference_cls": "direct_hit",
+      "test_cls": "direct_hit"
+    },
+    {
+      "event_id": "ec16fddb3b924ab5",
+      "query": "files that import from src/lib/vapi",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "ef61595435a314bf",
+      "query": "manageAppointment booking",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "f1166c163cf9bff8",
+      "query": "withRLSContext",
+      "reference_cls": "direct_hit",
+      "test_cls": "direct_hit"
+    },
+    {
+      "event_id": "f211e9640deed031",
+      "query": "companyProcedure protectedProcedure publicProcedure tRPC procedure builders",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    },
+    {
+      "event_id": "fad8dca3d0b5244f",
+      "query": "RLS row level security tenant isolation companyId",
+      "reference_cls": "noisy_fallback",
+      "test_cls": "clean_no_match"
+    }
+  ]
+}

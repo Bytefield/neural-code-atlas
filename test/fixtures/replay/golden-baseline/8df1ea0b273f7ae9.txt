@@ -1,0 +1,14 @@
+NCA|q:EditAgentConfig|t:<TS>
+[PATH_MATCH]
+@arrow.handleSave{m:src/components/companies/EditAgentConfigDialog|i:|o:|d:react,@/components/ui/dialog,@/components/ui/button,@/components/ui/input,@/components/ui/label|e:|cx:4|f:/tmp/synio-baseline-checkout/src/components/companies/EditAgentConfigDialog.tsx:151|dir:companies|pr:#1477/2801|gn:no}
+@function.createContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/context.ts:76|dir:trpc|pr:#2136/2801|gn:no}
+@arrow.onSuccess{m:src/components/companies/EditAgentConfigDialog|i:|o:|d:react,@/components/ui/dialog,@/components/ui/button,@/components/ui/input,@/components/ui/label|e:|cx:2|f:/tmp/synio-baseline-checkout/src/components/companies/EditAgentConfigDialog.tsx:139|dir:companies|pr:#1480/2801|gn:no}
+@arrow.[toolsEnabled, setToolsEnabled]{m:src/components/companies/EditAgentConfigDialog|i:|o:|d:react,@/components/ui/dialog,@/components/ui/button,@/components/ui/input,@/components/ui/label|e:|cx:2|f:/tmp/synio-baseline-checkout/src/components/companies/EditAgentConfigDialog.tsx:111|dir:companies|pr:#1473/2801|gn:no}
+@arrow.onCheckedChange{m:src/components/companies/EditAgentConfigDialog|i:prev|o:|d:react,@/components/ui/dialog,@/components/ui/button,@/components/ui/input,@/components/ui/label|e:|cx:1|f:/tmp/synio-baseline-checkout/src/components/companies/EditAgentConfigDialog.tsx:275|dir:companies|pr:#1478/2801|gn:no}
+@arrow.onCheckedChange{m:src/components/companies/EditAgentConfigDialog|i:v|o:|d:react,@/components/ui/dialog,@/components/ui/button,@/components/ui/input,@/components/ui/label|e:|cx:1|f:/tmp/synio-baseline-checkout/src/components/companies/EditAgentConfigDialog.tsx:274|dir:companies|pr:#1478/2801|gn:no}
+@arrow.onCheckedChange{m:src/components/companies/EditAgentConfigDialog|i:prev|o:|d:react,@/components/ui/dialog,@/components/ui/button,@/components/ui/input,@/components/ui/label|e:|cx:1|f:/tmp/synio-baseline-checkout/src/components/companies/EditAgentConfigDialog.tsx:252|dir:companies|pr:#1478/2801|gn:no}
+@arrow.onCheckedChange{m:src/components/companies/EditAgentConfigDialog|i:v|o:|d:react,@/components/ui/dialog,@/components/ui/button,@/components/ui/input,@/components/ui/label|e:|cx:1|f:/tmp/synio-baseline-checkout/src/components/companies/EditAgentConfigDi
+NCA|truncated|34_nodes_omitted
+[DOCS]
+~/tmp/synio-baseline-checkout/graphify-out/GRAPH_REPORT.md|title:GRAPH_REPORT|excerpt:Cohesion: 0.05
+Nodes (36): SuperuserDashboard(), ApiKeyWithSecret, WizardStep3ScheduleProps, WizardStep4ReviewProps, ActivateCompanyWizardProps, Step, ForgotPasswordFormData, Step1CompanyInfoProps ...

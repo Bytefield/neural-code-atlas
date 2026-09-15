@@ -1,0 +1,19 @@
+NCA|q:buildIdentity|t:<TS>
+[N]
+@function.buildIdentity{m:src/lib/prompt/sections/build-identity|i:config:: IdentityConfig|o:PromptSection|d:|e:|cx:1|f:/tmp/synio-baseline-checkout/src/lib/prompt/sections/build-identity.ts:23|dir:sections|pr:#475/2801|gn:no}
+@function.buildPrompt{m:src/lib/prompt/build-prompt|i:config:: BuildPromptInput|o:PromptBuildResult|d:@/lib/logger,estimateTokens,buildIdentity,buildLegalDisclosure,buildVoiceRules|e:|cx:7|f:/tmp/synio-baseline-checkout/src/lib/prompt/build-prompt.ts:78|dir:prompt|pr:#138/2801|gn:no}
+@function.buildWhatsAppSystemPrompt{m:src/lib/channels/whatsapp-prompt|i:config:: BuildPromptInput,clientContext:: string|o:string|d:@/lib/prompt/build-prompt,@/lib/prompt/sections/build-identity,@/lib/prompt/sections/build-escalation,@/lib/prompt/sections/build-services,@/lib/prompt/sections/build-flow|e:|cx:4|f:/tmp/synio-baseline-checkout/src/lib/channels/whatsapp-prompt.ts:67|dir:channels|pr:#312/2801|gn:no}
+@arrow.includedSections{m:src/lib/prompt/build-prompt|i:s|o:|d:@/lib/logger,estimateTokens,buildIdentity,buildLegalDisclosure,buildVoiceRules|e:|cx:1|f:/tmp/synio-baseline-checkout/src/lib/prompt/build-prompt.ts:140|dir:prompt|pr:#412/2801|gn:no}
+@arrow.prompt{m:src/lib/prompt/build-prompt|i:s|o:|d:@/lib/logger,estimateTokens,buildIdentity,buildLegalDisclosure,buildVoiceRules|e:|cx:1|f:/tmp/synio-baseline-checkout/src/lib/prompt/build-prompt.ts:170|dir:prompt|pr:#1955/2801|gn:no}
+@arrow.makeHours{m:src/lib/prompt/sections/__tests__/build-sections.test|i:overrides:: Partial<OpeningHours>|o:OpeningHours|d:buildIdentity,timeToSpoken,buildBusinessInfo,weekdayData,allWeekdaysSame|e:|cx:1|f:/tmp/synio-baseline-checkout/src/lib/prompt/sections/__tests__/build-sections.test.ts:476|dir:__tests__|pr:#1956/2801|gn:no}
+@arrow.makeService{m:src/lib/prompt/sections/__tests__/build-sections.test|i:overrides:: Partial<{
+    name: string;
+    nameSpoken: string;
+    duration: number;
+    durationSpoken: string;
+    rules: string | null;
+    isActive: boolean;
+    sortOrder: number;
+  }>|o:|d:buildIdentity,timeToSpoken,buildBusinessInfo,weekdayData,allWeekdaysSame|e:|cx:1|f:/tmp/synio-baseline-checkout/src/lib/prompt/sections/__tests__/build-sections.test.ts:352|dir:__tests__|pr:#1957/2801|gn:no}
+@function.createContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validation
+NCA|truncated|56_nodes_omitted

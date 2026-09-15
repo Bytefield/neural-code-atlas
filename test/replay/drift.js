@@ -1,16 +1,17 @@
 /**
- * Drift vs regression discrimination for clean_no_match replay results.
+ * Drift analysis for clean_no_match replay results (Replay B, informational).
  *
  * For an in-scope clean_no_match query, extracts the identifier-shaped
  * candidate token(s) it was plausibly targeting and checks whether they exist
- * in the SYNIO source tree at the commit the frozen index was built from
- * (git grep, scoped to the directories NCA actually indexes per .ncaignore:
- * src/, tests/, prisma/, scripts/). This tells us whether a miss is because
- * the target genuinely no longer exists (drift, over ~3.5 months of synio
- * history since the May/June baseline) or because it does exist but nca_ask's
- * search still didn't surface it (a regression candidate — see run.js's
- * checkRegressionCandidates, which empirically tests these against a
- * June-era NCA build rather than guessing).
+ * in the SYNIO source tree at the commit the frozen (September) index was
+ * built from (git grep, scoped to the directories NCA actually indexes per
+ * .ncaignore: src/, tests/, prisma/, scripts/). Verdict is symbol_absent (the
+ * target genuinely no longer exists — drift) or
+ * source_text_present_but_not_retrieved (candidate text still exists, but
+ * nca_ask didn't surface it). The latter is NOT by itself evidence of an NCA
+ * regression — see test/replay/replay-a.js, which empirically settles that
+ * question for any historical hit by running two NCA builds against the SAME
+ * frozen June index; this module never does that comparison itself.
  *
  * Deterministic and git-object-store based: reads the commit's tree via
  * `git grep <commit>` / `git ls-tree <commit>`, never the live working tree,
@@ -111,7 +112,7 @@ function classifyQuery(query, synioRoot, commit) {
 
   const anyExists = checked.some(c => c.exists);
   return {
-    verdict: anyExists ? 'symbol_present_but_missed' : 'symbol_absent',
+    verdict: anyExists ? 'source_text_present_but_not_retrieved' : 'symbol_absent',
     reason: anyExists
       ? `at least one candidate token exists in synio@${commit.slice(0, 8)} (scoped to ${SCAN_DIRS.join('/')}) but nca_ask returned no match`
       : `none of the extracted candidate tokens exist in synio@${commit.slice(0, 8)} (scoped to ${SCAN_DIRS.join('/')}) — consistent with drift since the May/June baseline`,

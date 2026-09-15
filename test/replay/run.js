@@ -1,19 +1,34 @@
 #!/usr/bin/env node
 /**
- * Frozen nca_ask replay harness — Phase A exit gate.
+ * Frozen nca_ask replay harness — Phase A exit gate (Replay B: drift report).
  *
- * Replays the 64 nca_ask calls from the SYNIO Phase 0 baseline corpus against a
- * frozen SYNIO index, through the real MCP stdio transport (same path Claude Code
- * itself uses), and classifies every response deterministically. See
- * test/fixtures/replay/manifest.json for the full fixture description, the
- * classifier rules, and known caveats.
+ * Replays the 64 nca_ask calls from the SYNIO Phase 0 baseline corpus against
+ * the CURRENT (September 2026) frozen SYNIO index, through the real MCP stdio
+ * transport (same path Claude Code itself uses), and classifies every
+ * response deterministically. See test/fixtures/replay/manifest.json for the
+ * full fixture description, the classifier rules, and known caveats.
+ *
+ * This is "Replay B" — because the index here keeps advancing with synio's
+ * real code, a miss here can mean either an NCA regression or ordinary code
+ * drift, and this script cannot tell those apart on its own. It writes:
+ *   - report.json / report.md — the GATE report. Three of its four criteria
+ *     (noisy_fallback, product_error, clean_no_match) are about NCA's
+ *     behavior against this current index and are meaningful gates on their
+ *     own. The fourth (direct_hit regression) is NOT decided here — see
+ *     test/replay/replay-a.js, which isolates regression from drift by
+ *     running two NCA builds against the SAME frozen June index. This script
+ *     reads replay-a-report.json (a separate, already-run artifact) to fill
+ *     in that fourth criterion; it does not run Replay A itself.
+ *   - report-drift.json / report-drift.md — pure information, no gate: the
+ *     drift/source-text analysis (test/replay/drift.js) for every clean_no_match,
+ *     and the historical (June 2026 live-session) traceability table.
  *
  * Test-side only. Not a product command — there is no `nca replay` anywhere in src/.
  *
- * Requires test/fixtures/replay/historical-classes.json to exist (run
- * `node test/replay/historical.js` once to generate it) — the gate's
- * direct_hit criterion reads baseline_scoped_direct_hits from it rather than
- * a hardcoded number.
+ * Requires test/fixtures/replay/historical-classes.json (run
+ * `node test/replay/historical.js` once) and test/replay/replay-a-report.json
+ * (run `node test/replay/replay-a.js --reference-dist <95d52b4 dist>` once —
+ * see baseline-manifest.json) to exist before the gate report can be built.
  *
  * Usage:
  *   node test/replay/run.js [--dist <path>] [--out-prefix <path>]
@@ -24,25 +39,17 @@
  *                          default test/replay/report.json / report.md. Used to
  *                          keep a pre-fix validation run from clobbering the real report.
  *   --capture-golden <dir> For every direct_hit query, write <dir>/<event_id>.txt
- *                          with the normalized output. Used once, against the
- *                          pre-fix build, to populate test/fixtures/replay/golden/.
- *   --check                Regenerate the report and diff it against the last
- *                          committed test/replay/report.json; exit non-zero (and
- *                          print the diff) if the classifier's per-query result
- *                          changed for any query in the frozen fixture. This is
- *                          the regression test for this harness (task item 8) —
- *                          run it as its own step, not part of test/run.js, since
- *                          it spawns a real child process and is slow relative to
- *                          that suite.
- *   --compare-dist <path>  Directory containing an mcp.js from an earlier NCA
- *                          build (e.g. the last commit at/before the baseline
- *                          window's end). For every in-scope clean_no_match query
- *                          whose drift analysis says symbol_present_but_missed,
- *                          re-runs that exact query against this build (same
- *                          frozen index) and records whether it found a match —
- *                          this is the empirical drift-vs-regression test
- *                          (task: "ejecuta la misma query contra el build del
- *                          final de la ventana baseline").
+ *                          with the normalized output. Informational only (Replay B) —
+ *                          shows whether direct_hit content on the CURRENT index has
+ *                          changed since the pre-#54 build; does not gate.
+ *   --check                Regenerate report.json and diff it against the last
+ *                          committed one; exit non-zero (and print the diff) if the
+ *                          classifier's per-query result changed for any query in the
+ *                          frozen fixture. Covers Replay B's own index only — Replay A
+ *                          has its own `node test/replay/replay-a.js --reference-dist
+ *                          <dist> --check` (needs the June build, not always at hand).
+ *                          Run as its own step, not part of test/run.js, since it
+ *                          spawns a real child process and is slow relative to that suite.
  */
 
 const { spawn } = require('child_process');
@@ -60,13 +67,12 @@ const REPO_ROOT = path.join(REPLAY_DIR, '..', '..');
 // ─── CLI args ───────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
-  const out = { dist: path.join(REPO_ROOT, 'dist'), outPrefix: path.join(REPLAY_DIR, 'report'), captureGolden: null, check: false, compareDist: null };
+  const out = { dist: path.join(REPO_ROOT, 'dist'), outPrefix: path.join(REPLAY_DIR, 'report'), captureGolden: null, check: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--dist') out.dist = path.resolve(argv[++i]);
     else if (argv[i] === '--out-prefix') out.outPrefix = path.resolve(argv[++i]);
     else if (argv[i] === '--capture-golden') out.captureGolden = path.resolve(argv[++i]);
     else if (argv[i] === '--check') out.check = true;
-    else if (argv[i] === '--compare-dist') out.compareDist = path.resolve(argv[++i]);
   }
   return out;
 }
@@ -224,22 +230,21 @@ function classify(response) {
 // ─── Report ─────────────────────────────────────────────────────────────────
 
 /**
- * baseline_scoped_direct_hits = number of historical (June baseline) direct_hit
- * classifications among the 58 in-scope queries, per
- * test/fixtures/replay/historical-classes.json (test/replay/historical.js).
- * This replaces the earlier hardcoded ">= 12" (which mixed the in-scope and
- * out-of-scope populations) with a number read from that file, not assumed.
+ * Criterion 3 is decided entirely by Replay A (test/replay/replay-a.js), which
+ * isolates NCA regression from synio drift by running two builds against the
+ * SAME frozen June index. This just reads that already-generated artifact —
+ * it does not run Replay A itself (that needs a second NCA build, --reference-dist,
+ * not always at hand when regenerating this report).
  */
-function loadBaselineScopedDirectHits() {
-  const histPath = path.join(FIXTURE_DIR, 'historical-classes.json');
-  if (!fs.existsSync(histPath)) {
-    throw new Error(`${histPath} not found — run \`node test/replay/historical.js\` first to compute the scoped baseline.`);
+function loadReplayAResult() {
+  const p = path.join(REPLAY_DIR, 'replay-a-report.json');
+  if (!fs.existsSync(p)) {
+    throw new Error(`${p} not found — run \`node test/replay/replay-a.js --reference-dist <95d52b4 dist> --capture-golden-baseline\` first (see baseline-manifest.json).`);
   }
-  const hist = JSON.parse(fs.readFileSync(histPath, 'utf-8'));
-  return hist.filter(h => h.in_scope && h.cls === 'direct_hit').length;
+  return JSON.parse(fs.readFileSync(p, 'utf-8'));
 }
 
-function buildReport(distDir, results, baselineScopedDirectHits, goldenDiffs) {
+function buildReport(distDir, results, replayA) {
   const counts = { direct_hit: 0, clean_no_match: 0, noisy_fallback: 0, known_env_error: 0, product_error: 0, out_of_scope: 0 };
   for (const r of results) counts[r.cls]++;
 
@@ -254,12 +259,15 @@ function buildReport(distDir, results, baselineScopedDirectHits, goldenDiffs) {
   const gate = {
     noisy_fallback_zero: { pass: inScopeCounts.noisy_fallback === 0, value: inScopeCounts.noisy_fallback, required: '== 0' },
     product_error_zero: { pass: inScopeCounts.product_error === 0, value: inScopeCounts.product_error, required: '== 0 (known_env_error excluded)' },
-    direct_hit_at_least_scoped_baseline: {
-      pass: inScopeCounts.direct_hit >= baselineScopedDirectHits && (goldenDiffs ?? []).length === 0,
-      value: inScopeCounts.direct_hit,
-      required: `>= ${baselineScopedDirectHits} (baseline_scoped_direct_hits, from historical-classes.json) AND 0 golden diffs`,
-      baseline_scoped_direct_hits: baselineScopedDirectHits,
-      golden_diffs_count: (goldenDiffs ?? []).length,
+    replay_a_no_regression: {
+      pass: replayA.gate_pass,
+      value: `${replayA.test_direct_hit_count}/${replayA.reference_direct_hit_count}`,
+      required: 'direct_hit(build under test) ⊇ direct_hit(95d52b4 reference), 0 content diffs, both against the SAME frozen June-2026 index (test/replay/replay-a-report.json) — regression isolated from synio drift by construction',
+      reference_direct_hit_count: replayA.reference_direct_hit_count,
+      test_direct_hit_count: replayA.test_direct_hit_count,
+      regressions: replayA.regressions,
+      golden_diffs_count: replayA.golden_diffs.length,
+      historical_reconstruction_limits_count: replayA.historical_reconstruction_limits.length,
     },
     clean_no_match_explicit: {
       pass: inScope.filter(r => r.cls === 'clean_no_match' || r.cls === 'noisy_fallback').every(r => r.cls === 'clean_no_match'),
@@ -290,12 +298,14 @@ function buildReport(distDir, results, baselineScopedDirectHits, goldenDiffs) {
   };
 }
 
-function toMarkdown(report, goldenDiffs, historical) {
+function toMarkdown(report, goldenDiffs) {
   const lines = [];
   lines.push('# nca_ask replay report — Phase A exit gate');
   lines.push('');
   lines.push(`Dist under test: \`${report.dist}\``);
   lines.push(`Queries replayed: ${report.fixture_query_count} (${report.in_scope_count} in-scope + ${report.out_of_scope_count} out_of_scope, not executed — see below)`);
+  lines.push('');
+  lines.push('This is the GATE report (Replay B, against the CURRENT September index, for criteria 1/2/4; criterion 3 reads Replay A\'s already-generated result against a separate frozen June index — see test/replay/replay-a.js). For the drift/source-text analysis and historical traceability (informational, no gate), see report-drift.md.');
   lines.push('');
   lines.push('## Counts by class (all 64)');
   lines.push('');
@@ -314,63 +324,23 @@ function toMarkdown(report, goldenDiffs, historical) {
   lines.push('');
   lines.push(`**Overall gate: ${report.gate.overall_pass ? 'PASS' : 'FAIL'}**`);
   lines.push('');
-
-  if (historical) {
-    const allCounts = {};
-    for (const h of historical) allCounts[h.cls] = (allCounts[h.cls] || 0) + 1;
-    const scoped = historical.filter(h => h.in_scope);
-    const scopedCounts = {};
-    for (const h of scoped) scopedCounts[h.cls] = (scopedCounts[h.cls] || 0) + 1;
-    const baselineHits = scoped.filter(h => h.cls === 'direct_hit');
-
-    lines.push('## Historical baseline (June 2026 live sessions), same classifier');
+  if (report.gate.replay_a_no_regression.regressions.length > 0) {
+    lines.push('### Replay A regressions (criterion 3)');
     lines.push('');
-    lines.push(`All 64: ${JSON.stringify(allCounts)}`);
-    lines.push('');
-    lines.push(`In-scope 58: ${JSON.stringify(scopedCounts)}`);
-    lines.push('');
-    lines.push(`**baseline_scoped_direct_hits = ${baselineHits.length}**`);
-    lines.push('');
-    lines.push('### Traceability: historical in-scope direct_hit -> today\'s replay class');
-    lines.push('');
-    lines.push('| event_id | query | replay class today | drift verdict | anomaly |');
-    lines.push('|---|---|---|---|---|');
-    const byId = new Map(report.results.map(r => [r.event_id, r]));
-    const anomalies = [];
-    for (const h of baselineHits) {
-      const r = byId.get(h.event_id);
-      const verdict = r && r.drift ? r.drift.verdict : 'n/a';
-      const isAnomaly = !!(r && r.cls === 'clean_no_match' && verdict === 'symbol_present_but_missed');
-      if (isAnomaly) anomalies.push({ event_id: h.event_id, query: h.query, verdict, candidates: r.drift.candidates });
-      lines.push(`| ${h.event_id} | ${JSON.stringify(h.query)} | ${r ? r.cls : 'MISSING'} | ${verdict} | ${isAnomaly ? '**ANOMALY**' : ''} |`);
+    for (const r of report.gate.replay_a_no_regression.regressions) {
+      lines.push(`- \`${r.event_id}\` (${JSON.stringify(r.query)}): reference=${r.reference_cls}, test=${r.test_cls}`);
     }
     lines.push('');
-    if (anomalies.length > 0) {
-      lines.push(`### Anomalies (${anomalies.length}): historical direct_hit, today symbol_present_but_missed`);
-      lines.push('');
-      lines.push('Reported, not fixed, per task scope.');
-      lines.push('');
-      for (const a of anomalies) {
-        const cands = a.candidates.map(c => `${c.token}${c.exists ? ' (exists: ' + c.evidence + ')' : ' (absent)'}`).join('; ');
-        lines.push(`- \`${a.event_id}\` (${JSON.stringify(a.query)}): candidates — ${cands}`);
-      }
-      lines.push('');
-    } else {
-      lines.push('### Anomalies');
-      lines.push('');
-      lines.push('None.');
-      lines.push('');
-    }
   }
   if (goldenDiffs && goldenDiffs.length > 0) {
-    lines.push('## Golden diffs (direct_hit content changed vs pre-fix build)');
+    lines.push('## Golden diffs (direct_hit content changed vs pre-#54 build, on the CURRENT index — informational, not gated; see Replay A for the gated comparison)');
     lines.push('');
     for (const d of goldenDiffs) {
       lines.push(`- \`${d.event_id}\` (${JSON.stringify(d.query)}): ${d.reason}`);
     }
     lines.push('');
   } else {
-    lines.push('## Golden diffs');
+    lines.push('## Golden diffs (informational, on the CURRENT index)');
     lines.push('');
     lines.push('None — all direct_hit queries with a golden file match byte-for-byte after normalization.');
     lines.push('');
@@ -386,33 +356,68 @@ function toMarkdown(report, goldenDiffs, historical) {
     for (const r of outOfScope) lines.push(`| ${r.event_id} | ${JSON.stringify(r.query)} | ${r.project_arg} | ${r.cls} |`);
   }
   lines.push('');
-  lines.push('## Drift vs regression (clean_no_match, in-scope only)');
-  lines.push('');
-  const driftRows = report.results.filter(r => r.drift);
-  const driftCounts = { symbol_absent: 0, symbol_present_but_missed: 0, undeterminable: 0 };
-  for (const r of driftRows) driftCounts[r.drift.verdict]++;
-  lines.push(`Counts — symbol_absent (drift): ${driftCounts.symbol_absent} · symbol_present_but_missed: ${driftCounts.symbol_present_but_missed} · undeterminable: ${driftCounts.undeterminable}`);
-  lines.push('');
-  lines.push('| event_id | query | candidate(s) | exists in synio@commit | verdict | regression check |');
-  lines.push('|---|---|---|---|---|---|');
-  for (const r of driftRows) {
-    const cands = r.drift.candidates.length > 0
-      ? r.drift.candidates.map(c => `${c.token}${c.exists ? ' ✓' : ' ✗'}`).join(', ')
-      : '—';
-    const anyExists = r.drift.candidates.some(c => c.exists);
-    const rc = r.drift.regression_check
-      ? (r.drift.regression_check.regression_confirmed
-          ? `**REGRESSION** (compare build: ${r.drift.regression_check.compare_cls})`
-          : `not a regression (compare build: ${r.drift.regression_check.compare_cls})`)
-      : (r.drift.verdict === 'symbol_present_but_missed' ? 'not checked' : 'n/a');
-    lines.push(`| ${r.event_id} | ${JSON.stringify(r.query)} | ${cands} | ${anyExists ? 'yes' : 'no'} | ${r.drift.verdict} | ${rc} |`);
-  }
-  lines.push('');
   lines.push('## All queries');
   lines.push('');
   lines.push('| event_id | class | query |');
   lines.push('|---|---|---|');
   for (const r of report.results) lines.push(`| ${r.event_id} | ${r.cls} | ${JSON.stringify(r.query)} |`);
+  lines.push('');
+  return lines.join('\n');
+}
+
+// ─── Replay B drift report (informational, no gate) ────────────────────────
+
+function toDriftMarkdown(report, historical) {
+  const lines = [];
+  lines.push('# nca_ask replay — drift report (Replay B, informational, no gate)');
+  lines.push('');
+  lines.push(`Dist: \`${report.dist}\` — CURRENT (September) index. See report.md for the gated Phase A report; criterion 3 there is decided by Replay A (replay-a-report.json / replay-a.js), not by this file.`);
+  lines.push('');
+
+  const allCounts = {};
+  for (const h of historical) allCounts[h.cls] = (allCounts[h.cls] || 0) + 1;
+  const scoped = historical.filter(h => h.in_scope);
+  const scopedCounts = {};
+  for (const h of scoped) scopedCounts[h.cls] = (scopedCounts[h.cls] || 0) + 1;
+  const baselineHits = scoped.filter(h => h.cls === 'direct_hit');
+
+  lines.push('## Historical baseline (June 2026 live sessions), same classifier');
+  lines.push('');
+  lines.push(`All 64: ${JSON.stringify(allCounts)}`);
+  lines.push('');
+  lines.push(`In-scope 58: ${JSON.stringify(scopedCounts)}`);
+  lines.push('');
+  lines.push(`Historical in-scope direct_hit count: ${baselineHits.length}. See replay-a-report.json for how many of these reproduce against a period-correct (June) index/build pair — this section only traces them against the CURRENT (drifted) index.`);
+  lines.push('');
+  lines.push('### Traceability: historical in-scope direct_hit -> today\'s replay class (current index)');
+  lines.push('');
+  lines.push('| event_id | query | replay class today | drift verdict |');
+  lines.push('|---|---|---|---|');
+  const byId = new Map(report.results.map(r => [r.event_id, r]));
+  for (const h of baselineHits) {
+    const r = byId.get(h.event_id);
+    const verdict = r && r.drift ? r.drift.verdict : 'n/a';
+    lines.push(`| ${h.event_id} | ${JSON.stringify(h.query)} | ${r ? r.cls : 'MISSING'} | ${verdict} |`);
+  }
+  lines.push('');
+  lines.push('## Drift analysis (clean_no_match, in-scope only)');
+  lines.push('');
+  const driftRows = report.results.filter(r => r.drift);
+  const driftCounts = { symbol_absent: 0, source_text_present_but_not_retrieved: 0, undeterminable: 0 };
+  for (const r of driftRows) driftCounts[r.drift.verdict]++;
+  lines.push(`Counts — symbol_absent (drift): ${driftCounts.symbol_absent} · source_text_present_but_not_retrieved: ${driftCounts.source_text_present_but_not_retrieved} · undeterminable: ${driftCounts.undeterminable}`);
+  lines.push('');
+  lines.push('`source_text_present_but_not_retrieved` means: the candidate token(s) extracted from the query still appear as TEXT in the synio tree at the commit this (current) index was built from, but nca_ask returned no match. It does NOT by itself mean NCA regressed — see replay-a-report.json for the empirical, build-isolated answer on whichever of these were also historical hits.');
+  lines.push('');
+  lines.push('| event_id | query | candidate(s) | exists in synio@commit | verdict |');
+  lines.push('|---|---|---|---|---|');
+  for (const r of driftRows) {
+    const cands = r.drift.candidates.length > 0
+      ? r.drift.candidates.map(c => `${c.token}${c.exists ? ' ✓' : ' ✗'}`).join(', ')
+      : '—';
+    const anyExists = r.drift.candidates.some(c => c.exists);
+    lines.push(`| ${r.event_id} | ${JSON.stringify(r.query)} | ${cands} | ${anyExists ? 'yes' : 'no'} | ${r.drift.verdict} |`);
+  }
   lines.push('');
   return lines.join('\n');
 }
@@ -512,29 +517,6 @@ async function main() {
     }
   }
 
-  // Empirical regression check (task item 2, final paragraph): for every
-  // symbol_present_but_missed candidate, replay the SAME query against an
-  // earlier NCA build (the one passed via --compare-dist) against the SAME
-  // frozen index, and compare classes. A flip (earlier build found it, this
-  // one doesn't) is a confirmed regression; identical behavior on both builds
-  // means the miss predates (or is unrelated to) anything between the two.
-  if (opts.compareDist) {
-    const candidates = ordered.filter(r => r.drift && r.drift.verdict === 'symbol_present_but_missed');
-    if (candidates.length > 0) {
-      const compareQueries = candidates.map(r => ({ event_id: r.event_id, session_id: r.session_id, query: r.query, project_arg: r.project_arg }));
-      const compareResults = await replay(opts.compareDist, compareQueries, manifest);
-      const compareByEvent = new Map(compareResults.map(c => [c.event_id, c]));
-      for (const r of candidates) {
-        const cmp = compareByEvent.get(r.event_id);
-        r.drift.regression_check = {
-          compare_dist: opts.compareDist,
-          compare_cls: cmp ? cmp.cls : 'no_response',
-          regression_confirmed: !!cmp && cmp.cls === 'direct_hit' && r.cls !== 'direct_hit',
-        };
-      }
-    }
-  }
-
   if (opts.captureGolden) {
     fs.mkdirSync(opts.captureGolden, { recursive: true });
     for (const r of ordered) {
@@ -560,8 +542,8 @@ async function main() {
     }
   }
 
-  const baselineScopedDirectHits = loadBaselineScopedDirectHits();
-  const report = buildReport(opts.dist, ordered, baselineScopedDirectHits, goldenDiffs);
+  const replayA = loadReplayAResult();
+  const report = buildReport(opts.dist, ordered, replayA);
   report.golden_diffs = goldenDiffs;
 
   const histPath = path.join(FIXTURE_DIR, 'historical-classes.json');
@@ -570,7 +552,16 @@ async function main() {
   const jsonPath = `${opts.outPrefix}.json`;
   const mdPath = `${opts.outPrefix}.md`;
   fs.writeFileSync(jsonPath, JSON.stringify(report, null, 2) + '\n', 'utf-8');
-  fs.writeFileSync(mdPath, toMarkdown(report, goldenDiffs, historical), 'utf-8');
+  fs.writeFileSync(mdPath, toMarkdown(report, goldenDiffs), 'utf-8');
+
+  // Replay B drift report — informational, separate from the gate, only
+  // written for the default (non --out-prefix, non --check-internal) run.
+  if (historical && opts.outPrefix === path.join(REPLAY_DIR, 'report')) {
+    const driftReport = { ...report, generated_at: new Date().toISOString() };
+    fs.writeFileSync(path.join(REPLAY_DIR, 'report-drift.json'), JSON.stringify(driftReport, null, 2) + '\n', 'utf-8');
+    fs.writeFileSync(path.join(REPLAY_DIR, 'report-drift.md'), toDriftMarkdown(driftReport, historical), 'utf-8');
+    console.log(`Drift report (informational, no gate) written to ${path.join(REPLAY_DIR, 'report-drift.json')} and .md`);
+  }
 
   console.log(`Report written to ${jsonPath} and ${mdPath}`);
   console.log(`Counts: ${JSON.stringify(report.counts)}`);
@@ -604,7 +595,7 @@ async function main() {
 // same classification rules against differently-sourced input, without copying
 // or re-implementing them. Guarded below so requiring this module never
 // triggers main() — only `node test/replay/run.js` does.
-module.exports = { classify, normalizeOutput, KNOWN_ENV_ERROR_RE };
+module.exports = { classify, normalizeOutput, KNOWN_ENV_ERROR_RE, prepareWorkdir, startServer, replay, loadQueries };
 
 if (require.main === module) {
   main().catch(err => {
