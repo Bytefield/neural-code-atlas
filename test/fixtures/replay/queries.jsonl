@@ -1,0 +1,64 @@
+{"event_id": "02bec69b581249ca", "project_arg": "/mnt/c/dev/synio", "query": "getCompanies showArchived filter archived companies list", "session_id": "2a5a97f4-aa27-4bb5-a6e8-b5ac967023a5"}
+{"event_id": "040d683498e3f5ef", "project_arg": null, "query": "RLS row level security tenant isolation middleware prisma", "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7"}
+{"event_id": "049a63d2c1139d36", "project_arg": "/mnt/c/dev/webs/synio-web", "query": "marketing page components", "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c"}
+{"event_id": "0e6d4f2686cc7ee4", "project_arg": "/mnt/c/dev/synio", "query": "ActivateCompanyWizard WizardStep", "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3"}
+{"event_id": "14a67463491e142e", "project_arg": null, "query": "shouldApplyRLS", "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7"}
+{"event_id": "197691b9e095a925", "project_arg": "/mnt/c/dev/synio", "query": "archiveCompany", "session_id": "2a5a97f4-aa27-4bb5-a6e8-b5ac967023a5"}
+{"event_id": "1b1d03ff9287827e", "project_arg": null, "query": "SENTRY_AUTH_TOKEN", "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862"}
+{"event_id": "210e9e2349d5d4f3", "project_arg": null, "query": "DISCORD_NOTIFICATION_WEBHOOK", "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862"}
+{"event_id": "2b9b331ed61e8fce", "project_arg": "/mnt/c/dev/synio", "query": "company-assistant retell agent prompt push update", "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3"}
+{"event_id": "2fa8c2c4430f5efe", "project_arg": null, "query": "admin superuser role permission", "session_id": "05803db7-d04e-41df-93a2-1a30497059e4"}
+{"event_id": "313f77cf78f369d4", "project_arg": "/mnt/c/dev/synio", "query": "entitlements subscription status", "session_id": "77722efd-b624-4a8f-8b1a-a42a86a43fce"}
+{"event_id": "32b1871be396d7ff", "project_arg": "/mnt/c/dev/synio", "query": "manage-appointment.ts imports dependencies", "session_id": "43ce5d64-6ef2-46fd-af84-51c005ee73c2"}
+{"event_id": "4347cae108cc3fa6", "project_arg": "/mnt/c/dev/synio", "query": "public API integration endpoint external", "session_id": "77722efd-b624-4a8f-8b1a-a42a86a43fce"}
+{"event_id": "4394b0df6c0b9b5f", "project_arg": "/mnt/c/dev/synio", "query": "CompanyConfig loadCompanyConfigForPrompt", "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3"}
+{"event_id": "4551b054011ce9fc", "project_arg": "/mnt/c/dev/synio", "query": "CompanyConfigForm EditVoiceConfig", "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3"}
+{"event_id": "4989090c149d0489", "project_arg": null, "query": "marketing page landing page design", "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c"}
+{"event_id": "4ad09ac3d96c74b8", "project_arg": "/mnt/c/dev/synio", "query": "applyTemplate verticalTemplate", "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3"}
+{"event_id": "4e927cb09554e948", "project_arg": null, "query": "companyProcedure", "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7"}
+{"event_id": "4edb26fd8e16329a", "project_arg": null, "query": "GOOGLE_CALENDAR_CLIENT_ID", "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862"}
+{"event_id": "53ecd51c6d9bcca0", "project_arg": "/mnt/c/dev/synio", "query": "voiceRules", "session_id": "9998d01c-dbc9-4410-a4f4-4406bb4c39e8"}
+{"event_id": "58bfe33a38d8f8fa", "project_arg": "/mnt/c/dev/synio", "query": "CANCELLED PAST_DUE subscription", "session_id": "77722efd-b624-4a8f-8b1a-a42a86a43fce"}
+{"event_id": "59655a4daa54901e", "project_arg": null, "query": "checkAvailability slot locking", "session_id": "35f883b5-0528-4065-b84a-62ee7dc3359b"}
+{"event_id": "65c5338cc438e195", "project_arg": null, "query": "AZURE_CALENDAR_CLIENT_ID", "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862"}
+{"event_id": "67274fea04730e94", "project_arg": null, "query": "ioredis client connection", "session_id": "35f883b5-0528-4065-b84a-62ee7dc3359b"}
+{"event_id": "6b4156696acef1f7", "project_arg": null, "query": "webhook handler retell flash telecom vapi signature verification", "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7"}
+{"event_id": "6cb66c55da1a16af", "project_arg": null, "query": "vapi tools manage-appointment build-prompt token-estimator", "session_id": "8521423d-31b1-41b5-9c11-fd5d64dce440"}
+{"event_id": "71316f96bcf178b8", "project_arg": "/mnt/c/Users/jesus/Desktop/Papi_Obsidian_Vault/02-Projects/synio", "query": "PLAN-MAESTRO-UNIFICADO AUDITORIA-UI", "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c"}
+{"event_id": "77fb9296660c0382", "project_arg": null, "query": "DISCORD_ERROR_WEBHOOK", "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862"}
+{"event_id": "7e64f2f2f5efd605", "project_arg": null, "query": "admin UI dashboard changes redesign", "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c"}
+{"event_id": "825bb4cea88370ab", "project_arg": null, "query": "ecosystem config pm2 staging", "session_id": "35f883b5-0528-4065-b84a-62ee7dc3359b"}
+{"event_id": "83096b383d93dd6f", "project_arg": "/mnt/c/dev/synio", "query": "buildIdentity", "session_id": "9998d01c-dbc9-4410-a4f4-4406bb4c39e8"}
+{"event_id": "8ddc7a5e4fbb0419", "project_arg": "/mnt/c/Users/jesus/Desktop/Papi_Obsidian_Vault/02-Projects/synio", "query": "CONTRATO-UI DESIGN-SYSTEM", "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c"}
+{"event_id": "8df1ea0b273f7ae9", "project_arg": "/mnt/c/dev/synio", "query": "EditAgentConfig", "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3"}
+{"event_id": "974eebee86ba263f", "project_arg": "/mnt/c/dev/synio", "query": "plan limits enforcement agent number", "session_id": "77722efd-b624-4a8f-8b1a-a42a86a43fce"}
+{"event_id": "97567728eef0ce40", "project_arg": "/mnt/c/dev/synio", "query": "onboarding setup wizard", "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3"}
+{"event_id": "a1a7d0eb0589f758", "project_arg": null, "query": "$queryRaw raw SQL injection unsafe query", "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7"}
+{"event_id": "a27fca3cecad2b12", "project_arg": "/mnt/c/dev/synio", "query": "voiceRules", "session_id": "9998d01c-dbc9-4410-a4f4-4406bb4c39e8"}
+{"event_id": "a66eeca3b64f454b", "project_arg": null, "query": "AdminDashboardPage AdminLayout components", "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c"}
+{"event_id": "abbddeebb9010aaa", "project_arg": "/mnt/c/dev/synio", "query": "AdminDashboardPage AdminLayout", "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c"}
+{"event_id": "aeb3bf5484f84ce2", "project_arg": "/mnt/c/dev/synio", "query": "files inside src/lib/vapi that import from outside vapi directory", "session_id": "43ce5d64-6ef2-46fd-af84-51c005ee73c2"}
+{"event_id": "af01ab0d7d9db27b", "project_arg": "/mnt/c/dev/synio", "query": "syncAgent updateRetellAgent", "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3"}
+{"event_id": "bb8b4883f5f9370c", "project_arg": null, "query": "RETELL_WEBHOOK_SECRET", "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862"}
+{"event_id": "c0f5b1ecd6132020", "project_arg": "/mnt/c/Users/jesus/Desktop/Papi_Obsidian_Vault/02-Projects/synio", "query": "admin UI cambios redise\u00f1o dashboard", "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c"}
+{"event_id": "c7e6f783e1a51c8a", "project_arg": "/mnt/c/dev/synio", "query": "createCompany CreateCompanyForm", "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3"}
+{"event_id": "c871e30d25e2c90b", "project_arg": null, "query": "overall system architecture entry points routers tRPC auth middleware tenancy", "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7"}
+{"event_id": "c9b5a8d8329b3e3a", "project_arg": null, "query": "webhook routes API endpoints retell", "session_id": "05803db7-d04e-41df-93a2-1a30497059e4"}
+{"event_id": "ca87e4124cdec550", "project_arg": "/mnt/c/dev/synio", "query": "archiveCompany mutation 400 bad request already archived", "session_id": "2a5a97f4-aa27-4bb5-a6e8-b5ac967023a5"}
+{"event_id": "ccf25e844034d5a9", "project_arg": "/mnt/c/dev/synio", "query": "buildIdentity", "session_id": "9998d01c-dbc9-4410-a4f4-4406bb4c39e8"}
+{"event_id": "cd2d934834b38bd9", "project_arg": "/mnt/c/Users/jesus/Desktop/Papi_Obsidian_Vault/02-Projects/synio", "query": "GUIDELINE landing-umbrella", "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c"}
+{"event_id": "d06f5159254435df", "project_arg": null, "query": "SENTRY_ORG", "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862"}
+{"event_id": "d64512508a613737", "project_arg": "/mnt/c/Users/jesus/Desktop/Papi_Obsidian_Vault/02-Projects/synio", "query": "marketing landing page cambios pendientes", "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c"}
+{"event_id": "d6886dd681fb9808", "project_arg": "/mnt/c/dev/synio", "query": "isNoShowRecovery", "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3"}
+{"event_id": "d71a781a02a5997e", "project_arg": null, "query": "authentication authorization middleware session", "session_id": "05803db7-d04e-41df-93a2-1a30497059e4"}
+{"event_id": "e0ddfc66d37dd1b0", "project_arg": null, "query": "appointment concurrency transaction", "session_id": "35f883b5-0528-4065-b84a-62ee7dc3359b"}
+{"event_id": "e0fcc5cc3939ac1c", "project_arg": null, "query": "SENTRY_PROJECT", "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862"}
+{"event_id": "e344329d8432f075", "project_arg": null, "query": "companyProcedure staffProcedure definition middleware", "session_id": "0f07b51a-c5d3-4842-871f-fa5e1d50cdc9"}
+{"event_id": "e7b174a282aeff21", "project_arg": "/mnt/c/dev/synio", "query": "agent locale country language config", "session_id": "77722efd-b624-4a8f-8b1a-a42a86a43fce"}
+{"event_id": "e98570b337329a37", "project_arg": null, "query": "validateCompanyAccess", "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7"}
+{"event_id": "eae7f5317a98311b", "project_arg": "/mnt/c/dev/synio", "query": "getCompanies", "session_id": "2a5a97f4-aa27-4bb5-a6e8-b5ac967023a5"}
+{"event_id": "ec16fddb3b924ab5", "project_arg": "/mnt/c/dev/synio", "query": "files that import from src/lib/vapi", "session_id": "43ce5d64-6ef2-46fd-af84-51c005ee73c2"}
+{"event_id": "ef61595435a314bf", "project_arg": null, "query": "manageAppointment booking", "session_id": "35f883b5-0528-4065-b84a-62ee7dc3359b"}
+{"event_id": "f1166c163cf9bff8", "project_arg": null, "query": "withRLSContext", "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7"}
+{"event_id": "f211e9640deed031", "project_arg": null, "query": "companyProcedure protectedProcedure publicProcedure tRPC procedure builders", "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7"}
+{"event_id": "fad8dca3d0b5244f", "project_arg": null, "query": "RLS row level security tenant isolation companyId", "session_id": "05803db7-d04e-41df-93a2-1a30497059e4"}

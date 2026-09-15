@@ -1,0 +1,14 @@
+[WARN] Index is <DAYS> days old — run: nca scan <project>
+NCA|q:buildIdentity|t:<TS>
+[N]
+@function.buildIdentity{m:src/lib/prompt/sections/build-identity|i:config:: IdentityConfig|o:PromptSection|d:|e:|cx:1|f:/mnt/c/dev/synio/src/lib/prompt/sections/build-identity.ts:23|dir:sections|pr:#474/2795|gn:no}
+@function.createContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:7|f:/mnt/c/dev/synio/src/server/trpc/context.ts:76|dir:trpc|pr:#2132/2795|gn:no}
+@arrow.set{m:src/server/trpc/routers/systemConfig.router|i:{ input, ctx }|o:|d:errorFormatter,errorTracking,csrf,isAuthed,validateCompanyAccess|e:db|cx:4|f:/mnt/c/dev/synio/src/server/trpc/routers/systemConfig.router.ts:89|dir:routers|pr:#2351/2795|gn:no}
+@function.retryUntil{m:tests/helpers/integration|i:fn:: () => Promise<void>,options:: { timeout?: number; interval?: number }|o:Promise<void>|d:@prisma/client,getSession,createContext,createServerContext,now|e:|cx:6|f:/mnt/c/dev/synio/tests/helpers/integration.ts:140|dir:helpers|pr:#293/2795|gn:yes(32)}
+@function.createTestContext{m:tests/helpers/integration|i:|o:Promise<TestContext>|d:@prisma/client,getSession,createContext,createServerContext,setupIntegrationTest|e:db|cx:4|f:/mnt/c/dev/synio/tests/helpers/integration.ts:241|dir:helpers|pr:#289/2795|gn:yes(33)}
+@arrow.createContext{m:tests/helpers/integration|i:|o:Context|d:@prisma/client,getSession,createContext,createServerContext,now|e:db|cx:3|f:/mnt/c/dev/synio/tests/helpers/integration.ts:249|dir:helpers|pr:#47/2795|gn:no}
+@function.buildPrompt{m:src/lib/prompt/build-prompt|i:config:: BuildPromptInput|o:PromptBuildResult|d:@/lib/logger,estimateTokens,buildIdentity,buildLegalDisclosure,buildVoiceRules|e:|cx:7|f:/mnt/c/dev/synio/src/lib/prompt/build-prompt.ts:78|dir:prompt|pr:#134/2795|gn:no}
+@arrow.authenticateAs{m:tests/helpers/integration|i:userId:: string|o:|d:@prisma/client,getSession,createContext,createServerContext,findUnique|e:db|cx:2|f:/mnt/c/dev/synio/tests/helpers/integration.ts:280|dir:helpers|pr:#287/2795|gn:yes(32)}
+@function.cleanupTestData{m:tests/helpers/integration|i:prisma:: PrismaClient,tables:: string[]|o:Promise<void>|d:@prisma/client,getSession,createContext,createServerContext,deleteMany|e:db|cx:2|f:/mnt/c/dev/synio/tests/helpers/integration.ts:85|dir:helpers|pr:#2431/2795|gn:no}
+@arrow.clearAuth{m:tests/helpers/integration|i:|o:|d:@prisma/client,g
+NCA|truncated|54_nodes_omitted

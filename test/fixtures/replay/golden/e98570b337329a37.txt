@@ -1,0 +1,22 @@
+[WARN] Index is <DAYS> days old — run: nca scan <project>
+NCA|q:validateCompanyAccess|t:<TS>
+[N]
+@arrow.validateCompanyAccess{m:src/server/trpc/init|i:{ ctx, next, input, path, type }|o:|d:@trpc/server,getSession,createContext,createServerContext,superjson|e:db|cx:11|f:/mnt/c/dev/synio/src/server/trpc/init.ts:148|dir:trpc|pr:#12/2795|gn:yes(294)}
+@function.createServerContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:7|f:/mnt/c/dev/synio/src/server/trpc/context.ts:137|dir:trpc|pr:#1/2795|gn:yes(56)}
+@function.createContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:7|f:/mnt/c/dev/synio/src/server/trpc/context.ts:76|dir:trpc|pr:#2132/2795|gn:no}
+@arrow.getUserProfile{m:src/server/trpc/routers/user.router|i:{ ctx, input }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:6|f:/mnt/c/dev/synio/src/server/trpc/routers/user.router.ts:20|dir:routers|pr:#890/2795|gn:no}
+@arrow.create{m:src/server/trpc/routers/notifications.router|i:{ ctx, input }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:5|f:/mnt/c/dev/synio/src/server/trpc/routers/notifications.router.ts:184|dir:routers|pr:#2276/2795|gn:no}
+@arrow.getByKey{m:src/server/trpc/routers/systemConfig.router|i:{ input, ctx }|o:|d:errorFormatter,errorTracking,csrf,isAuthed,validateCompanyAccess|e:db|cx:4|f:/mnt/c/dev/synio/src/server/trpc/routers/systemConfig.router.ts:33|dir:routers|pr:#2349/2795|gn:no}
+@arrow.set{m:src/server/trpc/routers/systemConfig.router|i:{ input, ctx }|o:|d:errorFormatter,errorTracking,csrf,isAuthed,validateCompanyAccess|e:db|cx:4|f:/mnt/c/dev/synio/src/server/trpc/routers/systemConfig.router.ts:89|dir:routers|pr:#2351/2795|gn:no}
+@arrow.markAsRead{m:src/server/trpc/routers/notifications.router|i:{ ctx, input }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:4|f:/mnt/c/dev/synio/src/server/trpc/routers/notifications.router.ts:80|dir:routers|pr:#754/2795|gn:no}
+@arrow.getReminderConfig{m:src/server/trpc/routers/reminder-config.router|i:{ ctx }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:4|f:/mnt/c/dev/synio/src/server/trpc/routers/reminder-config.router.ts:32|dir:routers|pr:#2302/2795|gn:no}
+@arrow.getMarketingConsent{m:src/server/trpc/routers/gdpr.router|i:{ ctx }|o:|d:zod,@trpc/server,next/headers,errorFormatter,errorT
+NCA|truncated|201_nodes_omitted
+[DOCS]
+~/mnt/c/dev/synio/docs/security/SECURITY_FIXES_SUMMARY.md|title:SECURITY_FIXES_SUMMARY|excerpt:**Secure alternatives available:**
+- **Company staff:** Admin panel (server-side companyId assignment)
+- **Clients:** `registerClient` with invite tokens (already implemented)
+
+---
+
+## 🛡️ Security...
