@@ -954,5 +954,35 @@
         ]
       }
     ]
+  },
+  "addendum_2026_09_16_root_cause": {
+    "purpose": "Root-causes the 2 INDEXABLE_CONSTRUCT_NO_NODE candidates and literally describes the 2 OTHER matcher cases — the 4 cases left open after this file was first generated. Full detail in test/replay/rootcause-2gaps.json / .md (test/replay/rootcause-2gaps.js), evidence rule: git object e29cb7a1 exclusively, never the working tree.",
+    "summary": {
+      "confirmed_defects": 2,
+      "reclassified_correct_behavior": 0,
+      "undetermined": 0
+    },
+    "withRLSContext_verdict": "INDEXABLE_CONSTRUCT_NO_NODE, CONFIRMED — root cause UNRESOLVED (scan/parser frontier, not concluded). See rootcause-2gaps.json:withRLSContext.",
+    "ActivateCompanyWizard_verdict": "INDEXABLE_CONSTRUCT_NO_NODE, CONFIRMED — root cause RESOLVED: .tsx files parsed with the plain (non-JSX) TypeScript grammar (src/parser.ts:239), reproduced exactly against the September index's own node set for this file (11/11 match). See rootcause-2gaps.json:ActivateCompanyWizard.",
+    "prior_report_discrepancy_resolved": "drift.js's gitGrepExists() (used for the ORIGINAL 26-query drift classification) runs git grep against the same commit (e29cb7a1) but only stores the FIRST matching line as 'evidence' (out.trim().split('\\n')[0]). git grep's output is ordered by file path; 'context.ts' sorts before 'init.ts' alphabetically, so the stored evidence was context.ts:103 (a comment) — 1 of 10 real occurrences. The later report generalized from that single stored line to 'only occurrence', without re-checking the other 9. Both reports queried commit e29cb7a1 correctly via git grep — the error was evidence completeness (first-match-only), not wrong-ref sourcing.",
+    "other_cases": [
+      {
+        "event_id": "2b9b331ed61e8fce",
+        "query": "company-assistant retell agent prompt push update",
+        "literal_pattern": "partial path match — query contains path-shaped token(s) (company-assistant) that substring-matched multiple nodes' file paths; none of those nodes' NAMES appear as an exact token in the query text ('company-assistant retell agent prompt push update') — matched node names: loadCompanyConfigForPrompt, services, buildBeginMessage, createRetellAssistant, updateRetellAssistant, deleteRetellAssistant, createRetellLlm, updateRetellLlm, deleteRetellLlm, createRetellAgent, updateRetellAgent, deleteRetellAgent, buildRetellTools",
+        "query_vs_exact_name_or_file": "query text does NOT equal any matched node.name exactly, and does NOT equal any matched node.file exactly or as its basename — match was via path-substring only (a path-kind candidate token found inside several nodes' file paths), not an exact name or exact path match.",
+        "affects_aggregate_conclusion": false,
+        "why": "Both are variants of the same already-dominant MULTI_TOKEN_QUERY phenomenon (multi-word query, AND-across-terms semantics), just reached via a path-substring candidate instead of a name candidate. Neither changes the counts for INDEXABLE_CONSTRUCT_NO_NODE / NON_INDEXABLE_BY_DESIGN, nor introduces a new EXACT_*_MISSED case (no exact match exists for either). The dominant finding for NODE_PRESENT_MATCHER_MISSED (10/12 MULTI_TOKEN_QUERY, an interface-contract question, not a matcher defect) is unchanged."
+      },
+      {
+        "event_id": "6cb66c55da1a16af",
+        "query": "vapi tools manage-appointment build-prompt token-estimator",
+        "literal_pattern": "partial path match — query contains path-shaped token(s) (manage-appointment, build-prompt, token-estimator) that substring-matched multiple nodes' file paths; none of those nodes' NAMES appear as an exact token in the query text ('vapi tools manage-appointment build-prompt token-estimator') — matched node names: buildPrompt, includedSections, prompt, createDentalConfig, sumOfSections, estimateTokens",
+        "query_vs_exact_name_or_file": "query text does NOT equal any matched node.name exactly, and does NOT equal any matched node.file exactly or as its basename — match was via path-substring only (a path-kind candidate token found inside several nodes' file paths), not an exact name or exact path match.",
+        "affects_aggregate_conclusion": false,
+        "why": "Both are variants of the same already-dominant MULTI_TOKEN_QUERY phenomenon (multi-word query, AND-across-terms semantics), just reached via a path-substring candidate instead of a name candidate. Neither changes the counts for INDEXABLE_CONSTRUCT_NO_NODE / NON_INDEXABLE_BY_DESIGN, nor introduces a new EXACT_*_MISSED case (no exact match exists for either). The dominant finding for NODE_PRESENT_MATCHER_MISSED (10/12 MULTI_TOKEN_QUERY, an interface-contract question, not a matcher defect) is unchanged."
+      }
+    ],
+    "proposed_ledger_line_not_applied": "Item: nca_ask indexer coverage — 2 confirmed indexer gaps in the September SYNIO index (of 26 originally-flagged recall-gap queries): (1) .tsx files are parsed with the plain (non-JSX) TypeScript grammar (src/parser.ts:239 reuses the .ts parser instance for .tsx instead of tree-sitter-typescript's dedicated .tsx grammar), causing JSX-containing top-level declarations to be dropped while non-JSX inner functions in the same file still get indexed — reproduced exactly against the frozen index's own node set for ActivateCompanyWizard.tsx (11/11 nodes match). (2) A second case (withRLSContext, a plain .ts arrow-function-via-middleware() pattern) is confirmed missing despite provably resolving a name under the CURRENT src/parser.ts logic — mechanism unresolved (possible scan-time parser version drift), reported as an open scan/parser frontier question, not concluded. Status: NOT_ACTED_ON — evidence only, no fix applied, per task scope."
   }
 }

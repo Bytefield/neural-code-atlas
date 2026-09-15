@@ -1,0 +1,322 @@
+{
+  "generated_at": "2026-09-15T15:41:58.693Z",
+  "evidence_rule": "Every source claim below is read from git object e29cb7a1 exclusively (git show / git grep against the commit), never the synio working tree.",
+  "withRLSContext": {
+    "query": "withRLSContext",
+    "commit": "e29cb7a1",
+    "all_occurrences": [
+      {
+        "commit": "e29cb7a1",
+        "file": "src/server/trpc/context.ts",
+        "line": 103,
+        "text": "  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
+      },
+      {
+        "commit": "e29cb7a1",
+        "file": "src/server/trpc/context.ts",
+        "line": 175,
+        "text": "  // RLS context is set per-request inside a transaction by withRLSContext middleware."
+      },
+      {
+        "commit": "e29cb7a1",
+        "file": "src/server/trpc/init.ts",
+        "line": 363,
+        "text": "const withRLSContext = t.middleware(async ({ ctx, next }) => {"
+      },
+      {
+        "commit": "e29cb7a1",
+        "file": "src/server/trpc/init.ts",
+        "line": 408,
+        "text": " * Wraps the entire handler in a transaction with RLS GUC set (withRLSContext)."
+      },
+      {
+        "commit": "e29cb7a1",
+        "file": "src/server/trpc/init.ts",
+        "line": 424,
+        "text": " * and DB layer (RLS policies via withRLSContext)."
+      },
+      {
+        "commit": "e29cb7a1",
+        "file": "src/server/trpc/init.ts",
+        "line": 429,
+        "text": "  .use(withRLSContext);"
+      },
+      {
+        "commit": "e29cb7a1",
+        "file": "src/server/trpc/init.ts",
+        "line": 432,
+        "text": " * Middleware: Saga variant — validates company access like withRLSContext but does NOT"
+      },
+      {
+        "commit": "e29cb7a1",
+        "file": "src/server/trpc/init.ts",
+        "line": 583,
+        "text": " * Platform roles (superuser/agent/manager) use prismaAdmin (BYPASSRLS) so withRLSContext is a no-op."
+      },
+      {
+        "commit": "e29cb7a1",
+        "file": "src/server/trpc/init.ts",
+        "line": 591,
+        "text": "  .use(withRLSContext);"
+      },
+      {
+        "commit": "e29cb7a1",
+        "file": "tests/security/billing/checkout-subscription-safety.test.ts",
+        "line": 165,
+        "text": "  // withRLSContext (added to staffProcedure) opens a $transaction and calls $executeRaw"
+      }
+    ],
+    "prior_report_discrepancy": {
+      "claim": "An earlier report (manifest.json:drift_vs_regression_analysis, written after the drift-vs-regression task) stated withRLSContext's 'only surviving occurrence is inside a comment, not a declaration'.",
+      "which_was_incorrect": "That claim.",
+      "what_it_actually_inspected": "drift.js's gitGrepExists() (used for the ORIGINAL 26-query drift classification) runs git grep against the same commit (e29cb7a1) but only stores the FIRST matching line as 'evidence' (out.trim().split('\\n')[0]). git grep's output is ordered by file path; 'context.ts' sorts before 'init.ts' alphabetically, so the stored evidence was context.ts:103 (a comment) — 1 of 10 real occurrences. The later report generalized from that single stored line to 'only occurrence', without re-checking the other 9. Both reports queried commit e29cb7a1 correctly via git grep — the error was evidence completeness (first-match-only), not wrong-ref sourcing.",
+      "real_declaration_occurrence": {
+        "commit": "e29cb7a1",
+        "file": "src/server/trpc/init.ts",
+        "line": 363,
+        "text": "const withRLSContext = t.middleware(async ({ ctx, next }) => {"
+      }
+    },
+    "git_blob_verification": {
+      "expected_from_ls_tree": "0f7b349370e27a26d284b818f0e20c0386d5e0f0",
+      "file_bytes_match_ls_tree": true
+    },
+    "ast": {
+      "grammar_used": "tree-sitter-typescript .typescript (plain, non-JSX) — correct grammar for a .ts file, no mismatch here.",
+      "file_parse": {
+        "hasError": false,
+        "errorNodeCount": 0
+      },
+      "declaration_node": {
+        "astType": "arrow_function",
+        "startLine": 363,
+        "endLine": 401,
+        "textHead": "async ({ ctx, next }) => {\n  const { companyId } = ctx;\n\n  /",
+        "resolvedName": "withRLSContext",
+        "resolvedVia": "variable_declarator",
+        "wouldBeIndexed": true
+      },
+      "syntactic_form": "const withRLSContext = t.middleware(async ({ ctx, next }) => { ... });",
+      "tree_sitter_node_type": "arrow_function (the value of t.middleware(...)'s sole argument)",
+      "extract_node_name_verdict": "NAMED by the declarator, not discarded: extractNodeName() walks arrow_function -> parent 'arguments' -> parent 'call_expression' -> parent 'variable_declarator', matches variable_declarator, resolves name='withRLSContext'. Contrast with the tRPC procedure-builder-chain candidates (companyProcedure, staffProcedure, protectedProcedure, publicProcedure) the prior task's report classified NON_INDEXABLE_BY_DESIGN: those have NO arrow_function/function_expression literal anywhere in their RHS at all (pure .use()-chain calls on an existing value) — this one has a real arrow_function literal as the sole call argument, which the same walk-up finds and names. Different syntactic shape, correctly different verdict."
+    },
+    "september_index": {
+      "nodes_from_this_file": [
+        {
+          "id": 3847,
+          "type": "method",
+          "name": "errorFormatter",
+          "file": "/mnt/c/dev/synio/src/server/trpc/init.ts",
+          "line": 29
+        },
+        {
+          "id": 3848,
+          "type": "arrow",
+          "name": "errorTracking",
+          "file": "/mnt/c/dev/synio/src/server/trpc/init.ts",
+          "line": 59
+        },
+        {
+          "id": 3849,
+          "type": "arrow",
+          "name": "csrf",
+          "file": "/mnt/c/dev/synio/src/server/trpc/init.ts",
+          "line": 97
+        },
+        {
+          "id": 3850,
+          "type": "arrow",
+          "name": "isAuthed",
+          "file": "/mnt/c/dev/synio/src/server/trpc/init.ts",
+          "line": 105
+        },
+        {
+          "id": 3851,
+          "type": "arrow",
+          "name": "validateCompanyAccess",
+          "file": "/mnt/c/dev/synio/src/server/trpc/init.ts",
+          "line": 148
+        },
+        {
+          "id": 3852,
+          "type": "arrow",
+          "name": "isCompanyAdmin",
+          "file": "/mnt/c/dev/synio/src/server/trpc/init.ts",
+          "line": 352
+        },
+        {
+          "id": 3853,
+          "type": "arrow",
+          "name": "isStaff",
+          "file": "/mnt/c/dev/synio/src/server/trpc/init.ts",
+          "line": 388
+        },
+        {
+          "id": 3854,
+          "type": "arrow",
+          "name": "isSuperuser",
+          "file": "/mnt/c/dev/synio/src/server/trpc/init.ts",
+          "line": 449
+        },
+        {
+          "id": 3855,
+          "type": "arrow",
+          "name": "rateLimit",
+          "file": "/mnt/c/dev/synio/src/server/trpc/init.ts",
+          "line": 478
+        }
+      ],
+      "has_withRLSContext_node": false
+    },
+    "three_step_reasoning": {
+      "a_file_eligible": "YES — src/server/trpc/init.ts is a .ts file, .ncaignore keeps src/ for indexing, no exclusion applies.",
+      "b_any_nodes_from_file_in_sept_db": "YES — 9 nodes from this exact file exist in the September index (errorFormatter, errorTracking, csrf, isAuthed, validateCompanyAccess, isCompanyAdmin, isStaff, isSuperuser, rateLimit) — so the file was NOT skipped by the scan.",
+      "c_conclusion": "Declaration is of a supported construct type (arrow_function, confirmed by direct re-parse of the exact git blob with the same grammar and the same extractNodeName logic as src/parser.ts), other nodes from the same file exist, the specific target node is absent. INDEXABLE_CONSTRUCT_NO_NODE — CONFIRMED, not reclassified.",
+      "mechanism_certainty": "UNRESOLVED. Unlike ActivateCompanyWizard (below), there is no grammar mismatch here — this file uses the correct .ts grammar and the construct provably resolves under the CURRENT src/parser.ts logic. Why the September scan specifically missed it (an older parser.ts version at scan time with different extractNodeName logic; an incremental-scan/cache skip; some other scan-time-specific cause) is not decided by this task — reported as a scan/parser frontier question, not concluded, per task scope."
+    }
+  },
+  "ActivateCompanyWizard": {
+    "query": "ActivateCompanyWizard",
+    "commit": "e29cb7a1",
+    "all_occurrences_excluding_graphify_cache": [
+      {
+        "commit": "e29cb7a1",
+        "file": "src/components/companies/ActivateCompanyWizard.tsx",
+        "line": 32,
+        "text": "export function ActivateCompanyWizard({"
+      }
+    ],
+    "note_on_graphify_out": "62 additional occurrences exist under graphify-out/ (a DIFFERENT, unrelated code-graph tool's cached output, tracked in the repo at this commit) — excluded here as not relevant to NCA's own indexing; graphify-out/graph.json independently labels this as \"ActivateCompanyWizard()\", corroborating it is an ordinary function, not evidence about NCA's indexer.",
+    "real_declaration_occurrence": {
+      "commit": "e29cb7a1",
+      "file": "src/components/companies/ActivateCompanyWizard.tsx",
+      "line": 32,
+      "text": "export function ActivateCompanyWizard({"
+    },
+    "ast": {
+      "grammar_used": "tree-sitter-typescript .typescript (plain, non-JSX) — the grammar src/parser.ts actually uses for .tsx files (parser.ts:239 maps the tsx extension to the same parser instance as .ts, never loading tree-sitter-typescript's separate .tsx grammar export).",
+      "whole_file_parse_stats": {
+        "hasError": true,
+        "errorNodeCount": 125,
+        "totalTopLevelChildren": 432,
+        "functionTypeNodesFoundInWholeFile": 11
+      },
+      "function_declaration_at_line_32": "NONE — no function_declaration/arrow_function/etc. node found in the 30-40 line range under this grammar.",
+      "syntactic_form_in_source": "export function ActivateCompanyWizard({ ... }) { ... JSX ... }",
+      "tree_sitter_node_type_if_parsed_correctly": "function_declaration (would resolve via own name field, no parent walk needed)"
+    },
+    "september_index": {
+      "nodes_from_this_file": [
+        {
+          "id": 2011,
+          "type": "arrow",
+          "name": "onError",
+          "file": "/mnt/c/dev/synio/src/components/companies/ActivateCompanyWizard.tsx",
+          "line": 62
+        },
+        {
+          "id": 2012,
+          "type": "arrow",
+          "name": "onError",
+          "file": "/mnt/c/dev/synio/src/components/companies/ActivateCompanyWizard.tsx",
+          "line": 66
+        },
+        {
+          "id": 2013,
+          "type": "arrow",
+          "name": "onError",
+          "file": "/mnt/c/dev/synio/src/components/companies/ActivateCompanyWizard.tsx",
+          "line": 70
+        },
+        {
+          "id": 2014,
+          "type": "arrow",
+          "name": "onSuccess",
+          "file": "/mnt/c/dev/synio/src/components/companies/ActivateCompanyWizard.tsx",
+          "line": 74
+        },
+        {
+          "id": 2015,
+          "type": "arrow",
+          "name": "onError",
+          "file": "/mnt/c/dev/synio/src/components/companies/ActivateCompanyWizard.tsx",
+          "line": 79
+        },
+        {
+          "id": 2016,
+          "type": "arrow",
+          "name": "handleStep1",
+          "file": "/mnt/c/dev/synio/src/components/companies/ActivateCompanyWizard.tsx",
+          "line": 82
+        },
+        {
+          "id": 2017,
+          "type": "arrow",
+          "name": "found",
+          "file": "/mnt/c/dev/synio/src/components/companies/ActivateCompanyWizard.tsx",
+          "line": 103
+        },
+        {
+          "id": 2018,
+          "type": "arrow",
+          "name": "handleStep2",
+          "file": "/mnt/c/dev/synio/src/components/companies/ActivateCompanyWizard.tsx",
+          "line": 121
+        },
+        {
+          "id": 2019,
+          "type": "arrow",
+          "name": "handleStep3",
+          "file": "/mnt/c/dev/synio/src/components/companies/ActivateCompanyWizard.tsx",
+          "line": 132
+        },
+        {
+          "id": 2020,
+          "type": "arrow",
+          "name": "onClick",
+          "file": "/mnt/c/dev/synio/src/components/companies/ActivateCompanyWizard.tsx",
+          "line": 241
+        },
+        {
+          "id": 2021,
+          "type": "arrow",
+          "name": "onClick",
+          "file": "/mnt/c/dev/synio/src/components/companies/ActivateCompanyWizard.tsx",
+          "line": 263
+        }
+      ],
+      "has_ActivateCompanyWizard_node": false,
+      "reparse_reproduces_exact_september_node_set": true
+    },
+    "three_step_reasoning": {
+      "a_file_eligible": "YES — .tsx is a scanned extension (parser.ts:239), src/ is kept per .ncaignore, no exclusion applies.",
+      "b_any_nodes_from_file_in_sept_db": "YES — 11 nodes from this exact file exist in the September index (onError, onError, onError, onSuccess, onError, handleStep1, found, handleStep2, handleStep3, onClick, onClick) — the file was scanned, not skipped.",
+      "c_conclusion": "Declaration is of a supported construct type (function_declaration). Other nodes from the same file exist. The specific target (the outer, JSX-returning function_declaration itself) is absent. INDEXABLE_CONSTRUCT_NO_NODE — CONFIRMED.",
+      "mechanism_certainty": "RESOLVED. Re-parsing the exact git blob with the plain TypeScript grammar (matching src/parser.ts's actual .tsx handling) produces 125 ERROR nodes (hasError=true) — the grammar cannot cleanly parse this file's JSX. Only 11 function-type nodes survive anywhere in the whole file, all of them non-JSX-containing INNER arrow functions (event handlers) defined before the JSX return statement; the outer function_declaration whose body directly contains the JSX return is not recognized as a clean node. This reproduction's surviving node set is IDENTICAL to the September index's actual node set for this file (name+type+line, exact) — strong confirmation this is the real mechanism, not just a plausible one. The parser.ts rule responsible: parser.ts:239 (`this.parsers.set('tsx', p)`) reuses the plain-TypeScript-grammar parser instance for .tsx, instead of tree-sitter-typescript's separate .tsx grammar export. This mismatch is a property of the .tsx extension generally, not specific to this one file — not investigated further here (out of this task's scope), but the mechanism itself is general, not file-specific."
+    }
+  },
+  "other_cases": [
+    {
+      "event_id": "2b9b331ed61e8fce",
+      "query": "company-assistant retell agent prompt push update",
+      "literal_pattern": "partial path match — query contains path-shaped token(s) (company-assistant) that substring-matched multiple nodes' file paths; none of those nodes' NAMES appear as an exact token in the query text ('company-assistant retell agent prompt push update') — matched node names: loadCompanyConfigForPrompt, services, buildBeginMessage, createRetellAssistant, updateRetellAssistant, deleteRetellAssistant, createRetellLlm, updateRetellLlm, deleteRetellLlm, createRetellAgent, updateRetellAgent, deleteRetellAgent, buildRetellTools",
+      "query_vs_exact_name_or_file": "query text does NOT equal any matched node.name exactly, and does NOT equal any matched node.file exactly or as its basename — match was via path-substring only (a path-kind candidate token found inside several nodes' file paths), not an exact name or exact path match.",
+      "affects_aggregate_conclusion": false,
+      "why": "Both are variants of the same already-dominant MULTI_TOKEN_QUERY phenomenon (multi-word query, AND-across-terms semantics), just reached via a path-substring candidate instead of a name candidate. Neither changes the counts for INDEXABLE_CONSTRUCT_NO_NODE / NON_INDEXABLE_BY_DESIGN, nor introduces a new EXACT_*_MISSED case (no exact match exists for either). The dominant finding for NODE_PRESENT_MATCHER_MISSED (10/12 MULTI_TOKEN_QUERY, an interface-contract question, not a matcher defect) is unchanged."
+    },
+    {
+      "event_id": "6cb66c55da1a16af",
+      "query": "vapi tools manage-appointment build-prompt token-estimator",
+      "literal_pattern": "partial path match — query contains path-shaped token(s) (manage-appointment, build-prompt, token-estimator) that substring-matched multiple nodes' file paths; none of those nodes' NAMES appear as an exact token in the query text ('vapi tools manage-appointment build-prompt token-estimator') — matched node names: buildPrompt, includedSections, prompt, createDentalConfig, sumOfSections, estimateTokens",
+      "query_vs_exact_name_or_file": "query text does NOT equal any matched node.name exactly, and does NOT equal any matched node.file exactly or as its basename — match was via path-substring only (a path-kind candidate token found inside several nodes' file paths), not an exact name or exact path match.",
+      "affects_aggregate_conclusion": false,
+      "why": "Both are variants of the same already-dominant MULTI_TOKEN_QUERY phenomenon (multi-word query, AND-across-terms semantics), just reached via a path-substring candidate instead of a name candidate. Neither changes the counts for INDEXABLE_CONSTRUCT_NO_NODE / NON_INDEXABLE_BY_DESIGN, nor introduces a new EXACT_*_MISSED case (no exact match exists for either). The dominant finding for NODE_PRESENT_MATCHER_MISSED (10/12 MULTI_TOKEN_QUERY, an interface-contract question, not a matcher defect) is unchanged."
+    }
+  ],
+  "summary": {
+    "confirmed_defects": 2,
+    "reclassified_correct_behavior": 0,
+    "undetermined": 0
+  },
+  "proposed_ledger_line": "Item: nca_ask indexer coverage — 2 confirmed indexer gaps in the September SYNIO index (of 26 originally-flagged recall-gap queries): (1) .tsx files are parsed with the plain (non-JSX) TypeScript grammar (src/parser.ts:239 reuses the .ts parser instance for .tsx instead of tree-sitter-typescript's dedicated .tsx grammar), causing JSX-containing top-level declarations to be dropped while non-JSX inner functions in the same file still get indexed — reproduced exactly against the frozen index's own node set for ActivateCompanyWizard.tsx (11/11 nodes match). (2) A second case (withRLSContext, a plain .ts arrow-function-via-middleware() pattern) is confirmed missing despite provably resolving a name under the CURRENT src/parser.ts logic — mechanism unresolved (possible scan-time parser version drift), reported as an open scan/parser frontier question, not concluded. Status: NOT_ACTED_ON — evidence only, no fix applied, per task scope."
+}
