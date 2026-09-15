@@ -1,0 +1,6273 @@
+{
+  "generated_at": "2026-09-15T16:12:00.359Z",
+  "commit": "e29cb7a1",
+  "grammar_availability": {
+    "package": "tree-sitter-typescript",
+    "version": "0.21.2",
+    "exports": [
+      "typescript",
+      "tsx"
+    ],
+    "hasTypescript": true,
+    "hasTsx": true
+  },
+  "scanner_eligibility_rule": {
+    "source": "src/scanner.ts (read-only) — NOT .ncaignore, which src/scanner.ts does not reference at all.",
+    "DEFAULT_EXCLUDED_DIRS": [
+      "node_modules",
+      ".git",
+      "dist",
+      "build",
+      ".next",
+      ".nuxt",
+      ".svelte-kit",
+      "coverage",
+      "__pycache__",
+      ".mypy_cache",
+      ".pytest_cache",
+      ".tox",
+      ".nca",
+      "vendor",
+      ".venv",
+      "venv",
+      "env"
+    ],
+    "DEFAULT_EXTS": [
+      ".ts",
+      ".tsx",
+      ".js",
+      ".jsx",
+      ".mjs",
+      ".cjs",
+      ".py"
+    ],
+    "max_file_size_kb_default": 512,
+    "config_json_at_commit": "none — .nca/config.json did not exist at e29cb7a1, defaults apply unmodified."
+  },
+  "tsx_files": {
+    "total_eligible": 205,
+    "total_measured_in_grammar_delta": 199,
+    "parse_failures": {
+      "purpose": "Native tree-sitter binding throws on some file content (observed cause: astral-plane/surrogate-pair characters, e.g. emoji) under EITHER grammar — a tooling limitation, not the .tsx grammar-selection bug. src/parser.ts:279 already wraps its own parse call in try/catch -> regexFallback, so production does not crash on these either, but the grammar-delta comparison below does not apply to them (production never reaches the 'which grammar' question for these files). Excluded from the aggregate below, listed here.",
+      "count": 6,
+      "files": [
+        {
+          "path": "src/app/(marketing)/page.tsx",
+          "sizeBytes": 46850,
+          "plainThrew": true,
+          "plainError": "Invalid argument",
+          "tsxThrew": true,
+          "tsxError": "Invalid argument"
+        },
+        {
+          "path": "src/app/admin/companies/[id]/page.tsx",
+          "sizeBytes": 43507,
+          "plainThrew": true,
+          "plainError": "Invalid argument",
+          "tsxThrew": true,
+          "tsxError": "Invalid argument"
+        },
+        {
+          "path": "src/app/admin/configuracion/page.tsx",
+          "sizeBytes": 43421,
+          "plainThrew": true,
+          "plainError": "Invalid argument",
+          "tsxThrew": true,
+          "tsxError": "Invalid argument"
+        },
+        {
+          "path": "src/app/admin/telephony/numbers/page.tsx",
+          "sizeBytes": 35468,
+          "plainThrew": true,
+          "plainError": "Invalid argument",
+          "tsxThrew": true,
+          "tsxError": "Invalid argument"
+        },
+        {
+          "path": "src/components/admin/SuperuserDashboard.tsx",
+          "sizeBytes": 41948,
+          "plainThrew": true,
+          "plainError": "Invalid argument",
+          "tsxThrew": true,
+          "tsxError": "Invalid argument"
+        },
+        {
+          "path": "src/components/crm/ClientDrawer.tsx",
+          "sizeBytes": 38110,
+          "plainThrew": true,
+          "plainError": "Invalid argument",
+          "tsxThrew": true,
+          "tsxError": "Invalid argument"
+        }
+      ]
+    },
+    "aggregate": {
+      "total_named_nodes_plain_grammar_actual": 838,
+      "total_named_nodes_tsx_grammar_correct": 910,
+      "delta_absolute": 72,
+      "delta_pct": 7.9,
+      "delta_by_node_type": {
+        "function": 124,
+        "arrow": -40,
+        "method": -12,
+        "class": 0
+      }
+    },
+    "distribution": {
+      "zero_loss": 77,
+      "under_25pct": 30,
+      "between_25_75pct": 39,
+      "over_75pct": 23,
+      "p50_pct_lost": 0,
+      "p90_pct_lost": 88.9
+    },
+    "zero_survivor_files": [
+      {
+        "path": "src/app/admin/design-test/page.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/app/global-error.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/app/layout.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/admin/KpiCard.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/admin/PageHeader.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/billing/SidebarUsageWidget.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/campaigns/CampaignAnalyticsTab.tsx",
+        "tsx_grammar_nodes": 2
+      },
+      {
+        "path": "src/components/campaigns/CampaignOutcomeChart.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/onboarding/Step1CompanyInfo.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/onboarding/Step4PreviewCall.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/ui/checkbox.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/ui/empty-state.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/ui/label.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/ui/popover.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/ui/progress.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/ui/switch.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/components/ui/tabs.tsx",
+        "tsx_grammar_nodes": 3
+      },
+      {
+        "path": "src/components/ui/tooltip.tsx",
+        "tsx_grammar_nodes": 1
+      },
+      {
+        "path": "src/pages/_error.tsx",
+        "tsx_grammar_nodes": 2
+      }
+    ],
+    "db_cross_check": {
+      "purpose": "For each .tsx file, does the September index's actual node set for that file match this reproduction's plain-grammar node set exactly (name+type+line)? Confirms #60's single-file finding generalizes.",
+      "total_files_checked": 199,
+      "discrepancies_count": 8,
+      "discrepancies": [
+        {
+          "path": "src/app/(marketing)/layout.tsx",
+          "sept_db_node_count": 1,
+          "plain_grammar_node_count": 1
+        },
+        {
+          "path": "src/app/admin/companies/new/page.tsx",
+          "sept_db_node_count": 13,
+          "plain_grammar_node_count": 14
+        },
+        {
+          "path": "src/app/admin/companies/page.tsx",
+          "sept_db_node_count": 7,
+          "plain_grammar_node_count": 7
+        },
+        {
+          "path": "src/app/onboarding/page.tsx",
+          "sept_db_node_count": 13,
+          "plain_grammar_node_count": 13
+        },
+        {
+          "path": "src/components/companies/EditCompanyInfoDialog.tsx",
+          "sept_db_node_count": 7,
+          "plain_grammar_node_count": 7
+        },
+        {
+          "path": "src/components/onboarding/Step2ServicesHours.tsx",
+          "sept_db_node_count": 8,
+          "plain_grammar_node_count": 9
+        },
+        {
+          "path": "src/components/onboarding/Step3SynioConfig.tsx",
+          "sept_db_node_count": 9,
+          "plain_grammar_node_count": 18
+        },
+        {
+          "path": "src/components/onboarding/__tests__/Step2ServicesHours.test.tsx",
+          "sept_db_node_count": 0,
+          "plain_grammar_node_count": 2
+        }
+      ]
+    },
+    "per_file": [
+      {
+        "path": "src/app/(auth)/auth/verify/page.tsx",
+        "sizeBytes": 3382,
+        "plain": {
+          "hasError": true,
+          "errorCount": 32,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 2,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 50,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/(auth)/forgot-password/page.tsx",
+        "sizeBytes": 5391,
+        "plain": {
+          "hasError": true,
+          "errorCount": 51,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 25,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/(auth)/reset-password/page.tsx",
+        "sizeBytes": 10450,
+        "plain": {
+          "hasError": true,
+          "errorCount": 112,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 2,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 40,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/(auth)/sign-in/layout.tsx",
+        "sizeBytes": 506,
+        "plain": {
+          "hasError": true,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/(auth)/sign-in/page.tsx",
+        "sizeBytes": 18446,
+        "plain": {
+          "hasError": true,
+          "errorCount": 172,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 0,
+            "arrow": 8,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 10,
+          "byType": {
+            "function": 2,
+            "arrow": 8,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 20,
+        "sept_db_node_count": 8,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/(auth)/sign-up/page.tsx",
+        "sizeBytes": 110,
+        "plain": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/(marketing)/aviso-legal/page.tsx",
+        "sizeBytes": 5023,
+        "plain": {
+          "hasError": true,
+          "errorCount": 60,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/(marketing)/layout.tsx",
+        "sizeBytes": 1083,
+        "plain": {
+          "hasError": true,
+          "errorCount": 7,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": false
+      },
+      {
+        "path": "src/app/(marketing)/privacidad/page.tsx",
+        "sizeBytes": 173,
+        "plain": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/(marketing)/privacy/page.tsx",
+        "sizeBytes": 20799,
+        "plain": {
+          "hasError": true,
+          "errorCount": 297,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/(marketing)/smooth-scroll.tsx",
+        "sizeBytes": 502,
+        "plain": {
+          "hasError": true,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/(marketing)/terms/page.tsx",
+        "sizeBytes": 4179,
+        "plain": {
+          "hasError": true,
+          "errorCount": 69,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/(marketing)/unsubscribe/UnsubscribeContent.tsx",
+        "sizeBytes": 2915,
+        "plain": {
+          "hasError": true,
+          "errorCount": 38,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 1,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/(marketing)/unsubscribe/page.tsx",
+        "sizeBytes": 413,
+        "plain": {
+          "hasError": true,
+          "errorCount": 4,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/api-keys/ApiKeysPageClient.tsx",
+        "sizeBytes": 16112,
+        "plain": {
+          "hasError": true,
+          "errorCount": 163,
+          "namedNodeCount": 15,
+          "byType": {
+            "function": 0,
+            "arrow": 14,
+            "method": 1,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 11,
+          "byType": {
+            "function": 1,
+            "arrow": 10,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -4,
+        "lostPct": -36.4,
+        "sept_db_node_count": 15,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/api-keys/page.tsx",
+        "sizeBytes": 323,
+        "plain": {
+          "hasError": true,
+          "errorCount": 1,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/calendar/page.tsx",
+        "sizeBytes": 11579,
+        "plain": {
+          "hasError": true,
+          "errorCount": 100,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 0,
+            "arrow": 7,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 1,
+            "arrow": 7,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 12.5,
+        "sept_db_node_count": 7,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/calidad/page.tsx",
+        "sizeBytes": 12491,
+        "plain": {
+          "hasError": true,
+          "errorCount": 91,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 0,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 1,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 16.7,
+        "sept_db_node_count": 5,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/calls/[id]/page.tsx",
+        "sizeBytes": 13622,
+        "plain": {
+          "hasError": true,
+          "errorCount": 138,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 50,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/calls/page.tsx",
+        "sizeBytes": 27209,
+        "plain": {
+          "hasError": true,
+          "errorCount": 249,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 2,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/campanias/[id]/page.tsx",
+        "sizeBytes": 3794,
+        "plain": {
+          "hasError": true,
+          "errorCount": 39,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -3,
+        "lostPct": -300,
+        "sept_db_node_count": 4,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/campanias/new/page.tsx",
+        "sizeBytes": 1894,
+        "plain": {
+          "hasError": true,
+          "errorCount": 7,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 50,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/campanias/page.tsx",
+        "sizeBytes": 10697,
+        "plain": {
+          "hasError": true,
+          "errorCount": 70,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 25,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/clientes/[clientId]/page.tsx",
+        "sizeBytes": 7596,
+        "plain": {
+          "hasError": true,
+          "errorCount": 90,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 0,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 1,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 20,
+        "sept_db_node_count": 4,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/clientes/importar/page.tsx",
+        "sizeBytes": 9363,
+        "plain": {
+          "hasError": true,
+          "errorCount": 71,
+          "namedNodeCount": 14,
+          "byType": {
+            "function": 1,
+            "arrow": 13,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 14,
+          "byType": {
+            "function": 1,
+            "arrow": 13,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 14,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/clientes/nuevo/page.tsx",
+        "sizeBytes": 6354,
+        "plain": {
+          "hasError": true,
+          "errorCount": 77,
+          "namedNodeCount": 11,
+          "byType": {
+            "function": 1,
+            "arrow": 10,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 1,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -6,
+        "lostPct": -120,
+        "sept_db_node_count": 11,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/clientes/page.tsx",
+        "sizeBytes": 13236,
+        "plain": {
+          "hasError": true,
+          "errorCount": 80,
+          "namedNodeCount": 10,
+          "byType": {
+            "function": 0,
+            "arrow": 10,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 11,
+          "byType": {
+            "function": 1,
+            "arrow": 10,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 9.1,
+        "sept_db_node_count": 9,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/[id]/appointments/new/page.tsx",
+        "sizeBytes": 15911,
+        "plain": {
+          "hasError": true,
+          "errorCount": 218,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 25,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/[id]/appointments/page.tsx",
+        "sizeBytes": 13543,
+        "plain": {
+          "hasError": true,
+          "errorCount": 114,
+          "namedNodeCount": 10,
+          "byType": {
+            "function": 0,
+            "arrow": 10,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 11,
+          "byType": {
+            "function": 1,
+            "arrow": 10,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 9.1,
+        "sept_db_node_count": 10,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/[id]/calls/page.tsx",
+        "sizeBytes": 16608,
+        "plain": {
+          "hasError": true,
+          "errorCount": 174,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -100,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/[id]/clients/[clientId]/edit/page.tsx",
+        "sizeBytes": 7004,
+        "plain": {
+          "hasError": true,
+          "errorCount": 86,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 0,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 1,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 20,
+        "sept_db_node_count": 4,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/[id]/clients/import/page.tsx",
+        "sizeBytes": 11588,
+        "plain": {
+          "hasError": true,
+          "errorCount": 89,
+          "namedNodeCount": 19,
+          "byType": {
+            "function": 0,
+            "arrow": 19,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 20,
+          "byType": {
+            "function": 1,
+            "arrow": 19,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 5,
+        "sept_db_node_count": 19,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/[id]/clients/new/page.tsx",
+        "sizeBytes": 6495,
+        "plain": {
+          "hasError": true,
+          "errorCount": 85,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 0,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 1,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 20,
+        "sept_db_node_count": 4,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/[id]/clients/page.tsx",
+        "sizeBytes": 12438,
+        "plain": {
+          "hasError": true,
+          "errorCount": 138,
+          "namedNodeCount": 11,
+          "byType": {
+            "function": 0,
+            "arrow": 11,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 11,
+          "byType": {
+            "function": 1,
+            "arrow": 10,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 10,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/[id]/contacts/[contactId]/edit/page.tsx",
+        "sizeBytes": 16280,
+        "plain": {
+          "hasError": true,
+          "errorCount": 199,
+          "namedNodeCount": 17,
+          "byType": {
+            "function": 1,
+            "arrow": 16,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 2,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -10,
+        "lostPct": -142.9,
+        "sept_db_node_count": 17,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/[id]/contacts/new/page.tsx",
+        "sizeBytes": 13039,
+        "plain": {
+          "hasError": true,
+          "errorCount": 167,
+          "namedNodeCount": 17,
+          "byType": {
+            "function": 1,
+            "arrow": 16,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 1,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -11,
+        "lostPct": -183.3,
+        "sept_db_node_count": 17,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/[id]/contacts/page.tsx",
+        "sizeBytes": 18037,
+        "plain": {
+          "hasError": true,
+          "errorCount": 185,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 0,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -2,
+        "lostPct": -50,
+        "sept_db_node_count": 6,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/[id]/invites/invite-table.tsx",
+        "sizeBytes": 7790,
+        "plain": {
+          "hasError": true,
+          "errorCount": 73,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 2,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 3,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 14.3,
+        "sept_db_node_count": 6,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/[id]/invites/page.tsx",
+        "sizeBytes": 7423,
+        "plain": {
+          "hasError": true,
+          "errorCount": 76,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 0,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 1,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 6,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/layout.tsx",
+        "sizeBytes": 743,
+        "plain": {
+          "hasError": true,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/companies/new/page.tsx",
+        "sizeBytes": 15113,
+        "plain": {
+          "hasError": true,
+          "errorCount": 81,
+          "namedNodeCount": 14,
+          "byType": {
+            "function": 1,
+            "arrow": 13,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 15,
+          "byType": {
+            "function": 2,
+            "arrow": 13,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 6.7,
+        "sept_db_node_count": 13,
+        "db_matches_plain_grammar_reproduction": false
+      },
+      {
+        "path": "src/app/admin/companies/page.tsx",
+        "sizeBytes": 19274,
+        "plain": {
+          "hasError": true,
+          "errorCount": 225,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 0,
+            "arrow": 7,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 2,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 7,
+        "db_matches_plain_grammar_reproduction": false
+      },
+      {
+        "path": "src/app/admin/config/agente/page.tsx",
+        "sizeBytes": 10164,
+        "plain": {
+          "hasError": true,
+          "errorCount": 102,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 0,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 4,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 25,
+        "sept_db_node_count": 6,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/config/page.tsx",
+        "sizeBytes": 130,
+        "plain": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/config/servicios/page.tsx",
+        "sizeBytes": 627,
+        "plain": {
+          "hasError": true,
+          "errorCount": 7,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/contacts/page.tsx",
+        "sizeBytes": 571,
+        "plain": {
+          "hasError": true,
+          "errorCount": 6,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/crm/analytics/page.tsx",
+        "sizeBytes": 13421,
+        "plain": {
+          "hasError": true,
+          "errorCount": 154,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 2,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 9,
+          "byType": {
+            "function": 4,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 22.2,
+        "sept_db_node_count": 7,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/crm/archivo/page.tsx",
+        "sizeBytes": 11486,
+        "plain": {
+          "hasError": true,
+          "errorCount": 104,
+          "namedNodeCount": 9,
+          "byType": {
+            "function": 0,
+            "arrow": 9,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 12,
+          "byType": {
+            "function": 3,
+            "arrow": 9,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 3,
+        "lostPct": 25,
+        "sept_db_node_count": 9,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/crm/configuracion/page.tsx",
+        "sizeBytes": 14835,
+        "plain": {
+          "hasError": true,
+          "errorCount": 78,
+          "namedNodeCount": 25,
+          "byType": {
+            "function": 0,
+            "arrow": 25,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 26,
+          "byType": {
+            "function": 1,
+            "arrow": 25,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 3.8,
+        "sept_db_node_count": 25,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/crm/page.tsx",
+        "sizeBytes": 8972,
+        "plain": {
+          "hasError": true,
+          "errorCount": 69,
+          "namedNodeCount": 16,
+          "byType": {
+            "function": 0,
+            "arrow": 16,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 18,
+          "byType": {
+            "function": 2,
+            "arrow": 16,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 11.1,
+        "sept_db_node_count": 16,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/design-test/page.tsx",
+        "sizeBytes": 22832,
+        "plain": {
+          "hasError": true,
+          "errorCount": 224,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": true,
+          "errorCount": 1,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/error-tracker/ErrorTrackerPageClient.tsx",
+        "sizeBytes": 11673,
+        "plain": {
+          "hasError": true,
+          "errorCount": 160,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/error-tracker/page.tsx",
+        "sizeBytes": 343,
+        "plain": {
+          "hasError": true,
+          "errorCount": 1,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/guide/page.tsx",
+        "sizeBytes": 10553,
+        "plain": {
+          "hasError": true,
+          "errorCount": 65,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 50,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/layout.tsx",
+        "sizeBytes": 835,
+        "plain": {
+          "hasError": true,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/logs/page.tsx",
+        "sizeBytes": 771,
+        "plain": {
+          "hasError": true,
+          "errorCount": 7,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/not-found.tsx",
+        "sizeBytes": 1146,
+        "plain": {
+          "hasError": true,
+          "errorCount": 11,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/notifications/page.tsx",
+        "sizeBytes": 10588,
+        "plain": {
+          "hasError": true,
+          "errorCount": 83,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 0,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 9,
+          "byType": {
+            "function": 1,
+            "arrow": 8,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 3,
+        "lostPct": 33.3,
+        "sept_db_node_count": 6,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/page.tsx",
+        "sizeBytes": 2011,
+        "plain": {
+          "hasError": true,
+          "errorCount": 8,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/quality/page.tsx",
+        "sizeBytes": 13958,
+        "plain": {
+          "hasError": true,
+          "errorCount": 105,
+          "namedNodeCount": 11,
+          "byType": {
+            "function": 1,
+            "arrow": 10,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 12,
+          "byType": {
+            "function": 2,
+            "arrow": 10,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 8.3,
+        "sept_db_node_count": 11,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/quality/rubrics/page.tsx",
+        "sizeBytes": 12374,
+        "plain": {
+          "hasError": true,
+          "errorCount": 108,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 0,
+            "arrow": 8,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 1,
+            "arrow": 7,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 8,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/settings/page.tsx",
+        "sizeBytes": 9402,
+        "plain": {
+          "hasError": true,
+          "errorCount": 103,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 25,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/telephony/costs/page.tsx",
+        "sizeBytes": 15862,
+        "plain": {
+          "hasError": true,
+          "errorCount": 179,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 4,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 3,
+        "lostPct": 42.9,
+        "sept_db_node_count": 4,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/telephony/layout.tsx",
+        "sizeBytes": 317,
+        "plain": {
+          "hasError": true,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/telephony/numbers/purchase/page.tsx",
+        "sizeBytes": 12576,
+        "plain": {
+          "hasError": true,
+          "errorCount": 149,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 25,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/telephony/page.tsx",
+        "sizeBytes": 1882,
+        "plain": {
+          "hasError": true,
+          "errorCount": 14,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -100,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/telephony/providers/page.tsx",
+        "sizeBytes": 5080,
+        "plain": {
+          "hasError": true,
+          "errorCount": 64,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 33.3,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/templates/TemplatesPageClient.tsx",
+        "sizeBytes": 670,
+        "plain": {
+          "hasError": true,
+          "errorCount": 6,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/templates/[id]/edit/page.tsx",
+        "sizeBytes": 583,
+        "plain": {
+          "hasError": true,
+          "errorCount": 6,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/templates/[id]/page.tsx",
+        "sizeBytes": 585,
+        "plain": {
+          "hasError": true,
+          "errorCount": 6,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/templates/library/page.tsx",
+        "sizeBytes": 588,
+        "plain": {
+          "hasError": true,
+          "errorCount": 6,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/templates/new/page.tsx",
+        "sizeBytes": 583,
+        "plain": {
+          "hasError": true,
+          "errorCount": 6,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/admin/templates/page.tsx",
+        "sizeBytes": 331,
+        "plain": {
+          "hasError": true,
+          "errorCount": 1,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/global-error.tsx",
+        "sizeBytes": 1284,
+        "plain": {
+          "hasError": true,
+          "errorCount": 16,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/layout.tsx",
+        "sizeBytes": 6733,
+        "plain": {
+          "hasError": true,
+          "errorCount": 38,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/not-found.tsx",
+        "sizeBytes": 1045,
+        "plain": {
+          "hasError": true,
+          "errorCount": 12,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/onboarding/layout.tsx",
+        "sizeBytes": 649,
+        "plain": {
+          "hasError": true,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/app/onboarding/page.tsx",
+        "sizeBytes": 14468,
+        "plain": {
+          "hasError": true,
+          "errorCount": 92,
+          "namedNodeCount": 13,
+          "byType": {
+            "function": 1,
+            "arrow": 12,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 14,
+          "byType": {
+            "function": 2,
+            "arrow": 12,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 7.1,
+        "sept_db_node_count": 13,
+        "db_matches_plain_grammar_reproduction": false
+      },
+      {
+        "path": "src/components/activity/ActivityLogCard.tsx",
+        "sizeBytes": 8204,
+        "plain": {
+          "hasError": true,
+          "errorCount": 59,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 50,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/activity/TeamActivityDashboard.tsx",
+        "sizeBytes": 10789,
+        "plain": {
+          "hasError": true,
+          "errorCount": 123,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -50,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/admin/AdminLayoutClient.tsx",
+        "sizeBytes": 11613,
+        "plain": {
+          "hasError": true,
+          "errorCount": 118,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 0,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 9,
+          "byType": {
+            "function": 1,
+            "arrow": 8,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 4,
+        "lostPct": 44.4,
+        "sept_db_node_count": 5,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/admin/Breadcrumbs.tsx",
+        "sizeBytes": 3488,
+        "plain": {
+          "hasError": true,
+          "errorCount": 15,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 3,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 33.3,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/admin/KpiCard.tsx",
+        "sizeBytes": 1896,
+        "plain": {
+          "hasError": true,
+          "errorCount": 19,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/admin/PageHeader.tsx",
+        "sizeBytes": 859,
+        "plain": {
+          "hasError": true,
+          "errorCount": 5,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/admin/PrismaStudioButton.tsx",
+        "sizeBytes": 629,
+        "plain": {
+          "hasError": true,
+          "errorCount": 8,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -100,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/admin/UserMenu.tsx",
+        "sizeBytes": 3639,
+        "plain": {
+          "hasError": true,
+          "errorCount": 31,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 33.3,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/analytics/ConsentAnalytics.tsx",
+        "sizeBytes": 2381,
+        "plain": {
+          "hasError": true,
+          "errorCount": 11,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 2,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 2,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/analytics/PostHogProvider.tsx",
+        "sizeBytes": 1226,
+        "plain": {
+          "hasError": true,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/billing/BillingTab.tsx",
+        "sizeBytes": 4301,
+        "plain": {
+          "hasError": true,
+          "errorCount": 47,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/billing/PricingCards.tsx",
+        "sizeBytes": 7937,
+        "plain": {
+          "hasError": true,
+          "errorCount": 96,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 66.7,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/billing/SidebarUsageWidget.tsx",
+        "sizeBytes": 1372,
+        "plain": {
+          "hasError": true,
+          "errorCount": 11,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/billing/UsageLimitBanner.tsx",
+        "sizeBytes": 1031,
+        "plain": {
+          "hasError": true,
+          "errorCount": 9,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/calendar/CalendarView.tsx",
+        "sizeBytes": 10873,
+        "plain": {
+          "hasError": true,
+          "errorCount": 108,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 0,
+            "arrow": 6,
+            "method": 1,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 15,
+          "byType": {
+            "function": 1,
+            "arrow": 14,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 8,
+        "lostPct": 53.3,
+        "sept_db_node_count": 7,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/calendar/QuickCreateDialog.tsx",
+        "sizeBytes": 9544,
+        "plain": {
+          "hasError": true,
+          "errorCount": 119,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 50,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/calls/CallAnalyticsDashboard.tsx",
+        "sizeBytes": 8524,
+        "plain": {
+          "hasError": true,
+          "errorCount": 105,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 3,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 4,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 25,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/calls/DirectionBadge.tsx",
+        "sizeBytes": 713,
+        "plain": {
+          "hasError": true,
+          "errorCount": 2,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/calls/FollowUpNotes.tsx",
+        "sizeBytes": 6296,
+        "plain": {
+          "hasError": true,
+          "errorCount": 56,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 2,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 3,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 5,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/calls/InlineAudioPlayer.tsx",
+        "sizeBytes": 3555,
+        "plain": {
+          "hasError": true,
+          "errorCount": 27,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 2,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 2,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 7,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/calls/SpeakerTranscription.tsx",
+        "sizeBytes": 2491,
+        "plain": {
+          "hasError": true,
+          "errorCount": 18,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 50,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/CampaignAnalyticsTab.tsx",
+        "sizeBytes": 5972,
+        "plain": {
+          "hasError": true,
+          "errorCount": 35,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/CampaignDashboard.tsx",
+        "sizeBytes": 17431,
+        "plain": {
+          "hasError": true,
+          "errorCount": 130,
+          "namedNodeCount": 9,
+          "byType": {
+            "function": 0,
+            "arrow": 9,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 9,
+          "byType": {
+            "function": 1,
+            "arrow": 8,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 9,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/CampaignKpiPanel.tsx",
+        "sizeBytes": 1759,
+        "plain": {
+          "hasError": true,
+          "errorCount": 11,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -100,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/CampaignOutcomeChart.tsx",
+        "sizeBytes": 4344,
+        "plain": {
+          "hasError": true,
+          "errorCount": 32,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/CampaignQualityTrend.tsx",
+        "sizeBytes": 5343,
+        "plain": {
+          "hasError": true,
+          "errorCount": 47,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 2,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 25,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/CampaignWizard.tsx",
+        "sizeBytes": 6385,
+        "plain": {
+          "hasError": true,
+          "errorCount": 54,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 1,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 2,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 20,
+        "sept_db_node_count": 4,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/ColumnMapper.tsx",
+        "sizeBytes": 6314,
+        "plain": {
+          "hasError": true,
+          "errorCount": 54,
+          "namedNodeCount": 16,
+          "byType": {
+            "function": 2,
+            "arrow": 14,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 13,
+          "byType": {
+            "function": 2,
+            "arrow": 11,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -3,
+        "lostPct": -23.1,
+        "sept_db_node_count": 16,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/CsvImporter.tsx",
+        "sizeBytes": 7129,
+        "plain": {
+          "hasError": true,
+          "errorCount": 39,
+          "namedNodeCount": 12,
+          "byType": {
+            "function": 2,
+            "arrow": 9,
+            "method": 1,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 10,
+          "byType": {
+            "function": 2,
+            "arrow": 8,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -2,
+        "lostPct": -20,
+        "sept_db_node_count": 12,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/DncBadge.tsx",
+        "sizeBytes": 499,
+        "plain": {
+          "hasError": true,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/ProspectTable.tsx",
+        "sizeBytes": 11278,
+        "plain": {
+          "hasError": true,
+          "errorCount": 79,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 2,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 3,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 16.7,
+        "sept_db_node_count": 5,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/WizardStep1Persona.tsx",
+        "sizeBytes": 13724,
+        "plain": {
+          "hasError": true,
+          "errorCount": 128,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 0,
+            "arrow": 7,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 1,
+            "arrow": 7,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 12.5,
+        "sept_db_node_count": 7,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/WizardStep2Prospects.tsx",
+        "sizeBytes": 22516,
+        "plain": {
+          "hasError": true,
+          "errorCount": 167,
+          "namedNodeCount": 13,
+          "byType": {
+            "function": 0,
+            "arrow": 13,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 13,
+          "byType": {
+            "function": 1,
+            "arrow": 12,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 13,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/WizardStep3Schedule.tsx",
+        "sizeBytes": 7268,
+        "plain": {
+          "hasError": true,
+          "errorCount": 60,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 25,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/campaigns/WizardStep4Review.tsx",
+        "sizeBytes": 13602,
+        "plain": {
+          "hasError": true,
+          "errorCount": 102,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 1,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 1,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -2,
+        "lostPct": -40,
+        "sept_db_node_count": 7,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/companies/ActivateCompanyWizard.tsx",
+        "sizeBytes": 13029,
+        "plain": {
+          "hasError": true,
+          "errorCount": 125,
+          "namedNodeCount": 11,
+          "byType": {
+            "function": 0,
+            "arrow": 11,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 10,
+          "byType": {
+            "function": 1,
+            "arrow": 9,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -10,
+        "sept_db_node_count": 11,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/companies/EditAgentConfigDialog.tsx",
+        "sizeBytes": 9302,
+        "plain": {
+          "hasError": true,
+          "errorCount": 77,
+          "namedNodeCount": 12,
+          "byType": {
+            "function": 0,
+            "arrow": 12,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 1,
+            "arrow": 7,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -4,
+        "lostPct": -50,
+        "sept_db_node_count": 12,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/companies/EditCompanyInfoDialog.tsx",
+        "sizeBytes": 3836,
+        "plain": {
+          "hasError": true,
+          "errorCount": 42,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 1,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -5,
+        "lostPct": -250,
+        "sept_db_node_count": 7,
+        "db_matches_plain_grammar_reproduction": false
+      },
+      {
+        "path": "src/components/companies/EditContactInfoDialog.tsx",
+        "sizeBytes": 3399,
+        "plain": {
+          "hasError": true,
+          "errorCount": 45,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 1,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -4,
+        "lostPct": -200,
+        "sept_db_node_count": 6,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/companies/EditNotificationsDialog.tsx",
+        "sizeBytes": 9083,
+        "plain": {
+          "hasError": true,
+          "errorCount": 93,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 0,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -25,
+        "sept_db_node_count": 5,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/companies/EditPhoneAssignmentDialog.tsx",
+        "sizeBytes": 6721,
+        "plain": {
+          "hasError": true,
+          "errorCount": 61,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 0,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 1,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -20,
+        "sept_db_node_count": 6,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/companies/EditScriptTemplateDialog.tsx",
+        "sizeBytes": 2526,
+        "plain": {
+          "hasError": true,
+          "errorCount": 25,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 1,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -2,
+        "lostPct": -66.7,
+        "sept_db_node_count": 5,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/companies/EditSubscriptionDialog.tsx",
+        "sizeBytes": 4506,
+        "plain": {
+          "hasError": true,
+          "errorCount": 43,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 1,
+            "arrow": 7,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -5,
+        "lostPct": -166.7,
+        "sept_db_node_count": 8,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/companies/KnowledgeBaseEditor.tsx",
+        "sizeBytes": 4303,
+        "plain": {
+          "hasError": true,
+          "errorCount": 52,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -33.3,
+        "sept_db_node_count": 4,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/crm/CrmCallDialog.tsx",
+        "sizeBytes": 13018,
+        "plain": {
+          "hasError": true,
+          "errorCount": 97,
+          "namedNodeCount": 10,
+          "byType": {
+            "function": 5,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 11,
+          "byType": {
+            "function": 6,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 9.1,
+        "sept_db_node_count": 10,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/crm/CrmCallPopover.tsx",
+        "sizeBytes": 7083,
+        "plain": {
+          "hasError": true,
+          "errorCount": 37,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 2,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 3,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 14.3,
+        "sept_db_node_count": 6,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/crm/FilterBar.tsx",
+        "sizeBytes": 5875,
+        "plain": {
+          "hasError": true,
+          "errorCount": 45,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 2,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/crm/KanbanBoard.tsx",
+        "sizeBytes": 10113,
+        "plain": {
+          "hasError": true,
+          "errorCount": 29,
+          "namedNodeCount": 23,
+          "byType": {
+            "function": 1,
+            "arrow": 22,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 23,
+          "byType": {
+            "function": 2,
+            "arrow": 21,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 23,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/crm/KanbanCard.tsx",
+        "sizeBytes": 4074,
+        "plain": {
+          "hasError": true,
+          "errorCount": 39,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/crm/KanbanColumn.tsx",
+        "sizeBytes": 4199,
+        "plain": {
+          "hasError": true,
+          "errorCount": 48,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 1,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/crm/MetricsBar.tsx",
+        "sizeBytes": 3143,
+        "plain": {
+          "hasError": true,
+          "errorCount": 37,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/crm/ReopenConfirmDialog.tsx",
+        "sizeBytes": 1838,
+        "plain": {
+          "hasError": true,
+          "errorCount": 7,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/crm/StageConfigRow.tsx",
+        "sizeBytes": 9897,
+        "plain": {
+          "hasError": true,
+          "errorCount": 77,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 0,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 1,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 16.7,
+        "sept_db_node_count": 5,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/crm/TableView.tsx",
+        "sizeBytes": 10553,
+        "plain": {
+          "hasError": true,
+          "errorCount": 98,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 0,
+            "arrow": 7,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 1,
+            "arrow": 7,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 12.5,
+        "sept_db_node_count": 7,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/crm/VerticalSelector.tsx",
+        "sizeBytes": 5958,
+        "plain": {
+          "hasError": true,
+          "errorCount": 49,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 2,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 4,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 40,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/forms/NewsletterForm.tsx",
+        "sizeBytes": 4932,
+        "plain": {
+          "hasError": true,
+          "errorCount": 37,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": true,
+          "errorCount": 1,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 33.3,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/gdpr/CookieConsent.tsx",
+        "sizeBytes": 12890,
+        "plain": {
+          "hasError": true,
+          "errorCount": 89,
+          "namedNodeCount": 11,
+          "byType": {
+            "function": 1,
+            "arrow": 10,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 12,
+          "byType": {
+            "function": 3,
+            "arrow": 9,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 8.3,
+        "sept_db_node_count": 11,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/gdpr/ManageCookiesSection.tsx",
+        "sizeBytes": 1068,
+        "plain": {
+          "hasError": true,
+          "errorCount": 8,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/notifications/NotificationBell.tsx",
+        "sizeBytes": 11584,
+        "plain": {
+          "hasError": true,
+          "errorCount": 102,
+          "namedNodeCount": 9,
+          "byType": {
+            "function": 0,
+            "arrow": 8,
+            "method": 1,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 11,
+          "byType": {
+            "function": 1,
+            "arrow": 10,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 18.2,
+        "sept_db_node_count": 9,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/onboarding/Step1CompanyInfo.tsx",
+        "sizeBytes": 10320,
+        "plain": {
+          "hasError": true,
+          "errorCount": 136,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/onboarding/Step2ServicesHours.tsx",
+        "sizeBytes": 10784,
+        "plain": {
+          "hasError": true,
+          "errorCount": 86,
+          "namedNodeCount": 9,
+          "byType": {
+            "function": 0,
+            "arrow": 9,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 10,
+          "byType": {
+            "function": 1,
+            "arrow": 9,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 10,
+        "sept_db_node_count": 8,
+        "db_matches_plain_grammar_reproduction": false
+      },
+      {
+        "path": "src/components/onboarding/Step3SynioConfig.tsx",
+        "sizeBytes": 13969,
+        "plain": {
+          "hasError": true,
+          "errorCount": 158,
+          "namedNodeCount": 18,
+          "byType": {
+            "function": 1,
+            "arrow": 17,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 13,
+          "byType": {
+            "function": 1,
+            "arrow": 12,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -5,
+        "lostPct": -38.5,
+        "sept_db_node_count": 9,
+        "db_matches_plain_grammar_reproduction": false
+      },
+      {
+        "path": "src/components/onboarding/Step4PreviewCall.tsx",
+        "sizeBytes": 1695,
+        "plain": {
+          "hasError": true,
+          "errorCount": 11,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/onboarding/Step5GoLive.tsx",
+        "sizeBytes": 5392,
+        "plain": {
+          "hasError": true,
+          "errorCount": 54,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 4,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/onboarding/WizardStepper.tsx",
+        "sizeBytes": 2827,
+        "plain": {
+          "hasError": true,
+          "errorCount": 23,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 1,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -2,
+        "lostPct": -200,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/onboarding/__tests__/Step2ServicesHours.test.tsx",
+        "sizeBytes": 3174,
+        "plain": {
+          "hasError": true,
+          "errorCount": 16,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": false
+      },
+      {
+        "path": "src/components/onboarding/__tests__/WizardStepper.test.tsx",
+        "sizeBytes": 3712,
+        "plain": {
+          "hasError": true,
+          "errorCount": 31,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/providers/ClientProviders.tsx",
+        "sizeBytes": 516,
+        "plain": {
+          "hasError": true,
+          "errorCount": 2,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/quality/DayBreakdownTable.tsx",
+        "sizeBytes": 8834,
+        "plain": {
+          "hasError": true,
+          "errorCount": 79,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 2,
+            "arrow": 1,
+            "method": 1,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 3,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 4,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/quality/QualityOverviewCard.tsx",
+        "sizeBytes": 3978,
+        "plain": {
+          "hasError": true,
+          "errorCount": 33,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 1,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/quality/QualityTrendChart.tsx",
+        "sizeBytes": 4387,
+        "plain": {
+          "hasError": true,
+          "errorCount": 47,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 3,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 3,
+        "lostPct": 75,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/quality/RubricEditor.tsx",
+        "sizeBytes": 8694,
+        "plain": {
+          "hasError": true,
+          "errorCount": 87,
+          "namedNodeCount": 10,
+          "byType": {
+            "function": 2,
+            "arrow": 8,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 3,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -2,
+        "lostPct": -25,
+        "sept_db_node_count": 10,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/quality/ScoreBadge.tsx",
+        "sizeBytes": 3557,
+        "plain": {
+          "hasError": true,
+          "errorCount": 25,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 50,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/quality/SuperuserQualityOverview.tsx",
+        "sizeBytes": 7050,
+        "plain": {
+          "hasError": true,
+          "errorCount": 75,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 2,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 4,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 40,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/search/CollapsibleSearch.tsx",
+        "sizeBytes": 2253,
+        "plain": {
+          "hasError": true,
+          "errorCount": 19,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/settings/PrivacyTab.tsx",
+        "sizeBytes": 8828,
+        "plain": {
+          "hasError": true,
+          "errorCount": 77,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 1,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 2,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 12.5,
+        "sept_db_node_count": 7,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/shared/ConditionalFinancialTicker.tsx",
+        "sizeBytes": 324,
+        "plain": {
+          "hasError": true,
+          "errorCount": 2,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/shared/FinancialTicker.tsx",
+        "sizeBytes": 3831,
+        "plain": {
+          "hasError": true,
+          "errorCount": 38,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 3,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 66.7,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/templates/SystemPromptEditor.tsx",
+        "sizeBytes": 3961,
+        "plain": {
+          "hasError": true,
+          "errorCount": 40,
+          "namedNodeCount": 4,
+          "byType": {
+            "function": 1,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -33.3,
+        "sept_db_node_count": 4,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/templates/TemplateTypeDialog.tsx",
+        "sizeBytes": 3686,
+        "plain": {
+          "hasError": true,
+          "errorCount": 37,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/templates/TestTemplateDialog.tsx",
+        "sizeBytes": 5772,
+        "plain": {
+          "hasError": true,
+          "errorCount": 69,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 33.3,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/test-engine/ProbarAgenteButton.tsx",
+        "sizeBytes": 6426,
+        "plain": {
+          "hasError": true,
+          "errorCount": 37,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 1,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 2,
+            "arrow": 5,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 14.3,
+        "sept_db_node_count": 6,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/test-engine/RegressionBadge.tsx",
+        "sizeBytes": 628,
+        "plain": {
+          "hasError": true,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/test-engine/ScenarioTrendChart.tsx",
+        "sizeBytes": 5880,
+        "plain": {
+          "hasError": true,
+          "errorCount": 57,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 3,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 33.3,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/test-engine/TestRunLauncher.tsx",
+        "sizeBytes": 20160,
+        "plain": {
+          "hasError": true,
+          "errorCount": 132,
+          "namedNodeCount": 14,
+          "byType": {
+            "function": 2,
+            "arrow": 12,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 13,
+          "byType": {
+            "function": 3,
+            "arrow": 10,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -7.7,
+        "sept_db_node_count": 14,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/test-engine/TestRunProgress.tsx",
+        "sizeBytes": 5874,
+        "plain": {
+          "hasError": true,
+          "errorCount": 24,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 1,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 2,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 16.7,
+        "sept_db_node_count": 5,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/test-engine/TestRunResultCard.tsx",
+        "sizeBytes": 11238,
+        "plain": {
+          "hasError": true,
+          "errorCount": 88,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 1,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 2,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/theme-provider.tsx",
+        "sizeBytes": 337,
+        "plain": {
+          "hasError": true,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/CollapsibleSection.tsx",
+        "sizeBytes": 1566,
+        "plain": {
+          "hasError": true,
+          "errorCount": 21,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -100,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/accordion.tsx",
+        "sizeBytes": 2031,
+        "plain": {
+          "hasError": true,
+          "errorCount": 19,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 33.3,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/alert-dialog.tsx",
+        "sizeBytes": 4433,
+        "plain": {
+          "hasError": true,
+          "errorCount": 40,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 0,
+            "arrow": 8,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 6,
+        "lostPct": 75,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/alert.tsx",
+        "sizeBytes": 1598,
+        "plain": {
+          "hasError": true,
+          "errorCount": 16,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 33.3,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/badge.tsx",
+        "sizeBytes": 1170,
+        "plain": {
+          "hasError": true,
+          "errorCount": 3,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/button.tsx",
+        "sizeBytes": 1959,
+        "plain": {
+          "hasError": true,
+          "errorCount": 3,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/card.tsx",
+        "sizeBytes": 1881,
+        "plain": {
+          "hasError": true,
+          "errorCount": 35,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 0,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 5,
+        "lostPct": 83.3,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/carousel.tsx",
+        "sizeBytes": 6248,
+        "plain": {
+          "hasError": true,
+          "errorCount": 45,
+          "namedNodeCount": 5,
+          "byType": {
+            "function": 1,
+            "arrow": 4,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 10,
+          "byType": {
+            "function": 1,
+            "arrow": 9,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 5,
+        "lostPct": 50,
+        "sept_db_node_count": 5,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/checkbox.tsx",
+        "sizeBytes": 1070,
+        "plain": {
+          "hasError": true,
+          "errorCount": 10,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/confirm-dialog.tsx",
+        "sizeBytes": 1410,
+        "plain": {
+          "hasError": true,
+          "errorCount": 7,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/dialog.tsx",
+        "sizeBytes": 3957,
+        "plain": {
+          "hasError": true,
+          "errorCount": 36,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 0,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 5,
+        "lostPct": 83.3,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/dropdown-menu.tsx",
+        "sizeBytes": 7741,
+        "plain": {
+          "hasError": true,
+          "errorCount": 59,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 9,
+          "byType": {
+            "function": 0,
+            "arrow": 9,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 8,
+        "lostPct": 88.9,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/empty-state.tsx",
+        "sizeBytes": 1820,
+        "plain": {
+          "hasError": true,
+          "errorCount": 16,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/help-tooltip.tsx",
+        "sizeBytes": 1332,
+        "plain": {
+          "hasError": true,
+          "errorCount": 12,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/input.tsx",
+        "sizeBytes": 916,
+        "plain": {
+          "hasError": true,
+          "errorCount": 6,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/label.tsx",
+        "sizeBytes": 758,
+        "plain": {
+          "hasError": true,
+          "errorCount": 7,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/popover.tsx",
+        "sizeBytes": 1385,
+        "plain": {
+          "hasError": true,
+          "errorCount": 5,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/progress.tsx",
+        "sizeBytes": 930,
+        "plain": {
+          "hasError": true,
+          "errorCount": 12,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/radio-group.tsx",
+        "sizeBytes": 1477,
+        "plain": {
+          "hasError": true,
+          "errorCount": 11,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/select.tsx",
+        "sizeBytes": 5910,
+        "plain": {
+          "hasError": true,
+          "errorCount": 45,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 0,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 7,
+          "byType": {
+            "function": 0,
+            "arrow": 7,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 14.3,
+        "sept_db_node_count": 6,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/sheet.tsx",
+        "sizeBytes": 3639,
+        "plain": {
+          "hasError": true,
+          "errorCount": 31,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 6,
+          "byType": {
+            "function": 0,
+            "arrow": 6,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 3,
+        "lostPct": 50,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/skeleton.tsx",
+        "sizeBytes": 261,
+        "plain": {
+          "hasError": true,
+          "errorCount": 3,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/slider.tsx",
+        "sizeBytes": 1096,
+        "plain": {
+          "hasError": true,
+          "errorCount": 11,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/status-badge.tsx",
+        "sizeBytes": 1307,
+        "plain": {
+          "hasError": true,
+          "errorCount": 6,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 1,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/switch.tsx",
+        "sizeBytes": 1166,
+        "plain": {
+          "hasError": true,
+          "errorCount": 5,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/table.tsx",
+        "sizeBytes": 2911,
+        "plain": {
+          "hasError": true,
+          "errorCount": 44,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 8,
+          "byType": {
+            "function": 0,
+            "arrow": 8,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 7,
+        "lostPct": 87.5,
+        "sept_db_node_count": 1,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/tabs.tsx",
+        "sizeBytes": 1897,
+        "plain": {
+          "hasError": true,
+          "errorCount": 15,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 0,
+            "arrow": 3,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 3,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/textarea.tsx",
+        "sizeBytes": 688,
+        "plain": {
+          "hasError": true,
+          "errorCount": 3,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 1,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": -1,
+        "lostPct": -100,
+        "sept_db_node_count": 2,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/components/ui/tooltip.tsx",
+        "sizeBytes": 1159,
+        "plain": {
+          "hasError": true,
+          "errorCount": 4,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 1,
+          "byType": {
+            "function": 0,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 1,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/lib/analytics/plausible.tsx",
+        "sizeBytes": 5006,
+        "plain": {
+          "hasError": true,
+          "errorCount": 4,
+          "namedNodeCount": 16,
+          "byType": {
+            "function": 14,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 16,
+          "byType": {
+            "function": 14,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 16,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/lib/analytics/posthog.tsx",
+        "sizeBytes": 6988,
+        "plain": {
+          "hasError": true,
+          "errorCount": 0,
+          "namedNodeCount": 21,
+          "byType": {
+            "function": 19,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 21,
+          "byType": {
+            "function": 19,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 21,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/lib/trpc/provider.tsx",
+        "sizeBytes": 861,
+        "plain": {
+          "hasError": true,
+          "errorCount": 5,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 3,
+          "byType": {
+            "function": 1,
+            "arrow": 2,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 0,
+        "lostPct": 0,
+        "sept_db_node_count": 3,
+        "db_matches_plain_grammar_reproduction": true
+      },
+      {
+        "path": "src/pages/_error.tsx",
+        "sizeBytes": 1226,
+        "plain": {
+          "hasError": true,
+          "errorCount": 15,
+          "namedNodeCount": 0,
+          "byType": {
+            "function": 0,
+            "arrow": 0,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "tsx": {
+          "hasError": false,
+          "errorCount": 0,
+          "namedNodeCount": 2,
+          "byType": {
+            "function": 1,
+            "arrow": 1,
+            "method": 0,
+            "class": 0
+          }
+        },
+        "lostNodeCount": 2,
+        "lostPct": 100,
+        "sept_db_node_count": 0,
+        "db_matches_plain_grammar_reproduction": true
+      }
+    ]
+  },
+  "ts_control": {
+    "purpose": "Same measurement on a sample of .ts files — expected delta 0 (grammar choice should not matter without JSX).",
+    "sample_size": 60,
+    "total_ts_files_eligible": 506,
+    "total_delta": 0,
+    "discrepancies": [],
+    "discrepancies_found": false
+  },
+  "replay_queries_targeting_tsx": {
+    "purpose": "Of the 58 in-scope replay queries, how many targeted (matched, or had git-grep-confirmed candidate evidence in) a .tsx file — i.e. the defect already manifested in real usage beyond n=1.",
+    "count": 6,
+    "queries": [
+      {
+        "event_id": "02bec69b581249ca",
+        "query": "getCompanies showArchived filter archived companies list",
+        "cls": "clean_no_match",
+        "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/companies/page.tsx:216:  const [showArchived, setShowArchived] = useState(false);"
+      },
+      {
+        "event_id": "0e6d4f2686cc7ee4",
+        "query": "ActivateCompanyWizard WizardStep",
+        "cls": "clean_no_match",
+        "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/companies/new/page.tsx:28:  type WizardStep,"
+      },
+      {
+        "event_id": "a66eeca3b64f454b",
+        "query": "AdminDashboardPage AdminLayout components",
+        "cls": "clean_no_match",
+        "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/layout.tsx:9:export default async function AdminLayout({"
+      },
+      {
+        "event_id": "abbddeebb9010aaa",
+        "query": "AdminDashboardPage AdminLayout",
+        "cls": "clean_no_match",
+        "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/layout.tsx:9:export default async function AdminLayout({"
+      },
+      {
+        "event_id": "c7e6f783e1a51c8a",
+        "query": "createCompany CreateCompanyForm",
+        "cls": "clean_no_match",
+        "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/companies/new/page.tsx:155:  const createCompany = trpc.onboarding.createCompanyWizard.useMutation({"
+      },
+      {
+        "event_id": "ca87e4124cdec550",
+        "query": "archiveCompany mutation 400 bad request already archived",
+        "cls": "clean_no_match",
+        "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/companies/[id]/page.tsx:115:  const archiveCompany = trpc.synio.archiveCompany.useMutation({"
+      }
+    ]
+  },
+  "proposed_ledger_line_REC_0004": "REC-0004 — nca_ask/nca_impact indexer coverage, .tsx grammar mismatch. Evidence: src/parser.ts:239 parses .tsx with tree-sitter-typescript's plain 'typescript' grammar (never loads its 'tsx' grammar, confirmed both present, tree-sitter-typescript@0.21.2). Measured across 199 of 205 scan-eligible .tsx files in synio@e29cb7a1 (git-object read, DEFAULT_EXTS/DEFAULT_EXCLUDED_DIRS/512KB size rule from src/scanner.ts; 6 excluded — native tree-sitter parse failures unrelated to the grammar-selection bug, see parse_failures): 838 named nodes produced vs 910 with the correct .tsx grammar — 72 nodes lost (7.9%), 19 files with ZERO surviving nodes (fully invisible to nca_ask/nca_impact). Loss distribution: 77 files 0% loss, 30 files <25%, 39 files 25-75%, 23 files >75% — evaluate concentration vs distribution.count breakdown. .ts control (n=60, of 506 eligible): total delta 0, 0 discrepancies — confirms the effect is .tsx/JSX-specific, not a general grammar-choice artifact. September DB cross-check: 8 files where the DB does NOT match this reproduction — see discrepancies. 6 of the 58 in-scope Phase A replay queries targeted a .tsx file (real usage manifestation, not just n=1). evidence_level: HIGH (exact reproduction against frozen index, not inference). candidate_type: FIX_RELIABILITY vs NO_INTERVENTION — numbers only, not decided here. If fixed, re-measure: nodes-per-.tsx-file count (this same script, re-run against a fresh scan) and Replay B (drift/source-text classification) to confirm the .tsx-sourced INDEXABLE_CONSTRUCT_NO_NODE and any downstream MULTI_TOKEN_QUERY/OTHER classifications shift as expected."
+}
