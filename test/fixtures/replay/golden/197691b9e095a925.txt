@@ -1,0 +1,21 @@
+[WARN] Index is <DAYS> days old — run: nca scan <project>
+NCA|q:archiveCompany|t:<TS>
+[N]
+@arrow.archiveCompany{m:src/server/trpc/routers/synio/company|i:{ input, ctx }|o:|d:crypto,zod,errorFormatter,errorTracking,csrf|e:db|cx:5|f:/mnt/c/dev/synio/src/server/trpc/routers/synio/company.ts:840|dir:synio|pr:#2322/2795|gn:no}
+@function.createServerContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:7|f:/mnt/c/dev/synio/src/server/trpc/context.ts:137|dir:trpc|pr:#1/2795|gn:yes(56)}
+@function.createContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:7|f:/mnt/c/dev/synio/src/server/trpc/context.ts:76|dir:trpc|pr:#2132/2795|gn:no}
+@arrow.set{m:src/server/trpc/routers/systemConfig.router|i:{ input, ctx }|o:|d:errorFormatter,errorTracking,csrf,isAuthed,validateCompanyAccess|e:db|cx:4|f:/mnt/c/dev/synio/src/server/trpc/routers/systemConfig.router.ts:89|dir:routers|pr:#2351/2795|gn:no}
+@arrow.getSession{m:src/server/trpc/routers/auth.router|i:{ ctx }|o:|d:@trpc/server,bcryptjs,errorFormatter,errorTracking,csrf|e:db|cx:8|f:/mnt/c/dev/synio/src/server/trpc/routers/auth.router.ts:225|dir:routers|pr:#2161/2795|gn:no}
+@arrow.update{m:src/server/trpc/routers/apikey.router|i:{ ctx, input }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:6|f:/mnt/c/dev/synio/src/server/trpc/routers/apikey.router.ts:194|dir:routers|pr:#749/2795|gn:no}
+@arrow.createCheckoutSession{m:src/server/trpc/routers/billing.router|i:{ ctx, input }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:12|f:/mnt/c/dev/synio/src/server/trpc/routers/billing.router.ts:128|dir:routers|pr:#368/2795|gn:no}
+@arrow.createContext{m:tests/helpers/integration|i:|o:Context|d:@prisma/client,getSession,createContext,createServerContext,now|e:db|cx:3|f:/mnt/c/dev/synio/tests/helpers/integration.ts:249|dir:helpers|pr:#47/2795|gn:no}
+@function.csrfMiddleware{m:src/lib/security/csrf|i:opts:: {
+  ctx: TContext
+  next: () => Promise<any>
+  path: string
+  type: 'query' | 'mutation' | 'subscription'
+  meta?: Record<string, any>
+  rawInput?: unknown
+}|o:|d:crypto,@trpc/server,next/headers,@/server/trpc/context,next|e:|cx:6|f:/mnt/c/dev/synio/src/lib/security/csrf.ts:59|dir:security|pr:#34/2795|gn:no}
+@function.getSession{m:src/lib/auth/session|i:request:: NextRequest|o:|d:next/server,iron-ses
+NCA|truncated|107_nodes_omitted

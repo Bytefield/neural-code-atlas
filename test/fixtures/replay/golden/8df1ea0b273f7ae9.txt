@@ -1,0 +1,17 @@
+[WARN] Index is <DAYS> days old — run: nca scan <project>
+NCA|q:EditAgentConfig|t:<TS>
+[PATH_MATCH]
+@function.createContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:7|f:/mnt/c/dev/synio/src/server/trpc/context.ts:76|dir:trpc|pr:#2132/2795|gn:no}
+@function.retryUntil{m:tests/helpers/integration|i:fn:: () => Promise<void>,options:: { timeout?: number; interval?: number }|o:Promise<void>|d:@prisma/client,getSession,createContext,createServerContext,now|e:|cx:6|f:/mnt/c/dev/synio/tests/helpers/integration.ts:140|dir:helpers|pr:#293/2795|gn:yes(32)}
+@function.createTestContext{m:tests/helpers/integration|i:|o:Promise<TestContext>|d:@prisma/client,getSession,createContext,createServerContext,setupIntegrationTest|e:db|cx:4|f:/mnt/c/dev/synio/tests/helpers/integration.ts:241|dir:helpers|pr:#289/2795|gn:yes(33)}
+@arrow.createContext{m:tests/helpers/integration|i:|o:Context|d:@prisma/client,getSession,createContext,createServerContext,now|e:db|cx:3|f:/mnt/c/dev/synio/tests/helpers/integration.ts:249|dir:helpers|pr:#47/2795|gn:no}
+@arrow.authenticateAs{m:tests/helpers/integration|i:userId:: string|o:|d:@prisma/client,getSession,createContext,createServerContext,findUnique|e:db|cx:2|f:/mnt/c/dev/synio/tests/helpers/integration.ts:280|dir:helpers|pr:#287/2795|gn:yes(32)}
+@function.cleanupTestData{m:tests/helpers/integration|i:prisma:: PrismaClient,tables:: string[]|o:Promise<void>|d:@prisma/client,getSession,createContext,createServerContext,deleteMany|e:db|cx:2|f:/mnt/c/dev/synio/tests/helpers/integration.ts:85|dir:helpers|pr:#2431/2795|gn:no}
+@arrow.clearAuth{m:tests/helpers/integration|i:|o:|d:@prisma/client,getSession,createContext,createServerContext,createCaller|e:|cx:1|f:/mnt/c/dev/synio/tests/helpers/integration.ts:305|dir:helpers|pr:#288/2795|gn:yes(32)}
+@function.createTestTimeout{m:tests/helpers/integration|i:ms:: number,operation:: string|o:NodeJS.Timeout|d:@prisma/client,getSession,createContext,createServerContext,setTimeout|e:timer|cx:1|f:/mnt/c/dev/synio/tests/helpers/integration.ts:211|dir:helpers|pr:#290/2795|gn:yes(31)}
+@function.mockEnv{m:tests/helpers/integration|i:vars:: Record<string, string>|o:void|d:@prisma/client,getSession,createContext,createServerContext,assign|e:|cx:1|f:/mnt/c/dev/synio/tests/helpers/integration.ts:182|dir:helpers|pr:#291/2795|gn:yes(31)}
+@function.setupIntegrationTest{m:tests/helpers/
+NCA|truncated|32_nodes_omitted
+[DOCS]
+~/mnt/c/dev/synio/graphify-out/GRAPH_REPORT.md|title:GRAPH_REPORT|excerpt:Cohesion: 0.05
+Nodes (36): SuperuserDashboard(), ApiKeyWithSecret, WizardStep3ScheduleProps, WizardStep4ReviewProps, ActivateCompanyWizardProps, Step, ForgotPasswordFormData, Step1CompanyInfoProps ...

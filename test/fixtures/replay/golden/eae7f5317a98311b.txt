@@ -1,0 +1,46 @@
+[WARN] Index is <DAYS> days old — run: nca scan <project>
+NCA|q:getCompanies|t:<TS>
+[N]
+@arrow.getCompanies{m:src/server/trpc/routers/synio/company|i:{ input, ctx }|o:|d:crypto,zod,errorFormatter,errorTracking,csrf|e:db|cx:4|f:/mnt/c/dev/synio/src/server/trpc/routers/synio/company.ts:45|dir:synio|pr:#2327/2795|gn:no}
+@function.createServerContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:7|f:/mnt/c/dev/synio/src/server/trpc/context.ts:137|dir:trpc|pr:#1/2795|gn:yes(56)}
+@function.createContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:7|f:/mnt/c/dev/synio/src/server/trpc/context.ts:76|dir:trpc|pr:#2132/2795|gn:no}
+@arrow.set{m:src/server/trpc/routers/systemConfig.router|i:{ input, ctx }|o:|d:errorFormatter,errorTracking,csrf,isAuthed,validateCompanyAccess|e:db|cx:4|f:/mnt/c/dev/synio/src/server/trpc/routers/systemConfig.router.ts:89|dir:routers|pr:#2351/2795|gn:no}
+@arrow.getSession{m:src/server/trpc/routers/auth.router|i:{ ctx }|o:|d:@trpc/server,bcryptjs,errorFormatter,errorTracking,csrf|e:db|cx:8|f:/mnt/c/dev/synio/src/server/trpc/routers/auth.router.ts:225|dir:routers|pr:#2161/2795|gn:no}
+@arrow.totalCalls{m:src/server/trpc/routers/synio/calls|i:sum,d|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:|cx:1|f:/mnt/c/dev/synio/src/server/trpc/routers/synio/calls.ts:227|dir:synio|pr:#2309/2795|gn:no}
+@arrow.createContext{m:tests/helpers/integration|i:|o:Context|d:@prisma/client,getSession,createContext,createServerContext,now|e:db|cx:3|f:/mnt/c/dev/synio/tests/helpers/integration.ts:249|dir:helpers|pr:#47/2795|gn:no}
+@function.csrfMiddleware{m:src/lib/security/csrf|i:opts:: {
+  ctx: TContext
+  next: () => Promise<any>
+  path: string
+  type: 'query' | 'mutation' | 'subscription'
+  meta?: Record<string, any>
+  rawInput?: unknown
+}|o:|d:crypto,@trpc/server,next/headers,@/server/trpc/context,next|e:|cx:6|f:/mnt/c/dev/synio/src/lib/security/csrf.ts:59|dir:security|pr:#34/2795|gn:no}
+@function.getSession{m:src/lib/auth/session|i:request:: NextRequest|o:|d:next/server,iron-session,next/headers,@/server/trpc/context,@/lib/validations/auth.schema|e:db|cx:6|f:/mnt/c/dev/synio/src/lib/auth/session.ts:18|dir:auth|pr:#1741/2795|gn:no}
+@function.getSession{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/cl
+NCA|truncated|85_nodes_omitted
+[DOCS]
+~/mnt/c/dev/synio/docs/security/SECURITY_AUDIT_REPORT.md|title:SECURITY_AUDIT_REPORT|excerpt:**Tests Automatizados de RBAC**:
+
+```typescript
+// __tests__/rbac.test.ts
+import { createCaller } from '@/server/trpc/routers/_app'
+import { createMockContext } from '@/server/trpc/context'
+
+descri...
+~/mnt/c/dev/synio/docs/archive/ERROR_TRACKING_INTEGRATION.md|title:ERROR_TRACKING_INTEGRATION|excerpt:```json
+{
+  "id": "error_1737290547123_abc123def",
+  "timestamp": "2026-01-19T11:44:57.123Z",
+  "message": "Decryption failed (invalid key or corrupted data)",
+  "stack": "Error: Decryption failed....
+~/mnt/c/dev/synio/docs/archive/ERROR_TRACKING_INTEGRATION.md|title:ERROR_TRACKING_INTEGRATION|excerpt:# View statistics
+npx tsx scripts/view-errors.ts --stats
+# Output:
+# 📊 Error Statistics
+# ==================================================
+# Total Errors: 45
+# Last 24 Hours: 12
+#
+# By Type:
+#  ...

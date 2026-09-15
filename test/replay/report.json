@@ -1,0 +1,1287 @@
+{
+  "dist": "/mnt/c/dev/nca-replay-fixture/dist",
+  "generated_at": "2026-09-15T09:10:23.866Z",
+  "fixture_query_count": 64,
+  "in_scope_count": 58,
+  "out_of_scope_count": 6,
+  "counts": {
+    "direct_hit": 7,
+    "clean_no_match": 51,
+    "noisy_fallback": 0,
+    "known_env_error": 0,
+    "product_error": 0,
+    "out_of_scope": 6
+  },
+  "in_scope_counts": {
+    "direct_hit": 7,
+    "clean_no_match": 51,
+    "noisy_fallback": 0,
+    "known_env_error": 0,
+    "product_error": 0
+  },
+  "gate": {
+    "noisy_fallback_zero": {
+      "pass": true,
+      "value": 0,
+      "required": "== 0"
+    },
+    "product_error_zero": {
+      "pass": true,
+      "value": 0,
+      "required": "== 0 (known_env_error excluded)"
+    },
+    "direct_hit_at_least_12": {
+      "pass": false,
+      "value": 7,
+      "required": ">= 12"
+    },
+    "clean_no_match_explicit": {
+      "pass": true,
+      "value": 51,
+      "required": "every non-hit, non-error query is clean_no_match (0 noisy_fallback)"
+    },
+    "overall_pass": false
+  },
+  "results": [
+    {
+      "event_id": "02bec69b581249ca",
+      "session_id": "2a5a97f4-aa27-4bb5-a6e8-b5ac967023a5",
+      "query": "getCompanies showArchived filter archived companies list",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "getCompanies",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/calls/page.tsx:124:  const { data: companies } = trpc.synio.getCompanies.useQuery("
+          },
+          {
+            "token": "showArchived",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/companies/page.tsx:216:  const [showArchived, setShowArchived] = useState(false);"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "040d683498e3f5ef",
+      "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7",
+      "query": "RLS row level security tenant isolation middleware prisma",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "049a63d2c1139d36",
+      "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c",
+      "query": "marketing page components",
+      "project_arg": "/mnt/c/dev/webs/synio-web",
+      "cls": "out_of_scope",
+      "out_of_scope_project": true
+    },
+    {
+      "event_id": "0e6d4f2686cc7ee4",
+      "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3",
+      "query": "ActivateCompanyWizard WizardStep",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "ActivateCompanyWizard",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/components/companies/ActivateCompanyWizard.tsx:32:export function ActivateCompanyWizard({"
+          },
+          {
+            "token": "WizardStep",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/companies/new/page.tsx:28:  type WizardStep,"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "14a67463491e142e",
+      "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7",
+      "query": "shouldApplyRLS",
+      "project_arg": null,
+      "cls": "direct_hit",
+      "out_of_scope_project": false
+    },
+    {
+      "event_id": "197691b9e095a925",
+      "session_id": "2a5a97f4-aa27-4bb5-a6e8-b5ac967023a5",
+      "query": "archiveCompany",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "direct_hit",
+      "out_of_scope_project": false
+    },
+    {
+      "event_id": "1b1d03ff9287827e",
+      "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862",
+      "query": "SENTRY_AUTH_TOKEN",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_absent",
+        "reason": "none of the extracted candidate tokens exist in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) — consistent with drift since the May/June baseline",
+        "candidates": [
+          {
+            "token": "SENTRY_AUTH_TOKEN",
+            "kind": "upper_snake",
+            "exists": false,
+            "evidence": null
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "210e9e2349d5d4f3",
+      "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862",
+      "query": "DISCORD_NOTIFICATION_WEBHOOK",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "DISCORD_NOTIFICATION_WEBHOOK",
+            "kind": "upper_snake",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/lib/notifications/discord.ts:14: * Silent-fails if DISCORD_NOTIFICATION_WEBHOOK is not configured or if the request fails."
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "2b9b331ed61e8fce",
+      "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3",
+      "query": "company-assistant retell agent prompt push update",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "company-assistant",
+            "kind": "path",
+            "exists": true,
+            "evidence": "src/lib/services/__tests__/company-assistant.service.test.ts"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "2fa8c2c4430f5efe",
+      "session_id": "05803db7-d04e-41df-93a2-1a30497059e4",
+      "query": "admin superuser role permission",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "313f77cf78f369d4",
+      "session_id": "77722efd-b624-4a8f-8b1a-a42a86a43fce",
+      "query": "entitlements subscription status",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "32b1871be396d7ff",
+      "session_id": "43ce5d64-6ef2-46fd-af84-51c005ee73c2",
+      "query": "manage-appointment.ts imports dependencies",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_absent",
+        "reason": "none of the extracted candidate tokens exist in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) — consistent with drift since the May/June baseline",
+        "candidates": [
+          {
+            "token": "manage-appointment.ts",
+            "kind": "path",
+            "exists": false,
+            "evidence": null
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "4347cae108cc3fa6",
+      "session_id": "77722efd-b624-4a8f-8b1a-a42a86a43fce",
+      "query": "public API integration endpoint external",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "4394b0df6c0b9b5f",
+      "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3",
+      "query": "CompanyConfig loadCompanyConfigForPrompt",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "CompanyConfig",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/manual/_archived_2026_04_30/017_client_outbound.sql:10:-- 5. Add CRM outbound config fields to CompanyConfig"
+          },
+          {
+            "token": "loadCompanyConfigForPrompt",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:scripts/push-retell-prompt-staging.ts:16:import { loadCompanyConfigForPrompt } from \"../src/lib/services/company-assistant.service\";"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "4551b054011ce9fc",
+      "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3",
+      "query": "CompanyConfigForm EditVoiceConfig",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_absent",
+        "reason": "none of the extracted candidate tokens exist in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) — consistent with drift since the May/June baseline",
+        "candidates": [
+          {
+            "token": "CompanyConfigForm",
+            "kind": "camel_pascal",
+            "exists": false,
+            "evidence": null
+          },
+          {
+            "token": "EditVoiceConfig",
+            "kind": "camel_pascal",
+            "exists": false,
+            "evidence": null
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "4989090c149d0489",
+      "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c",
+      "query": "marketing page landing page design",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "4ad09ac3d96c74b8",
+      "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3",
+      "query": "applyTemplate verticalTemplate",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "applyTemplate",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:scripts/setup-dental-test-company.ts:11:import { applyTemplate } from \"../src/lib/crm/apply-template\";"
+          },
+          {
+            "token": "verticalTemplate",
+            "kind": "camel_pascal",
+            "exists": false,
+            "evidence": null
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "4e927cb09554e948",
+      "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7",
+      "query": "companyProcedure",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "companyProcedure",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/context.ts:103:  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "4edb26fd8e16329a",
+      "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862",
+      "query": "GOOGLE_CALENDAR_CLIENT_ID",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "GOOGLE_CALENDAR_CLIENT_ID",
+            "kind": "upper_snake",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/api/calendar/google/authorize/route.ts:76:  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "53ecd51c6d9bcca0",
+      "session_id": "9998d01c-dbc9-4410-a4f4-4406bb4c39e8",
+      "query": "voiceRules",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_absent",
+        "reason": "none of the extracted candidate tokens exist in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) — consistent with drift since the May/June baseline",
+        "candidates": [
+          {
+            "token": "voiceRules",
+            "kind": "camel_pascal",
+            "exists": false,
+            "evidence": null
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "58bfe33a38d8f8fa",
+      "session_id": "77722efd-b624-4a8f-8b1a-a42a86a43fce",
+      "query": "CANCELLED PAST_DUE subscription",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "PAST_DUE",
+            "kind": "upper_snake",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/migrations/20260101000000_synio_core_schema/migration.sql:5:CREATE TYPE \"SubscriptionStatus\" AS ENUM ('TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELLED');"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "59655a4daa54901e",
+      "session_id": "35f883b5-0528-4065-b84a-62ee7dc3359b",
+      "query": "checkAvailability slot locking",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "checkAvailability",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/schema.prisma:936:  @@index([companyId, start]) // Primary query index for checkAvailability"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "65c5338cc438e195",
+      "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862",
+      "query": "AZURE_CALENDAR_CLIENT_ID",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "AZURE_CALENDAR_CLIENT_ID",
+            "kind": "upper_snake",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/api/calendar/microsoft/authorize/route.ts:75:  const clientId = process.env.AZURE_CALENDAR_CLIENT_ID;"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "67274fea04730e94",
+      "session_id": "35f883b5-0528-4065-b84a-62ee7dc3359b",
+      "query": "ioredis client connection",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "6b4156696acef1f7",
+      "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7",
+      "query": "webhook handler retell flash telecom vapi signature verification",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "6cb66c55da1a16af",
+      "session_id": "8521423d-31b1-41b5-9c11-fd5d64dce440",
+      "query": "vapi tools manage-appointment build-prompt token-estimator",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "manage-appointment",
+            "kind": "path",
+            "exists": false,
+            "evidence": null
+          },
+          {
+            "token": "build-prompt",
+            "kind": "path",
+            "exists": true,
+            "evidence": "src/lib/prompt/__tests__/build-prompt.test.ts"
+          },
+          {
+            "token": "token-estimator",
+            "kind": "path",
+            "exists": true,
+            "evidence": "src/lib/prompt/__tests__/token-estimator.test.ts"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "71316f96bcf178b8",
+      "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c",
+      "query": "PLAN-MAESTRO-UNIFICADO AUDITORIA-UI",
+      "project_arg": "/mnt/c/Users/jesus/Desktop/Papi_Obsidian_Vault/02-Projects/synio",
+      "cls": "out_of_scope",
+      "out_of_scope_project": true
+    },
+    {
+      "event_id": "77fb9296660c0382",
+      "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862",
+      "query": "DISCORD_ERROR_WEBHOOK",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "DISCORD_ERROR_WEBHOOK",
+            "kind": "upper_snake",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:scripts/backup-daily.sh:14:DISCORD_WEBHOOK=\"${DISCORD_ERROR_WEBHOOK:-}\""
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "7e64f2f2f5efd605",
+      "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c",
+      "query": "admin UI dashboard changes redesign",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "825bb4cea88370ab",
+      "session_id": "35f883b5-0528-4065-b84a-62ee7dc3359b",
+      "query": "ecosystem config pm2 staging",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "83096b383d93dd6f",
+      "session_id": "9998d01c-dbc9-4410-a4f4-4406bb4c39e8",
+      "query": "buildIdentity",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "direct_hit",
+      "out_of_scope_project": false
+    },
+    {
+      "event_id": "8ddc7a5e4fbb0419",
+      "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c",
+      "query": "CONTRATO-UI DESIGN-SYSTEM",
+      "project_arg": "/mnt/c/Users/jesus/Desktop/Papi_Obsidian_Vault/02-Projects/synio",
+      "cls": "out_of_scope",
+      "out_of_scope_project": true
+    },
+    {
+      "event_id": "8df1ea0b273f7ae9",
+      "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3",
+      "query": "EditAgentConfig",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "direct_hit",
+      "out_of_scope_project": false
+    },
+    {
+      "event_id": "974eebee86ba263f",
+      "session_id": "77722efd-b624-4a8f-8b1a-a42a86a43fce",
+      "query": "plan limits enforcement agent number",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "97567728eef0ce40",
+      "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3",
+      "query": "onboarding setup wizard",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "a1a7d0eb0589f758",
+      "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7",
+      "query": "$queryRaw raw SQL injection unsafe query",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "$queryRaw",
+            "kind": "dollar",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/migrations/FULL_TEXT_SEARCH_MIGRATION.sql:235:-- const results = await prisma.$queryRaw`"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "a27fca3cecad2b12",
+      "session_id": "9998d01c-dbc9-4410-a4f4-4406bb4c39e8",
+      "query": "voiceRules",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_absent",
+        "reason": "none of the extracted candidate tokens exist in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) — consistent with drift since the May/June baseline",
+        "candidates": [
+          {
+            "token": "voiceRules",
+            "kind": "camel_pascal",
+            "exists": false,
+            "evidence": null
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "a66eeca3b64f454b",
+      "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c",
+      "query": "AdminDashboardPage AdminLayout components",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "AdminDashboardPage",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/page.tsx:9:export default async function AdminDashboardPage() {"
+          },
+          {
+            "token": "AdminLayout",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/layout.tsx:9:export default async function AdminLayout({"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "abbddeebb9010aaa",
+      "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c",
+      "query": "AdminDashboardPage AdminLayout",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "AdminDashboardPage",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/page.tsx:9:export default async function AdminDashboardPage() {"
+          },
+          {
+            "token": "AdminLayout",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/layout.tsx:9:export default async function AdminLayout({"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "aeb3bf5484f84ce2",
+      "session_id": "43ce5d64-6ef2-46fd-af84-51c005ee73c2",
+      "query": "files inside src/lib/vapi that import from outside vapi directory",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_absent",
+        "reason": "none of the extracted candidate tokens exist in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) — consistent with drift since the May/June baseline",
+        "candidates": [
+          {
+            "token": "src/lib/vapi",
+            "kind": "path",
+            "exists": false,
+            "evidence": null
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "af01ab0d7d9db27b",
+      "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3",
+      "query": "syncAgent updateRetellAgent",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "syncAgent",
+            "kind": "camel_pascal",
+            "exists": false,
+            "evidence": null
+          },
+          {
+            "token": "updateRetellAgent",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/lib/external/retell-api.ts:176:export async function updateRetellAgent("
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "bb8b4883f5f9370c",
+      "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862",
+      "query": "RETELL_WEBHOOK_SECRET",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_absent",
+        "reason": "none of the extracted candidate tokens exist in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) — consistent with drift since the May/June baseline",
+        "candidates": [
+          {
+            "token": "RETELL_WEBHOOK_SECRET",
+            "kind": "upper_snake",
+            "exists": false,
+            "evidence": null
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "c0f5b1ecd6132020",
+      "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c",
+      "query": "admin UI cambios rediseño dashboard",
+      "project_arg": "/mnt/c/Users/jesus/Desktop/Papi_Obsidian_Vault/02-Projects/synio",
+      "cls": "out_of_scope",
+      "out_of_scope_project": true
+    },
+    {
+      "event_id": "c7e6f783e1a51c8a",
+      "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3",
+      "query": "createCompany CreateCompanyForm",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "createCompany",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/companies/new/page.tsx:155:  const createCompany = trpc.onboarding.createCompanyWizard.useMutation({"
+          },
+          {
+            "token": "CreateCompanyForm",
+            "kind": "camel_pascal",
+            "exists": false,
+            "evidence": null
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "c871e30d25e2c90b",
+      "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7",
+      "query": "overall system architecture entry points routers tRPC auth middleware tenancy",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "tRPC",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/migrations/add-row-level-security.sql:286:In your application code (tRPC context or middleware), add:"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "c9b5a8d8329b3e3a",
+      "session_id": "05803db7-d04e-41df-93a2-1a30497059e4",
+      "query": "webhook routes API endpoints retell",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "ca87e4124cdec550",
+      "session_id": "2a5a97f4-aa27-4bb5-a6e8-b5ac967023a5",
+      "query": "archiveCompany mutation 400 bad request already archived",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "archiveCompany",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/admin/companies/[id]/page.tsx:115:  const archiveCompany = trpc.synio.archiveCompany.useMutation({"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "ccf25e844034d5a9",
+      "session_id": "9998d01c-dbc9-4410-a4f4-4406bb4c39e8",
+      "query": "buildIdentity",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "direct_hit",
+      "out_of_scope_project": false
+    },
+    {
+      "event_id": "cd2d934834b38bd9",
+      "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c",
+      "query": "GUIDELINE landing-umbrella",
+      "project_arg": "/mnt/c/Users/jesus/Desktop/Papi_Obsidian_Vault/02-Projects/synio",
+      "cls": "out_of_scope",
+      "out_of_scope_project": true
+    },
+    {
+      "event_id": "d06f5159254435df",
+      "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862",
+      "query": "SENTRY_ORG",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_absent",
+        "reason": "none of the extracted candidate tokens exist in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) — consistent with drift since the May/June baseline",
+        "candidates": [
+          {
+            "token": "SENTRY_ORG",
+            "kind": "upper_snake",
+            "exists": false,
+            "evidence": null
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "d64512508a613737",
+      "session_id": "6ce23388-8059-439c-a909-d72fd9cb006c",
+      "query": "marketing landing page cambios pendientes",
+      "project_arg": "/mnt/c/Users/jesus/Desktop/Papi_Obsidian_Vault/02-Projects/synio",
+      "cls": "out_of_scope",
+      "out_of_scope_project": true
+    },
+    {
+      "event_id": "d6886dd681fb9808",
+      "session_id": "045abbef-7e5a-4f99-8433-afe2c6e6b9b3",
+      "query": "isNoShowRecovery",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "isNoShowRecovery",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/manual/_archived_2026_04_30/017_client_outbound.sql:9:-- 4. Add isNoShowRecovery to PipelineStage"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "d71a781a02a5997e",
+      "session_id": "05803db7-d04e-41df-93a2-1a30497059e4",
+      "query": "authentication authorization middleware session",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "e0ddfc66d37dd1b0",
+      "session_id": "35f883b5-0528-4065-b84a-62ee7dc3359b",
+      "query": "appointment concurrency transaction",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "e0fcc5cc3939ac1c",
+      "session_id": "51a1dbac-1452-4eb8-adf3-d7f374375862",
+      "query": "SENTRY_PROJECT",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_absent",
+        "reason": "none of the extracted candidate tokens exist in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) — consistent with drift since the May/June baseline",
+        "candidates": [
+          {
+            "token": "SENTRY_PROJECT",
+            "kind": "upper_snake",
+            "exists": false,
+            "evidence": null
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "e344329d8432f075",
+      "session_id": "0f07b51a-c5d3-4842-871f-fa5e1d50cdc9",
+      "query": "companyProcedure staffProcedure definition middleware",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "companyProcedure",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/context.ts:103:  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
+          },
+          {
+            "token": "staffProcedure",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/context.ts:103:  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "e7b174a282aeff21",
+      "session_id": "77722efd-b624-4a8f-8b1a-a42a86a43fce",
+      "query": "agent locale country language config",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "undeterminable",
+        "reason": "no identifier-shaped token extracted — natural-language / multi-concept query with no single symbol or path candidate",
+        "candidates": []
+      }
+    },
+    {
+      "event_id": "e98570b337329a37",
+      "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7",
+      "query": "validateCompanyAccess",
+      "project_arg": null,
+      "cls": "direct_hit",
+      "out_of_scope_project": false
+    },
+    {
+      "event_id": "eae7f5317a98311b",
+      "session_id": "2a5a97f4-aa27-4bb5-a6e8-b5ac967023a5",
+      "query": "getCompanies",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "direct_hit",
+      "out_of_scope_project": false
+    },
+    {
+      "event_id": "ec16fddb3b924ab5",
+      "session_id": "43ce5d64-6ef2-46fd-af84-51c005ee73c2",
+      "query": "files that import from src/lib/vapi",
+      "project_arg": "/mnt/c/dev/synio",
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_absent",
+        "reason": "none of the extracted candidate tokens exist in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) — consistent with drift since the May/June baseline",
+        "candidates": [
+          {
+            "token": "src/lib/vapi",
+            "kind": "path",
+            "exists": false,
+            "evidence": null
+          }
+        ]
+      }
+    },
+    {
+      "event_id": "ef61595435a314bf",
+      "session_id": "35f883b5-0528-4065-b84a-62ee7dc3359b",
+      "query": "manageAppointment booking",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "manageAppointment",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/schema.prisma:2279:  requiredTools  Json @default(\"[]\") // ToolAssertion[] — [{name: \"manageAppointment\", mode?: \"cancel\"}]"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "f1166c163cf9bff8",
+      "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7",
+      "query": "withRLSContext",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "withRLSContext",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/context.ts:103:  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "f211e9640deed031",
+      "session_id": "dbf95e00-50a0-4b63-95f8-e371db0061d7",
+      "query": "companyProcedure protectedProcedure publicProcedure tRPC procedure builders",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "companyProcedure",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/context.ts:103:  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
+          },
+          {
+            "token": "protectedProcedure",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/lib/permissions/middleware.ts:17: * get: protectedProcedure"
+          },
+          {
+            "token": "publicProcedure",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/init.ts:122:export const publicProcedure = t.procedure.use(errorTracking);"
+          },
+          {
+            "token": "tRPC",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/migrations/add-row-level-security.sql:286:In your application code (tRPC context or middleware), add:"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    },
+    {
+      "event_id": "fad8dca3d0b5244f",
+      "session_id": "05803db7-d04e-41df-93a2-1a30497059e4",
+      "query": "RLS row level security tenant isolation companyId",
+      "project_arg": null,
+      "cls": "clean_no_match",
+      "out_of_scope_project": false,
+      "drift": {
+        "verdict": "symbol_present_but_missed",
+        "reason": "at least one candidate token exists in synio@e29cb7a1 (scoped to src/tests/prisma/scripts) but nca_ask returned no match",
+        "candidates": [
+          {
+            "token": "companyId",
+            "kind": "camel_pascal",
+            "exists": true,
+            "evidence": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/manual/_archived_2026_04_30/017_client_outbound.sql:22:    \"companyId\"     TEXT NOT NULL,"
+          }
+        ],
+        "regression_check": {
+          "compare_dist": "/tmp/nca-june-build/dist",
+          "compare_cls": "noisy_fallback",
+          "regression_confirmed": false
+        }
+      }
+    }
+  ],
+  "golden_diffs": []
+}
