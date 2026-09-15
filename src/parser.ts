@@ -6,6 +6,7 @@ import type { NCNode } from './storage.js';
 // Lazy-load tree-sitter to allow graceful fallback
 let TreeSitterParser: any;
 let tsLanguage: any;
+let tsxLanguage: any;
 let jsLanguage: any;
 let pyLanguage: any;
 let treeSitterAvailable = false;
@@ -19,7 +20,10 @@ function loadTreeSitter(): void {
     treeSitterAvailable = false;
     return;
   }
-  try { const m = require('tree-sitter-typescript'); tsLanguage = m.typescript ?? m; } catch {}
+  // tree-sitter-typescript ships two grammars: 'typescript' (.ts) rejects JSX
+  // syntax; 'tsx' (.tsx) is the JSX-aware superset. Using 'typescript' for
+  // .tsx files misparses any JSX-containing declaration (see REC-0004).
+  try { const m = require('tree-sitter-typescript'); tsLanguage = m.typescript ?? m; tsxLanguage = m.tsx; } catch {}
   try { jsLanguage = require('tree-sitter-javascript'); } catch {}
   try { pyLanguage = require('tree-sitter-python'); } catch {}
 }
@@ -236,8 +240,17 @@ export class NCAParser {
       const p = new TreeSitterParser();
       p.setLanguage(tsLanguage);
       this.parsers.set('ts', p);
-      this.parsers.set('tsx', p);
       this.extractors.set('ts', tsExt);
+    }
+    if (tsxLanguage) {
+      const p = new TreeSitterParser();
+      p.setLanguage(tsxLanguage);
+      this.parsers.set('tsx', p);
+      this.extractors.set('tsx', tsExt);
+    } else if (tsLanguage) {
+      // tree-sitter-typescript's 'tsx' export missing (unexpected for the
+      // pinned version, but keep .tsx scannable rather than regex-only).
+      this.parsers.set('tsx', this.parsers.get('ts'));
       this.extractors.set('tsx', tsExt);
     }
     if (jsLanguage) {
