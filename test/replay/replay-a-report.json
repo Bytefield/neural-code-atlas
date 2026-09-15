@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-09-15T09:47:22.329Z",
+  "generated_at": "2026-09-15T10:18:49.447Z",
   "reference_dist": "/tmp/nca-june-build/dist",
-  "test_dist": "/mnt/c/dev/nca-replay-scoped/dist",
+  "test_dist": "/mnt/c/dev/nca-recall-diagnosis/dist",
   "baseline_index": {
     "synio_commit": "13c01e51b152a6db13b6aa062a70d35f71053187",
     "sha256": "653a7ce574611899ebc2702ba22848616f62dec42c9d03a9168abfc2f3d2d530"
@@ -11,32 +11,7 @@
   "test_direct_hit_count": 8,
   "regressions": [],
   "golden_diffs": [],
-  "historical_reconstruction_limits": [
-    {
-      "event_id": "32b1871be396d7ff",
-      "query": "manage-appointment.ts imports dependencies",
-      "reference_cls": "noisy_fallback",
-      "note": "the real June session found this, but the reference build (95d52b4) against the RECONSTRUCTED baseline index (synio@13c01e51) does not — a limit of using one fixed commit to stand in for a session window spanning 2026-05-28 to 2026-06-26, not an NCA regression."
-    },
-    {
-      "event_id": "6cb66c55da1a16af",
-      "query": "vapi tools manage-appointment build-prompt token-estimator",
-      "reference_cls": "noisy_fallback",
-      "note": "the real June session found this, but the reference build (95d52b4) against the RECONSTRUCTED baseline index (synio@13c01e51) does not — a limit of using one fixed commit to stand in for a session window spanning 2026-05-28 to 2026-06-26, not an NCA regression."
-    },
-    {
-      "event_id": "aeb3bf5484f84ce2",
-      "query": "files inside src/lib/vapi that import from outside vapi directory",
-      "reference_cls": "noisy_fallback",
-      "note": "the real June session found this, but the reference build (95d52b4) against the RECONSTRUCTED baseline index (synio@13c01e51) does not — a limit of using one fixed commit to stand in for a session window spanning 2026-05-28 to 2026-06-26, not an NCA regression."
-    },
-    {
-      "event_id": "ec16fddb3b924ab5",
-      "query": "files that import from src/lib/vapi",
-      "reference_cls": "noisy_fallback",
-      "note": "the real June session found this, but the reference build (95d52b4) against the RECONSTRUCTED baseline index (synio@13c01e51) does not — a limit of using one fixed commit to stand in for a session window spanning 2026-05-28 to 2026-06-26, not an NCA regression."
-    }
-  ],
+  "historical_reconstruction_limits": [],
   "gate_pass": true,
   "results": [
     {
