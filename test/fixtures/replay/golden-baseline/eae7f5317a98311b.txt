@@ -1,0 +1,38 @@
+NCA|q:getCompanies|t:<TS>
+[N]
+@arrow.getCompanies{m:src/server/trpc/routers/synio/company|i:{ input, ctx }|o:|d:crypto,zod,errorFormatter,errorTracking,csrf|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/synio/company.ts:45|dir:synio|pr:#2328/2801|gn:no}
+@arrow.withRLSContext{m:src/server/trpc/init|i:{ ctx, next }|o:|d:@trpc/server,@prisma/client,getSession,createContext,createServerContext|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/init.ts:353|dir:trpc|pr:#15/2801|gn:yes(299)}
+@function.createContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/context.ts:76|dir:trpc|pr:#2136/2801|gn:no}
+@function.createServerContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/context.ts:136|dir:trpc|pr:#1/2801|gn:yes(57)}
+@arrow.set{m:src/server/trpc/routers/systemConfig.router|i:{ input, ctx }|o:|d:errorFormatter,errorTracking,csrf,isAuthed,validateCompanyAccess|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/systemConfig.router.ts:89|dir:routers|pr:#2352/2801|gn:no}
+@arrow.totalCalls{m:src/server/trpc/routers/synio/calls|i:sum,d|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:|cx:1|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/synio/calls.ts:227|dir:synio|pr:#2311/2801|gn:no}
+@arrow.validateCompanyAccess{m:src/server/trpc/init|i:{ ctx, next, input, path, type }|o:|d:@trpc/server,@prisma/client,getSession,createContext,createServerContext|e:db|cx:11|f:/tmp/synio-baseline-checkout/src/server/trpc/init.ts:168|dir:trpc|pr:#14/2801|gn:yes(291)}
+@function.queryFastPath{m:src/lib/cache/faq-cache|i:companyId:: string,userQuestion:: string|o:Promise<FastPathResult>|d:crypto,@/lib/redis/local-client,@/lib/prisma,@prisma/client,normalizeQuery|e:db|cx:15|f:/tmp/synio-baseline-checkout/src/lib/cache/faq-cache.ts:82|dir:cache|pr:#1771/2801|gn:no}
+@function.checkRateLimit{m:src/lib/security/rate-limiter|i:redis:: Redis | null | undefined,config:: RateLimitConfig|o:Promise<RateLimitResult>|d:@trpc/server,@upstash/redis,@/lib/logger,floor,now|e:|cx:11|f:/tmp/synio-baseline-checkout/src/lib/security/rate-limiter.ts:88|dir:security|pr:#280/2801|gn:no}
+@f
+NCA|truncated|101_nodes_omitted
+[DOCS]
+~/tmp/synio-baseline-checkout/docs/security/SECURITY_AUDIT_REPORT.md|title:SECURITY_AUDIT_REPORT|excerpt:**Tests Automatizados de RBAC**:
+
+```typescript
+// __tests__/rbac.test.ts
+import { createCaller } from '@/server/trpc/routers/_app'
+import { createMockContext } from '@/server/trpc/context'
+
+descri...
+~/tmp/synio-baseline-checkout/docs/archive/ERROR_TRACKING_INTEGRATION.md|title:ERROR_TRACKING_INTEGRATION|excerpt:```json
+{
+  "id": "error_1737290547123_abc123def",
+  "timestamp": "2026-01-19T11:44:57.123Z",
+  "message": "Decryption failed (invalid key or corrupted data)",
+  "stack": "Error: Decryption failed....
+~/tmp/synio-baseline-checkout/docs/archive/ERROR_TRACKING_INTEGRATION.md|title:ERROR_TRACKING_INTEGRATION|excerpt:# View statistics
+npx tsx scripts/view-errors.ts --stats
+# Output:
+# 📊 Error Statistics
+# ==================================================
+# Total Errors: 45
+# Last 24 Hours: 12
+#
+# By Type:
+#  ...

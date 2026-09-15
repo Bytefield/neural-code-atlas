@@ -1,0 +1,39 @@
+{
+  "purpose": "Frozen JUNE-2026-vintage SYNIO index, used only by Replay A (the regression gate). Distinct from and independent of test/fixtures/replay/manifest.json's index (the CURRENT/September SYNIO snapshot, used by Replay B, the drift report) — the two are never mixed. Shape mirrors manifest.json's `index` object (project/root/storage) so the harness's prepareWorkdir()/resolveFrozenDbPath() can be reused unmodified against either index.",
+
+  "provenance": "reconstruction",
+  "provenance_search": "Searched the filesystem broadly (find over /, /mnt/c, and ~) for any nca.db dated May-June 2026 before reconstructing, per task instructions to prefer a real existing copy over reconstruction. Found /mnt/c/dev/synio/.nca/nca.db and several worktree copies with June mtimes, but none had verifiable provenance: NCA's schema does not record which exact synio commit or which NCA build produced a scan (file_index only stores per-file mtime/sha256, no commit hash), so I could not confirm any of them matched 'last synio commit <= 2026-06-26, scanned by NCA build 95d52b4' with certainty. Reconstructing from a known commit + known build gives 100% verifiable provenance, so that was preferred over an unverifiable pre-existing file.",
+
+  "index": {
+    "project": "synio",
+    "root": "/mnt/c/dev/synio",
+    "synio_commit": "13c01e51b152a6db13b6aa062a70d35f71053187",
+    "synio_commit_date": "2026-06-26T09:06:23+02:00",
+    "synio_commit_message": "chore(rls): remove dead withRLS helper with unsafe signature",
+    "synio_commit_selection": "last synio commit at or before 2026-06-26 (the baseline corpus's temporal_range.latest), via `git log -1 --until=2026-06-26T23:59:59`.",
+    "note_on_commit_message": "This commit's own subject line references removing an RLS helper — directly adjacent to the withRLSContext anomaly under investigation. Not interpreted or acted on here; Replay A (empirical replay against this exact index) is what resolves whether that anomaly is drift or regression, not reading this commit's diff.",
+    "nca_build_used_to_scan": {
+      "commit": "95d52b43fc2fc3d52bdb1383f348a7e1a536c6a6",
+      "commit_date": "2026-06-26T10:56:50+02:00",
+      "commit_message": "feat(corpus): orientation event extractor from Claude Code corpus (#52)",
+      "selection": "last NCA commit at or before 2026-06-26 (same criterion as the synio commit) — also the reference build for Replay A itself."
+    },
+    "scan": {
+      "scanned_at": "2026-09-15 (today — the DB's CONTENT reflects the June synio commit; the scan necessarily runs at reconstruction time, migration_log timestamps reflect that, not June)",
+      "files": 729,
+      "nodes": 2801,
+      "flows": 604,
+      "notes": 96,
+      "schema_version": 4
+    },
+    "storage": {
+      "size_bytes": 6914048,
+      "size_mb": 6.6,
+      "rule_applied": "size >= 5MB threshold -> stored OUTSIDE the repo (same rule as the September index)",
+      "path": "~/.nca/replay/synio-baseline-13c01e51.db",
+      "sha256": "653a7ce574611899ebc2702ba22848616f62dec42c9d03a9168abfc2f3d2d530",
+      "permissions": "chmod 444 (read-only) — the harness copies it into a per-run tmpdir before ever opening it, same pattern as the September index.",
+      "does_not_touch": "test/fixtures/replay/manifest.json's frozen September index (~/.nca/replay/synio-frozen.db) is untouched by this file or by Replay A."
+    }
+  }
+}

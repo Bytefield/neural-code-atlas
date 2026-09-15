@@ -1,0 +1,13 @@
+NCA|q:shouldApplyRLS|t:<TS>
+[N]
+@function.shouldApplyRLS{m:src/lib/security/rls|i:role:: string|o:boolean|d:@prisma/client,includes|e:|cx:1|f:/tmp/synio-baseline-checkout/src/lib/security/rls.ts:50|dir:security|pr:#21/2801|gn:no}
+@function.createContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/context.ts:76|dir:trpc|pr:#2136/2801|gn:no}
+@function.createServerContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/context.ts:136|dir:trpc|pr:#1/2801|gn:yes(57)}
+@arrow.withRLSContext{m:src/server/trpc/init|i:{ ctx, next }|o:|d:@trpc/server,@prisma/client,getSession,createContext,createServerContext|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/init.ts:353|dir:trpc|pr:#15/2801|gn:yes(299)}
+@function.queryFastPath{m:src/lib/cache/faq-cache|i:companyId:: string,userQuestion:: string|o:Promise<FastPathResult>|d:crypto,@/lib/redis/local-client,@/lib/prisma,@prisma/client,normalizeQuery|e:db|cx:15|f:/tmp/synio-baseline-checkout/src/lib/cache/faq-cache.ts:82|dir:cache|pr:#1771/2801|gn:no}
+@arrow.createCheckoutSession{m:src/server/trpc/routers/billing.router|i:{ ctx, input }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:12|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/billing.router.ts:128|dir:routers|pr:#358/2801|gn:no}
+@arrow.validateCompanyAccess{m:src/server/trpc/init|i:{ ctx, next, input, path, type }|o:|d:@trpc/server,@prisma/client,getSession,createContext,createServerContext|e:db|cx:11|f:/tmp/synio-baseline-checkout/src/server/trpc/init.ts:168|dir:trpc|pr:#14/2801|gn:yes(291)}
+@method.error{m:src/lib/logger|i:message:: string | Error,meta:: Record<string, unknown>|o:|d:winston,captureException,captureMessage,String|e:|cx:10|f:/tmp/synio-baseline-checkout/src/lib/logger.ts:113|dir:lib|pr:#696/2801|gn:no}
+@arrow.getSession{m:src/server/trpc/routers/auth.router|i:{ ctx }|o:|d:@trpc/server,bcryptjs,errorFormatter,errorTracking,csrf|e:db|cx:8|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/auth.router.ts:225|dir:routers|pr:#2165/2801|gn:no}
+@function.calculateROI{m:src/lib/usage/roi-calculator|i:companyId:: string,startDate:: Date,endDate:: Date|o:Promi
+NCA|truncated|110_nodes_omitted

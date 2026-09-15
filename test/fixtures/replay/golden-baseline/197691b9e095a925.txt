@@ -1,0 +1,12 @@
+NCA|q:archiveCompany|t:<TS>
+[N]
+@arrow.archiveCompany{m:src/server/trpc/routers/synio/company|i:{ input, ctx }|o:|d:crypto,zod,errorFormatter,errorTracking,csrf|e:db|cx:5|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/synio/company.ts:836|dir:synio|pr:#2323/2801|gn:no}
+@arrow.withRLSContext{m:src/server/trpc/init|i:{ ctx, next }|o:|d:@trpc/server,@prisma/client,getSession,createContext,createServerContext|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/init.ts:353|dir:trpc|pr:#15/2801|gn:yes(299)}
+@function.createContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/context.ts:76|dir:trpc|pr:#2136/2801|gn:no}
+@function.createServerContext{m:src/server/trpc/context|i:|o:|d:iron-session,next/headers,@/lib/prisma,@/lib/redis/client,@/lib/validations/auth.schema|e:db|cx:4|f:/tmp/synio-baseline-checkout/src/server/trpc/context.ts:136|dir:trpc|pr:#1/2801|gn:yes(57)}
+@arrow.validateCompanyAccess{m:src/server/trpc/init|i:{ ctx, next, input, path, type }|o:|d:@trpc/server,@prisma/client,getSession,createContext,createServerContext|e:db|cx:11|f:/tmp/synio-baseline-checkout/src/server/trpc/init.ts:168|dir:trpc|pr:#14/2801|gn:yes(291)}
+@function.queryFastPath{m:src/lib/cache/faq-cache|i:companyId:: string,userQuestion:: string|o:Promise<FastPathResult>|d:crypto,@/lib/redis/local-client,@/lib/prisma,@prisma/client,normalizeQuery|e:db|cx:15|f:/tmp/synio-baseline-checkout/src/lib/cache/faq-cache.ts:82|dir:cache|pr:#1771/2801|gn:no}
+@arrow.createCheckoutSession{m:src/server/trpc/routers/billing.router|i:{ ctx, input }|o:|d:zod,errorFormatter,errorTracking,csrf,isAuthed|e:db|cx:12|f:/tmp/synio-baseline-checkout/src/server/trpc/routers/billing.router.ts:128|dir:routers|pr:#358/2801|gn:no}
+@function.checkRateLimit{m:src/lib/security/rate-limiter|i:redis:: Redis | null | undefined,config:: RateLimitConfig|o:Promise<RateLimitResult>|d:@trpc/server,@upstash/redis,@/lib/logger,floor,now|e:|cx:11|f:/tmp/synio-baseline-checkout/src/lib/security/rate-limiter.ts:88|dir:security|pr:#280/2801|gn:no}
+@function.captureError{m:src/lib/monitoring/sentry|i:error:: Error,context:: CaptureErrorOptions | Record<string, unknown>|o:void|d:@sentry/nextjs,@/lib/logger,captureException,error,String|e:|cx:9|f:/tmp/synio-baseline-checkout/src/li
+NCA|truncated|126_nodes_omitted
