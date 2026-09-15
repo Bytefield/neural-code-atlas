@@ -1,0 +1,958 @@
+{
+  "generated_at": "2026-09-15T10:40:06.339Z",
+  "source_diagnosis": "/mnt/c/dev/nca-recall-subsplit/test/replay/recall-diagnosis.json",
+  "indexing_contract_observed": {
+    "from_source": {
+      "source": "src/parser.ts (read-only inspection, not modified)",
+      "typescript_javascript": {
+        "function_node_types": [
+          "function_declaration",
+          "function_expression",
+          "arrow_function",
+          "method_definition"
+        ],
+        "class_node_types": [
+          "class_declaration"
+        ]
+      },
+      "python": {
+        "function_node_types": [
+          "function_definition"
+        ],
+        "class_node_types": [
+          "class_definition"
+        ]
+      },
+      "type_mapping": "getNodeKind(treeSitterType): includes('class')->'class', includes('method')->'method', includes('arrow')->'arrow', else->'function' (so function_declaration AND function_expression both map to node type 'function').",
+      "extraction_walk": "rootNode.descendantsOfType([...functionNodeTypes, ...classNodeTypes]) — ALL descendants at ANY nesting depth, not just top-level. A matched node is only kept if extractNodeName() resolves a name: for arrow_function/function_expression, walks UP the parent chain through wrapping nodes (e.g. call_expression/arguments, as in `const x = wrapper(() => {...})`) looking for a variable_declarator, assignment_expression, object pair, or method_definition to name it from; gives up (dropped, not indexed) at a statement_block/program/function_declaration boundary with no name found.",
+      "languages_supported": [
+        "TypeScript/JavaScript (tree-sitter-typescript/javascript)",
+        "Python (tree-sitter-python)"
+      ],
+      "not_in_contract": "Interfaces, type aliases, enums, plain const/let/var declarations NOT assigned an arrow_function/function_expression literal (e.g. `const x = builder.use(y)`), object properties that are not method_definition, .sql files, .prisma schema files, .md files, comments, string literals (env var names, tool-name strings) — none of these produce a node, by design (out of functionNodeTypes/classNodeTypes scope, or the file extension isn't parsed by any LanguageExtractor at all)."
+    },
+    "from_september_db": [
+      {
+        "type": "arrow",
+        "count": 1451
+      },
+      {
+        "type": "function",
+        "count": 1160
+      },
+      {
+        "type": "method",
+        "count": 167
+      },
+      {
+        "type": "class",
+        "count": 17
+      }
+    ],
+    "contract_mismatch": []
+  },
+  "indexer_not_captured": {
+    "priority_rule": "Per-row subclass = highest-priority verdict among its candidates, priority order: INDEXABLE_CONSTRUCT_NO_NODE > NON_INDEXABLE_BY_DESIGN > TEXT_ONLY_NOT_INDEXABLE > UNDETERMINED (most actionable first).",
+    "counts": {
+      "INDEXABLE_CONSTRUCT_NO_NODE": 2,
+      "NON_INDEXABLE_BY_DESIGN": 12
+    },
+    "results": [
+      {
+        "event_id": "0e6d4f2686cc7ee4",
+        "query": "ActivateCompanyWizard WizardStep",
+        "subclass": "INDEXABLE_CONSTRUCT_NO_NODE",
+        "driving_candidate": "ActivateCompanyWizard",
+        "per_candidate": [
+          {
+            "token": "ActivateCompanyWizard",
+            "verdict": "INDEXABLE_CONSTRUCT_NO_NODE",
+            "reason": "declaration matches an indexed construct shape: src/components/companies/ActivateCompanyWizard.tsx:32: export function ActivateCompanyWizard({",
+            "matches": [
+              {
+                "file": "src/components/companies/ActivateCompanyWizard.tsx",
+                "line": 32,
+                "text": "export function ActivateCompanyWizard({"
+              }
+            ],
+            "evidence": {
+              "file": "src/components/companies/ActivateCompanyWizard.tsx",
+              "line": 32,
+              "text": "export function ActivateCompanyWizard({"
+            }
+          },
+          {
+            "token": "WizardStep",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "real declaration but not an indexed construct type: src/app/admin/companies/new/page.tsx:28: type WizardStep,",
+            "matches": [
+              {
+                "file": "src/app/admin/companies/new/page.tsx",
+                "line": 28,
+                "text": "  type WizardStep,"
+              },
+              {
+                "file": "src/app/admin/companies/new/page.tsx",
+                "line": 78,
+                "text": "const WIZARD_STEPS: WizardStep[] = ["
+              },
+              {
+                "file": "src/app/onboarding/page.tsx",
+                "line": 11,
+                "text": "  type WizardStep,"
+              },
+              {
+                "file": "src/app/onboarding/page.tsx",
+                "line": 40,
+                "text": "const WIZARD_STEPS: WizardStep[] = ["
+              },
+              {
+                "file": "src/components/onboarding/WizardStepper.tsx",
+                "line": 15,
+                "text": "export interface WizardStep {"
+              }
+            ],
+            "evidence": {
+              "file": "src/app/admin/companies/new/page.tsx",
+              "line": 28,
+              "text": "  type WizardStep,"
+            }
+          }
+        ]
+      },
+      {
+        "event_id": "210e9e2349d5d4f3",
+        "query": "DISCORD_NOTIFICATION_WEBHOOK",
+        "subclass": "NON_INDEXABLE_BY_DESIGN",
+        "driving_candidate": "DISCORD_NOTIFICATION_WEBHOOK",
+        "per_candidate": [
+          {
+            "token": "DISCORD_NOTIFICATION_WEBHOOK",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "real declaration but not an indexed construct type: src/lib/notifications/discord.ts:19: const webhookUrl = process.env.DISCORD_NOTIFICATION_WEBHOOK;",
+            "matches": [
+              {
+                "file": "src/lib/notifications/discord.ts",
+                "line": 14,
+                "text": " * Silent-fails if DISCORD_NOTIFICATION_WEBHOOK is not configured or if the request fails."
+              },
+              {
+                "file": "src/lib/notifications/discord.ts",
+                "line": 19,
+                "text": "  const webhookUrl = process.env.DISCORD_NOTIFICATION_WEBHOOK;"
+              }
+            ],
+            "evidence": {
+              "file": "src/lib/notifications/discord.ts",
+              "line": 19,
+              "text": "  const webhookUrl = process.env.DISCORD_NOTIFICATION_WEBHOOK;"
+            }
+          }
+        ]
+      },
+      {
+        "event_id": "4e927cb09554e948",
+        "query": "companyProcedure",
+        "subclass": "NON_INDEXABLE_BY_DESIGN",
+        "driving_candidate": "companyProcedure",
+        "per_candidate": [
+          {
+            "token": "companyProcedure",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "real declaration but not an indexed construct type: src/server/trpc/init.ts:426: export const companyProcedure = protectedProcedure",
+            "matches": [
+              {
+                "file": "src/server/trpc/context.ts",
+                "line": 103,
+                "text": "  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 414,
+                "text": " * getTodayOverview: companyProcedure"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 426,
+                "text": "export const companyProcedure = protectedProcedure"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 439,
+                "text": " * Security: identical auth guarantees to companyProcedure. RLS is enforced inside every"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 483,
+                "text": " * Saga company procedure — same auth as companyProcedure but without a wrapping"
+              }
+            ],
+            "evidence": {
+              "file": "src/server/trpc/init.ts",
+              "line": 426,
+              "text": "export const companyProcedure = protectedProcedure"
+            }
+          }
+        ]
+      },
+      {
+        "event_id": "4edb26fd8e16329a",
+        "query": "GOOGLE_CALENDAR_CLIENT_ID",
+        "subclass": "NON_INDEXABLE_BY_DESIGN",
+        "driving_candidate": "GOOGLE_CALENDAR_CLIENT_ID",
+        "per_candidate": [
+          {
+            "token": "GOOGLE_CALENDAR_CLIENT_ID",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "real declaration but not an indexed construct type: src/app/api/calendar/google/authorize/route.ts:76: const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;",
+            "matches": [
+              {
+                "file": "src/app/api/calendar/google/authorize/route.ts",
+                "line": 76,
+                "text": "  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;"
+              },
+              {
+                "file": "src/app/api/calendar/google/authorize/route.ts",
+                "line": 79,
+                "text": "    throw new Error(\"GOOGLE_CALENDAR_CLIENT_ID not configured\");"
+              },
+              {
+                "file": "src/app/api/calendar/google/callback/route.ts",
+                "line": 149,
+                "text": "  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;"
+              },
+              {
+                "file": "src/lib/calendar/token-store.ts",
+                "line": 283,
+                "text": "  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID"
+              }
+            ],
+            "evidence": {
+              "file": "src/app/api/calendar/google/authorize/route.ts",
+              "line": 76,
+              "text": "  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;"
+            }
+          }
+        ]
+      },
+      {
+        "event_id": "58bfe33a38d8f8fa",
+        "query": "CANCELLED PAST_DUE subscription",
+        "subclass": "NON_INDEXABLE_BY_DESIGN",
+        "driving_candidate": "PAST_DUE",
+        "per_candidate": [
+          {
+            "token": "PAST_DUE",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "object/property literal value assignment, not a declaration of any indexed construct type: src/components/billing/BillingTab.tsx:18: PAST_DUE: \"Pago pendiente\",",
+            "matches": [
+              {
+                "file": "prisma/migrations/20260101000000_synio_core_schema/migration.sql",
+                "line": 5,
+                "text": "CREATE TYPE \"SubscriptionStatus\" AS ENUM ('TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELLED');"
+              },
+              {
+                "file": "prisma/schema.prisma",
+                "line": 45,
+                "text": "  PAST_DUE"
+              },
+              {
+                "file": "src/components/billing/BillingTab.tsx",
+                "line": 18,
+                "text": "  PAST_DUE: \"Pago pendiente\","
+              },
+              {
+                "file": "src/components/billing/BillingTab.tsx",
+                "line": 28,
+                "text": "  PAST_DUE: \"destructive\","
+              },
+              {
+                "file": "src/lib/billing/__tests__/entitlements.test.ts",
+                "line": 5,
+                "text": " * and subscription status handling (TRIALING, ACTIVE, PAST_DUE, CANCELLED)."
+              }
+            ],
+            "evidence": {
+              "file": "src/components/billing/BillingTab.tsx",
+              "line": 18,
+              "text": "  PAST_DUE: \"Pago pendiente\","
+            }
+          }
+        ]
+      },
+      {
+        "event_id": "65c5338cc438e195",
+        "query": "AZURE_CALENDAR_CLIENT_ID",
+        "subclass": "NON_INDEXABLE_BY_DESIGN",
+        "driving_candidate": "AZURE_CALENDAR_CLIENT_ID",
+        "per_candidate": [
+          {
+            "token": "AZURE_CALENDAR_CLIENT_ID",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "real declaration but not an indexed construct type: src/app/api/calendar/microsoft/authorize/route.ts:75: const clientId = process.env.AZURE_CALENDAR_CLIENT_ID;",
+            "matches": [
+              {
+                "file": "src/app/api/calendar/microsoft/authorize/route.ts",
+                "line": 75,
+                "text": "  const clientId = process.env.AZURE_CALENDAR_CLIENT_ID;"
+              },
+              {
+                "file": "src/app/api/calendar/microsoft/authorize/route.ts",
+                "line": 79,
+                "text": "    throw new Error(\"AZURE_CALENDAR_CLIENT_ID not configured\");"
+              },
+              {
+                "file": "src/app/api/calendar/microsoft/callback/route.ts",
+                "line": 150,
+                "text": "  const clientId = process.env.AZURE_CALENDAR_CLIENT_ID;"
+              },
+              {
+                "file": "src/lib/calendar/token-store.ts",
+                "line": 324,
+                "text": "  const clientId = process.env.AZURE_CALENDAR_CLIENT_ID"
+              }
+            ],
+            "evidence": {
+              "file": "src/app/api/calendar/microsoft/authorize/route.ts",
+              "line": 75,
+              "text": "  const clientId = process.env.AZURE_CALENDAR_CLIENT_ID;"
+            }
+          }
+        ]
+      },
+      {
+        "event_id": "77fb9296660c0382",
+        "query": "DISCORD_ERROR_WEBHOOK",
+        "subclass": "NON_INDEXABLE_BY_DESIGN",
+        "driving_candidate": "DISCORD_ERROR_WEBHOOK",
+        "per_candidate": [
+          {
+            "token": "DISCORD_ERROR_WEBHOOK",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "real declaration but not an indexed construct type: src/lib/sentry/discord-webhook.ts:30: const webhookUrl = process.env.DISCORD_ERROR_WEBHOOK;",
+            "matches": [
+              {
+                "file": "scripts/backup-daily.sh",
+                "line": 14,
+                "text": "DISCORD_WEBHOOK=\"${DISCORD_ERROR_WEBHOOK:-}\""
+              },
+              {
+                "file": "scripts/deploy/.env.example",
+                "line": 38,
+                "text": "# DISCORD_ERROR_WEBHOOK=https://discord.com/api/webhooks/..."
+              },
+              {
+                "file": "scripts/notify-backup-pull-imminent.sh",
+                "line": 6,
+                "text": "DISCORD_WEBHOOK=\"${DISCORD_ERROR_WEBHOOK:-}\""
+              },
+              {
+                "file": "scripts/notify-backup-pull-imminent.sh",
+                "line": 9,
+                "text": "  echo \"[notify] DISCORD_ERROR_WEBHOOK not configured, skipping\""
+              },
+              {
+                "file": "scripts/pull-backups-from-server.ps1",
+                "line": 16,
+                "text": "$DiscordWebhook = $env:DISCORD_ERROR_WEBHOOK"
+              }
+            ],
+            "evidence": {
+              "file": "src/lib/sentry/discord-webhook.ts",
+              "line": 30,
+              "text": "  const webhookUrl = process.env.DISCORD_ERROR_WEBHOOK;"
+            }
+          }
+        ]
+      },
+      {
+        "event_id": "c871e30d25e2c90b",
+        "query": "overall system architecture entry points routers tRPC auth middleware tenancy",
+        "subclass": "NON_INDEXABLE_BY_DESIGN",
+        "driving_candidate": "tRPC",
+        "per_candidate": [
+          {
+            "token": "tRPC",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "only usage sites (property access, process.env reference, string literal), no declaration statement for this exact token",
+            "matches": [
+              {
+                "file": "prisma/migrations/add-row-level-security.sql",
+                "line": 286,
+                "text": "In your application code (tRPC context or middleware), add:"
+              },
+              {
+                "file": "prisma/schema.prisma",
+                "line": 1301,
+                "text": "  procedure String? // tRPC procedure name (e.g., \"calendar.getContacts\")"
+              },
+              {
+                "file": "src/app/admin/companies/new/page.tsx",
+                "line": 154,
+                "text": "  // tRPC mutation — now passes verticalType to onboarding"
+              },
+              {
+                "file": "src/app/admin/error-tracker/ErrorTrackerPageClient.tsx",
+                "line": 310,
+                "text": "              los errores tRPC, contexto completo (usuario, URL, stack trace),"
+              },
+              {
+                "file": "src/app/api/stripe/webhooks/route.ts",
+                "line": 6,
+                "text": " * This route bypasses tRPC as it's an external webhook endpoint"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "event_id": "d6886dd681fb9808",
+        "query": "isNoShowRecovery",
+        "subclass": "NON_INDEXABLE_BY_DESIGN",
+        "driving_candidate": "isNoShowRecovery",
+        "per_candidate": [
+          {
+            "token": "isNoShowRecovery",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "object/property literal value assignment, not a declaration of any indexed construct type: src/lib/crm/apply-template.ts:60: isNoShowRecovery: stage.isNoShowRecovery ?? false,",
+            "matches": [
+              {
+                "file": "prisma/manual/_archived_2026_04_30/017_client_outbound.sql",
+                "line": 9,
+                "text": "-- 4. Add isNoShowRecovery to PipelineStage"
+              },
+              {
+                "file": "prisma/manual/_archived_2026_04_30/017_client_outbound.sql",
+                "line": 87,
+                "text": "-- STEP 4: Add isNoShowRecovery to PipelineStage"
+              },
+              {
+                "file": "prisma/manual/_archived_2026_04_30/017_client_outbound.sql",
+                "line": 91,
+                "text": "    ADD COLUMN IF NOT EXISTS \"isNoShowRecovery\" BOOLEAN NOT NULL DEFAULT false;"
+              },
+              {
+                "file": "prisma/migrations/20260101000000_synio_core_schema/migration.sql",
+                "line": 420,
+                "text": "    \"isNoShowRecovery\" BOOLEAN NOT NULL DEFAULT false,"
+              },
+              {
+                "file": "prisma/migrations/20260501000010_add_client_outbound/migration.sql",
+                "line": 108,
+                "text": "-- Add isNoShowRecovery to PipelineStage"
+              }
+            ],
+            "evidence": {
+              "file": "src/lib/crm/apply-template.ts",
+              "line": 60,
+              "text": "      isNoShowRecovery: stage.isNoShowRecovery ?? false,"
+            }
+          }
+        ]
+      },
+      {
+        "event_id": "e344329d8432f075",
+        "query": "companyProcedure staffProcedure definition middleware",
+        "subclass": "NON_INDEXABLE_BY_DESIGN",
+        "driving_candidate": "companyProcedure",
+        "per_candidate": [
+          {
+            "token": "companyProcedure",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "real declaration but not an indexed construct type: src/server/trpc/init.ts:426: export const companyProcedure = protectedProcedure",
+            "matches": [
+              {
+                "file": "src/server/trpc/context.ts",
+                "line": 103,
+                "text": "  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 414,
+                "text": " * getTodayOverview: companyProcedure"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 426,
+                "text": "export const companyProcedure = protectedProcedure"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 439,
+                "text": " * Security: identical auth guarantees to companyProcedure. RLS is enforced inside every"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 483,
+                "text": " * Saga company procedure — same auth as companyProcedure but without a wrapping"
+              }
+            ],
+            "evidence": {
+              "file": "src/server/trpc/init.ts",
+              "line": 426,
+              "text": "export const companyProcedure = protectedProcedure"
+            }
+          },
+          {
+            "token": "staffProcedure",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "real declaration but not an indexed construct type: src/server/trpc/init.ts:586: export const staffProcedure = t.procedure",
+            "matches": [
+              {
+                "file": "src/server/trpc/context.ts",
+                "line": 103,
+                "text": "  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 361,
+                "text": " * (staffProcedure paths where isStaff did not set ctx.companyId)."
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 556,
+                "text": "  // CRITICAL: Endpoints using staffProcedure MUST filter by companyId"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 586,
+                "text": "export const staffProcedure = t.procedure"
+              },
+              {
+                "file": "src/server/trpc/routers/billing.router.ts",
+                "line": 5,
+                "text": " * All procedures (except getPlans) are tenant-scoped via staffProcedure."
+              }
+            ],
+            "evidence": {
+              "file": "src/server/trpc/init.ts",
+              "line": 586,
+              "text": "export const staffProcedure = t.procedure"
+            }
+          }
+        ]
+      },
+      {
+        "event_id": "ef61595435a314bf",
+        "query": "manageAppointment booking",
+        "subclass": "NON_INDEXABLE_BY_DESIGN",
+        "driving_candidate": "manageAppointment",
+        "per_candidate": [
+          {
+            "token": "manageAppointment",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "object/property literal value assignment, not a declaration of any indexed construct type: src/components/companies/EditAgentConfigDialog.tsx:31: manageAppointment: {",
+            "matches": [
+              {
+                "file": "prisma/schema.prisma",
+                "line": 2279,
+                "text": "  requiredTools  Json @default(\"[]\") // ToolAssertion[] — [{name: \"manageAppointment\", mode?: \"cancel\"}]"
+              },
+              {
+                "file": "prisma/schema.prisma",
+                "line": 2280,
+                "text": "  forbiddenTools Json @default(\"[]\") // ToolAssertion[] — [{name: \"manageAppointment\", mode?: \"book\"}]"
+              },
+              {
+                "file": "prisma/seed.ts",
+                "line": 1187,
+                "text": "2. Para reservar citas: usa checkAvailability y luego manageAppointment(action=book)."
+              },
+              {
+                "file": "prisma/seed.ts",
+                "line": 1188,
+                "text": "3. Para cancelar: busca la cita con lookupAppointment, luego manageAppointment(action=cancel)."
+              },
+              {
+                "file": "prisma/seed.ts",
+                "line": 1230,
+                "text": "                name: \"manageAppointment\","
+              }
+            ],
+            "evidence": {
+              "file": "src/components/companies/EditAgentConfigDialog.tsx",
+              "line": 31,
+              "text": "  manageAppointment: {"
+            }
+          }
+        ]
+      },
+      {
+        "event_id": "f1166c163cf9bff8",
+        "query": "withRLSContext",
+        "subclass": "INDEXABLE_CONSTRUCT_NO_NODE",
+        "driving_candidate": "withRLSContext",
+        "per_candidate": [
+          {
+            "token": "withRLSContext",
+            "verdict": "INDEXABLE_CONSTRUCT_NO_NODE",
+            "reason": "declaration matches an indexed construct shape: src/server/trpc/init.ts:363: const withRLSContext = t.middleware(async ({ ctx, next }) => {",
+            "matches": [
+              {
+                "file": "src/server/trpc/context.ts",
+                "line": 103,
+                "text": "  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
+              },
+              {
+                "file": "src/server/trpc/context.ts",
+                "line": 175,
+                "text": "  // RLS context is set per-request inside a transaction by withRLSContext middleware."
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 363,
+                "text": "const withRLSContext = t.middleware(async ({ ctx, next }) => {"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 408,
+                "text": " * Wraps the entire handler in a transaction with RLS GUC set (withRLSContext)."
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 424,
+                "text": " * and DB layer (RLS policies via withRLSContext)."
+              }
+            ],
+            "evidence": {
+              "file": "src/server/trpc/init.ts",
+              "line": 363,
+              "text": "const withRLSContext = t.middleware(async ({ ctx, next }) => {"
+            }
+          }
+        ]
+      },
+      {
+        "event_id": "f211e9640deed031",
+        "query": "companyProcedure protectedProcedure publicProcedure tRPC procedure builders",
+        "subclass": "NON_INDEXABLE_BY_DESIGN",
+        "driving_candidate": "companyProcedure",
+        "per_candidate": [
+          {
+            "token": "companyProcedure",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "real declaration but not an indexed construct type: src/server/trpc/init.ts:426: export const companyProcedure = protectedProcedure",
+            "matches": [
+              {
+                "file": "src/server/trpc/context.ts",
+                "line": 103,
+                "text": "  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure."
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 414,
+                "text": " * getTodayOverview: companyProcedure"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 426,
+                "text": "export const companyProcedure = protectedProcedure"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 439,
+                "text": " * Security: identical auth guarantees to companyProcedure. RLS is enforced inside every"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 483,
+                "text": " * Saga company procedure — same auth as companyProcedure but without a wrapping"
+              }
+            ],
+            "evidence": {
+              "file": "src/server/trpc/init.ts",
+              "line": 426,
+              "text": "export const companyProcedure = protectedProcedure"
+            }
+          },
+          {
+            "token": "protectedProcedure",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "real declaration but not an indexed construct type: src/server/trpc/init.ts:161: export const protectedProcedure = t.procedure",
+            "matches": [
+              {
+                "file": "src/lib/permissions/middleware.ts",
+                "line": 17,
+                "text": " * get: protectedProcedure"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 161,
+                "text": "export const protectedProcedure = t.procedure"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 426,
+                "text": "export const companyProcedure = protectedProcedure"
+              },
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 487,
+                "text": "export const sagaCompanyProcedure = protectedProcedure"
+              },
+              {
+                "file": "src/server/trpc/routers/__tests__/calendar-multi-tenant-isolation.test.ts",
+                "line": 4,
+                "text": " * Verifies that all 8 procedures previously using protectedProcedure now"
+              }
+            ],
+            "evidence": {
+              "file": "src/server/trpc/init.ts",
+              "line": 161,
+              "text": "export const protectedProcedure = t.procedure"
+            }
+          },
+          {
+            "token": "publicProcedure",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "real declaration but not an indexed construct type: src/server/trpc/init.ts:122: export const publicProcedure = t.procedure.use(errorTracking);",
+            "matches": [
+              {
+                "file": "src/server/trpc/init.ts",
+                "line": 122,
+                "text": "export const publicProcedure = t.procedure.use(errorTracking);"
+              },
+              {
+                "file": "src/server/trpc/routers/auth.router.ts",
+                "line": 11,
+                "text": "  publicProcedure,"
+              },
+              {
+                "file": "src/server/trpc/routers/auth.router.ts",
+                "line": 124,
+                "text": "  login: publicProcedure"
+              },
+              {
+                "file": "src/server/trpc/routers/auth.router.ts",
+                "line": 215,
+                "text": "  logout: publicProcedure.mutation(async ({ ctx }) => {"
+              },
+              {
+                "file": "src/server/trpc/routers/auth.router.ts",
+                "line": 226,
+                "text": "  getSession: publicProcedure.query(async ({ ctx }) => {"
+              }
+            ],
+            "evidence": {
+              "file": "src/server/trpc/init.ts",
+              "line": 122,
+              "text": "export const publicProcedure = t.procedure.use(errorTracking);"
+            }
+          },
+          {
+            "token": "tRPC",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "only usage sites (property access, process.env reference, string literal), no declaration statement for this exact token",
+            "matches": [
+              {
+                "file": "prisma/migrations/add-row-level-security.sql",
+                "line": 286,
+                "text": "In your application code (tRPC context or middleware), add:"
+              },
+              {
+                "file": "prisma/schema.prisma",
+                "line": 1301,
+                "text": "  procedure String? // tRPC procedure name (e.g., \"calendar.getContacts\")"
+              },
+              {
+                "file": "src/app/admin/companies/new/page.tsx",
+                "line": 154,
+                "text": "  // tRPC mutation — now passes verticalType to onboarding"
+              },
+              {
+                "file": "src/app/admin/error-tracker/ErrorTrackerPageClient.tsx",
+                "line": 310,
+                "text": "              los errores tRPC, contexto completo (usuario, URL, stack trace),"
+              },
+              {
+                "file": "src/app/api/stripe/webhooks/route.ts",
+                "line": 6,
+                "text": " * This route bypasses tRPC as it's an external webhook endpoint"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "event_id": "fad8dca3d0b5244f",
+        "query": "RLS row level security tenant isolation companyId",
+        "subclass": "NON_INDEXABLE_BY_DESIGN",
+        "driving_candidate": "companyId",
+        "per_candidate": [
+          {
+            "token": "companyId",
+            "verdict": "NON_INDEXABLE_BY_DESIGN",
+            "reason": "object/property literal value assignment, not a declaration of any indexed construct type: prisma/seed-demo.ts:81: companyId: demoCompany.id,",
+            "matches": [
+              {
+                "file": "prisma/manual/_archived_2026_04_30/017_client_outbound.sql",
+                "line": 22,
+                "text": "    \"companyId\"     TEXT NOT NULL,"
+              },
+              {
+                "file": "prisma/manual/_archived_2026_04_30/017_client_outbound.sql",
+                "line": 49,
+                "text": "    FOREIGN KEY (\"companyId\") REFERENCES \"Company\"(\"id\") ON DELETE CASCADE ON UPDATE CASCADE;"
+              },
+              {
+                "file": "prisma/manual/_archived_2026_04_30/017_client_outbound.sql",
+                "line": 64,
+                "text": "CREATE INDEX IF NOT EXISTS \"ClientCallLog_companyId_idx\" ON \"ClientCallLog\"(\"companyId\");"
+              },
+              {
+                "file": "prisma/manual/_archived_2026_04_30/017_client_outbound.sql",
+                "line": 68,
+                "text": "CREATE INDEX IF NOT EXISTS \"ClientCallLog_companyId_createdAt_idx\" ON \"ClientCallLog\"(\"companyId\", \"createdAt\");"
+              },
+              {
+                "file": "prisma/manual/_archived_2026_04_30/017_client_outbound.sql",
+                "line": 69,
+                "text": "CREATE INDEX IF NOT EXISTS \"ClientCallLog_companyId_status_idx\" ON \"ClientCallLog\"(\"companyId\", \"status\");"
+              }
+            ],
+            "evidence": {
+              "file": "prisma/seed-demo.ts",
+              "line": 81,
+              "text": "      companyId: demoCompany.id,"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "node_present_matcher_missed": {
+    "counts": {
+      "MULTI_TOKEN_QUERY": 10,
+      "OTHER": 2
+    },
+    "results": [
+      {
+        "event_id": "02bec69b581249ca",
+        "query": "getCompanies showArchived filter archived companies list",
+        "subclass": "MULTI_TOKEN_QUERY",
+        "pattern": "query has 6 tokens, one of which ('getCompanies') exactly matches a node name",
+        "matchedNames": [
+          "getCompanies"
+        ]
+      },
+      {
+        "event_id": "2b9b331ed61e8fce",
+        "query": "company-assistant retell agent prompt push update",
+        "subclass": "OTHER",
+        "pattern": "partial path match — query contains path-shaped token(s) (company-assistant) that substring-matched multiple nodes' file paths; none of those nodes' NAMES appear as an exact token in the query text ('company-assistant retell agent prompt push update') — matched node names: loadCompanyConfigForPrompt, services, buildBeginMessage, createRetellAssistant, updateRetellAssistant, deleteRetellAssistant, createRetellLlm, updateRetellLlm, deleteRetellLlm, createRetellAgent, updateRetellAgent, deleteRetellAgent, buildRetellTools",
+        "matchedNames": [
+          "loadCompanyConfigForPrompt",
+          "services",
+          "buildBeginMessage",
+          "createRetellAssistant",
+          "updateRetellAssistant",
+          "deleteRetellAssistant",
+          "createRetellLlm",
+          "updateRetellLlm",
+          "deleteRetellLlm",
+          "createRetellAgent",
+          "updateRetellAgent",
+          "deleteRetellAgent",
+          "buildRetellTools"
+        ]
+      },
+      {
+        "event_id": "4394b0df6c0b9b5f",
+        "query": "CompanyConfig loadCompanyConfigForPrompt",
+        "subclass": "MULTI_TOKEN_QUERY",
+        "pattern": "query has 2 tokens, one of which ('loadCompanyConfigForPrompt') exactly matches a node name",
+        "matchedNames": [
+          "loadCompanyConfigForPrompt"
+        ]
+      },
+      {
+        "event_id": "4ad09ac3d96c74b8",
+        "query": "applyTemplate verticalTemplate",
+        "subclass": "MULTI_TOKEN_QUERY",
+        "pattern": "query has 2 tokens, one of which ('applyTemplate') exactly matches a node name",
+        "matchedNames": [
+          "applyTemplate"
+        ]
+      },
+      {
+        "event_id": "59655a4daa54901e",
+        "query": "checkAvailability slot locking",
+        "subclass": "MULTI_TOKEN_QUERY",
+        "pattern": "query has 3 tokens, one of which ('checkAvailability') exactly matches a node name",
+        "matchedNames": [
+          "checkAvailability"
+        ]
+      },
+      {
+        "event_id": "6cb66c55da1a16af",
+        "query": "vapi tools manage-appointment build-prompt token-estimator",
+        "subclass": "OTHER",
+        "pattern": "partial path match — query contains path-shaped token(s) (manage-appointment, build-prompt, token-estimator) that substring-matched multiple nodes' file paths; none of those nodes' NAMES appear as an exact token in the query text ('vapi tools manage-appointment build-prompt token-estimator') — matched node names: buildPrompt, includedSections, prompt, createDentalConfig, sumOfSections, estimateTokens",
+        "matchedNames": [
+          "buildPrompt",
+          "includedSections",
+          "prompt",
+          "createDentalConfig",
+          "sumOfSections",
+          "estimateTokens"
+        ]
+      },
+      {
+        "event_id": "a1a7d0eb0589f758",
+        "query": "$queryRaw raw SQL injection unsafe query",
+        "subclass": "MULTI_TOKEN_QUERY",
+        "pattern": "query has 6 tokens, one of which ('$queryRaw') exactly matches a node name",
+        "matchedNames": [
+          "$queryRaw"
+        ]
+      },
+      {
+        "event_id": "a66eeca3b64f454b",
+        "query": "AdminDashboardPage AdminLayout components",
+        "subclass": "MULTI_TOKEN_QUERY",
+        "pattern": "query has 3 tokens, one of which ('AdminDashboardPage') exactly matches a node name",
+        "matchedNames": [
+          "AdminDashboardPage",
+          "AdminLayout"
+        ]
+      },
+      {
+        "event_id": "abbddeebb9010aaa",
+        "query": "AdminDashboardPage AdminLayout",
+        "subclass": "MULTI_TOKEN_QUERY",
+        "pattern": "query has 2 tokens, one of which ('AdminDashboardPage') exactly matches a node name",
+        "matchedNames": [
+          "AdminDashboardPage",
+          "AdminLayout"
+        ]
+      },
+      {
+        "event_id": "af01ab0d7d9db27b",
+        "query": "syncAgent updateRetellAgent",
+        "subclass": "MULTI_TOKEN_QUERY",
+        "pattern": "query has 2 tokens, one of which ('updateRetellAgent') exactly matches a node name",
+        "matchedNames": [
+          "updateRetellAgent"
+        ]
+      },
+      {
+        "event_id": "c7e6f783e1a51c8a",
+        "query": "createCompany CreateCompanyForm",
+        "subclass": "MULTI_TOKEN_QUERY",
+        "pattern": "query has 2 tokens, one of which ('createCompany') exactly matches a node name",
+        "matchedNames": [
+          "createCompany"
+        ]
+      },
+      {
+        "event_id": "ca87e4124cdec550",
+        "query": "archiveCompany mutation 400 bad request already archived",
+        "subclass": "MULTI_TOKEN_QUERY",
+        "pattern": "query has 7 tokens, one of which ('archiveCompany') exactly matches a node name",
+        "matchedNames": [
+          "archiveCompany"
+        ]
+      }
+    ]
+  }
+}
