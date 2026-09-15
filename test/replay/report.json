@@ -1,6 +1,6 @@
 {
-  "dist": "/mnt/c/dev/nca-replay-scoped/dist",
-  "generated_at": "2026-09-15T09:47:47.818Z",
+  "dist": "/mnt/c/dev/nca-recall-diagnosis/dist",
+  "generated_at": "2026-09-15T10:19:40.299Z",
   "fixture_query_count": 64,
   "in_scope_count": 58,
   "out_of_scope_count": 6,
@@ -38,7 +38,7 @@
       "test_direct_hit_count": 8,
       "regressions": [],
       "golden_diffs_count": 0,
-      "historical_reconstruction_limits_count": 4
+      "historical_reconstruction_limits_count": 0
     },
     "clean_no_match_explicit": {
       "pass": true,

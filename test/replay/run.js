@@ -219,7 +219,13 @@ function classify(response) {
     return { cls: 'product_error', detail: `malformed success response: ${JSON.stringify(response).slice(0, 300)}` };
   }
   const norm = normalizeOutput(text);
-  const isNoMatch = /no matches for '/.test(norm);
+  // Two no-match message formats appear across the corpus: the current
+  // "no matches for '<query>'" phrasing, and a legacy "(no results)" line
+  // (an older nca_ask build, seen in historical June 2026 tool_results —
+  // predates even the "no matches for" wording). Recognizing only the
+  // current phrasing silently miscounted 4 legacy no-match responses as
+  // direct_hit when replaying historical data (see historical.js).
+  const isNoMatch = /no matches for '|^\(no results\)$/m.test(norm);
   if (!isNoMatch) {
     return { cls: 'direct_hit', detail: norm };
   }

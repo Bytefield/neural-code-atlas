@@ -1,6 +1,6 @@
 # nca_ask replay report — Phase A exit gate
 
-Dist under test: `/mnt/c/dev/nca-replay-scoped/dist`
+Dist under test: `/mnt/c/dev/nca-recall-diagnosis/dist`
 Queries replayed: 64 (58 in-scope + 6 out_of_scope, not executed — see below)
 
 This is the GATE report (Replay B, against the CURRENT September index, for criteria 1/2/4; criterion 3 reads Replay A's already-generated result against a separate frozen June index — see test/replay/replay-a.js). For the drift/source-text analysis and historical traceability (informational, no gate), see report-drift.md.

@@ -1,0 +1,830 @@
+{
+  "generated_at": "2026-09-15T10:15:33.544Z",
+  "source_of_26": "/mnt/c/dev/nca-recall-diagnosis/test/replay/report-drift.json",
+  "september_index": {
+    "sha256": "9411ac277f070c00736c4e86816fda55396dd53f80bdb3436e424e6b0e5718a4",
+    "synio_commit": "e29cb7a12d6ac860f8175fa478e88147c4ba1ba7"
+  },
+  "june_index": {
+    "sha256": "653a7ce574611899ebc2702ba22848616f62dec42c9d03a9168abfc2f3d2d530",
+    "synio_commit": "13c01e51b152a6db13b6aa062a70d35f71053187",
+    "role": "secondary/informative column only — see task context, not used for classification"
+  },
+  "nodes_schema_september": [
+    "id",
+    "type",
+    "name",
+    "module",
+    "inputs",
+    "outputs",
+    "deps",
+    "effects",
+    "complexity",
+    "file",
+    "line",
+    "sha256"
+  ],
+  "nodes_schema_june": [
+    "id",
+    "type",
+    "name",
+    "module",
+    "inputs",
+    "outputs",
+    "deps",
+    "effects",
+    "complexity",
+    "file",
+    "line",
+    "sha256"
+  ],
+  "candidate_extraction_rule": "drift.js:extractCandidates(query) — split on whitespace, strip surrounding punctuation, keep a token iff: it looks like a path (contains '/' or ends in .ts/.tsx/.js/.jsx/.py/.json/.md/.sql/.env) OR is kebab-case (>=6 chars, e.g. 'build-prompt') OR is camelCase/PascalCase (has an uppercase letter after position 0 AND a lowercase letter) OR is UPPER_SNAKE (contains '_', all-uppercase) OR is snake_case (contains '_', all-lowercase) OR is $-prefixed (e.g. '$queryRaw'); AND the token (lowercased) is not in a small stopword list (the/a/an/and/or/for/of/in/on/at/to/is/are/with/from/that/this/other/outside/already/bad/request); AND the identifier-shaped core is >=4 chars.",
+  "name_query_sql": "SELECT id, type, name, file, line FROM nodes WHERE name = ? ORDER BY id",
+  "path_query_sql": "SELECT id, type, name, file, line FROM nodes WHERE file LIKE ? ORDER BY id",
+  "counts": {
+    "NODE_PRESENT_MATCHER_MISSED": 12,
+    "INDEXER_NOT_CAPTURED": 14,
+    "NOT_IDENTIFIER_QUERY": 0,
+    "UNDETERMINED": 0
+  },
+  "results": [
+    {
+      "event_id": "02bec69b581249ca",
+      "query": "getCompanies showArchived filter archived companies list",
+      "project_arg": "/mnt/c/dev/synio",
+      "class": "NODE_PRESENT_MATCHER_MISSED",
+      "candidates_used": [
+        {
+          "token": "getCompanies",
+          "kind": "camel_pascal"
+        },
+        {
+          "token": "showArchived",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [
+        {
+          "token": "getCompanies",
+          "nodes": [
+            {
+              "id": 3907,
+              "type": "arrow",
+              "name": "getCompanies",
+              "file": "/mnt/c/dev/synio/src/server/trpc/routers/synio/company.ts",
+              "line": 45
+            }
+          ]
+        }
+      ],
+      "in_june_index": "yes",
+      "evidence_note": "1 node(s) in the September index named/pathed 'getCompanies' (e.g. id=3907 type=arrow /mnt/c/dev/synio/src/server/trpc/routers/synio/company.ts:45); nca_ask's search() returned no match for this query regardless."
+    },
+    {
+      "event_id": "0e6d4f2686cc7ee4",
+      "query": "ActivateCompanyWizard WizardStep",
+      "project_arg": "/mnt/c/dev/synio",
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "ActivateCompanyWizard",
+          "kind": "camel_pascal"
+        },
+        {
+          "token": "WizardStep",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/components/companies/ActivateCompanyWizard.tsx:32:export function ActivateCompanyWizard({), but no node in the September index nodes table matches any candidate by exact name or file substring. Substring near-miss (not exact, not counted): WizardStepper@/mnt/c/dev/synio/src/components/onboarding/WizardStepper.tsx:25; WizardStep4Review@/mnt/c/dev/synio/src/components/campaigns/WizardStep4Review.tsx:48."
+    },
+    {
+      "event_id": "210e9e2349d5d4f3",
+      "query": "DISCORD_NOTIFICATION_WEBHOOK",
+      "project_arg": null,
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "DISCORD_NOTIFICATION_WEBHOOK",
+          "kind": "upper_snake"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/lib/notifications/discord.ts:14: * Silent-fails if DISCORD_NOTIFICATION_WEBHOOK is not configured or if the request fails.), but no node in the September index nodes table matches any candidate by exact name or file substring."
+    },
+    {
+      "event_id": "2b9b331ed61e8fce",
+      "query": "company-assistant retell agent prompt push update",
+      "project_arg": "/mnt/c/dev/synio",
+      "class": "NODE_PRESENT_MATCHER_MISSED",
+      "candidates_used": [
+        {
+          "token": "company-assistant",
+          "kind": "path"
+        }
+      ],
+      "sept_matches": [
+        {
+          "token": "company-assistant",
+          "nodes": [
+            {
+              "id": 865,
+              "type": "function",
+              "name": "loadCompanyConfigForPrompt",
+              "file": "/mnt/c/dev/synio/src/lib/services/company-assistant.service.ts",
+              "line": 55
+            },
+            {
+              "id": 866,
+              "type": "arrow",
+              "name": "services",
+              "file": "/mnt/c/dev/synio/src/lib/services/company-assistant.service.ts",
+              "line": 82
+            },
+            {
+              "id": 867,
+              "type": "function",
+              "name": "buildBeginMessage",
+              "file": "/mnt/c/dev/synio/src/lib/services/company-assistant.service.ts",
+              "line": 110
+            },
+            {
+              "id": 868,
+              "type": "function",
+              "name": "createRetellAssistant",
+              "file": "/mnt/c/dev/synio/src/lib/services/company-assistant.service.ts",
+              "line": 130
+            },
+            {
+              "id": 869,
+              "type": "function",
+              "name": "updateRetellAssistant",
+              "file": "/mnt/c/dev/synio/src/lib/services/company-assistant.service.ts",
+              "line": 225
+            },
+            {
+              "id": 870,
+              "type": "function",
+              "name": "deleteRetellAssistant",
+              "file": "/mnt/c/dev/synio/src/lib/services/company-assistant.service.ts",
+              "line": 316
+            },
+            {
+              "id": 918,
+              "type": "arrow",
+              "name": "createRetellLlm",
+              "file": "/mnt/c/dev/synio/src/lib/services/__tests__/company-assistant.service.test.ts",
+              "line": 42
+            },
+            {
+              "id": 919,
+              "type": "arrow",
+              "name": "updateRetellLlm",
+              "file": "/mnt/c/dev/synio/src/lib/services/__tests__/company-assistant.service.test.ts",
+              "line": 43
+            },
+            {
+              "id": 920,
+              "type": "arrow",
+              "name": "deleteRetellLlm",
+              "file": "/mnt/c/dev/synio/src/lib/services/__tests__/company-assistant.service.test.ts",
+              "line": 44
+            },
+            {
+              "id": 921,
+              "type": "arrow",
+              "name": "createRetellAgent",
+              "file": "/mnt/c/dev/synio/src/lib/services/__tests__/company-assistant.service.test.ts",
+              "line": 45
+            },
+            {
+              "id": 922,
+              "type": "arrow",
+              "name": "updateRetellAgent",
+              "file": "/mnt/c/dev/synio/src/lib/services/__tests__/company-assistant.service.test.ts",
+              "line": 46
+            },
+            {
+              "id": 923,
+              "type": "arrow",
+              "name": "deleteRetellAgent",
+              "file": "/mnt/c/dev/synio/src/lib/services/__tests__/company-assistant.service.test.ts",
+              "line": 47
+            },
+            {
+              "id": 924,
+              "type": "arrow",
+              "name": "buildRetellTools",
+              "file": "/mnt/c/dev/synio/src/lib/services/__tests__/company-assistant.service.test.ts",
+              "line": 48
+            }
+          ]
+        }
+      ],
+      "in_june_index": "yes",
+      "evidence_note": "13 node(s) in the September index named/pathed 'company-assistant' (e.g. id=865 type=function /mnt/c/dev/synio/src/lib/services/company-assistant.service.ts:55); nca_ask's search() returned no match for this query regardless."
+    },
+    {
+      "event_id": "4394b0df6c0b9b5f",
+      "query": "CompanyConfig loadCompanyConfigForPrompt",
+      "project_arg": "/mnt/c/dev/synio",
+      "class": "NODE_PRESENT_MATCHER_MISSED",
+      "candidates_used": [
+        {
+          "token": "CompanyConfig",
+          "kind": "camel_pascal"
+        },
+        {
+          "token": "loadCompanyConfigForPrompt",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [
+        {
+          "token": "loadCompanyConfigForPrompt",
+          "nodes": [
+            {
+              "id": 865,
+              "type": "function",
+              "name": "loadCompanyConfigForPrompt",
+              "file": "/mnt/c/dev/synio/src/lib/services/company-assistant.service.ts",
+              "line": 55
+            }
+          ]
+        }
+      ],
+      "in_june_index": "yes",
+      "evidence_note": "1 node(s) in the September index named/pathed 'loadCompanyConfigForPrompt' (e.g. id=865 type=function /mnt/c/dev/synio/src/lib/services/company-assistant.service.ts:55); nca_ask's search() returned no match for this query regardless."
+    },
+    {
+      "event_id": "4ad09ac3d96c74b8",
+      "query": "applyTemplate verticalTemplate",
+      "project_arg": "/mnt/c/dev/synio",
+      "class": "NODE_PRESENT_MATCHER_MISSED",
+      "candidates_used": [
+        {
+          "token": "applyTemplate",
+          "kind": "camel_pascal"
+        },
+        {
+          "token": "verticalTemplate",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [
+        {
+          "token": "applyTemplate",
+          "nodes": [
+            {
+              "id": 1410,
+              "type": "function",
+              "name": "applyTemplate",
+              "file": "/mnt/c/dev/synio/src/lib/crm/apply-template.ts",
+              "line": 34
+            }
+          ]
+        }
+      ],
+      "in_june_index": "yes",
+      "evidence_note": "1 node(s) in the September index named/pathed 'applyTemplate' (e.g. id=1410 type=function /mnt/c/dev/synio/src/lib/crm/apply-template.ts:34); nca_ask's search() returned no match for this query regardless."
+    },
+    {
+      "event_id": "4e927cb09554e948",
+      "query": "companyProcedure",
+      "project_arg": null,
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "companyProcedure",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/context.ts:103:  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure.), but no node in the September index nodes table matches any candidate by exact name or file substring."
+    },
+    {
+      "event_id": "4edb26fd8e16329a",
+      "query": "GOOGLE_CALENDAR_CLIENT_ID",
+      "project_arg": null,
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "GOOGLE_CALENDAR_CLIENT_ID",
+          "kind": "upper_snake"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/api/calendar/google/authorize/route.ts:76:  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;), but no node in the September index nodes table matches any candidate by exact name or file substring."
+    },
+    {
+      "event_id": "58bfe33a38d8f8fa",
+      "query": "CANCELLED PAST_DUE subscription",
+      "project_arg": "/mnt/c/dev/synio",
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "PAST_DUE",
+          "kind": "upper_snake"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/migrations/20260101000000_synio_core_schema/migration.sql:5:CREATE TYPE \"SubscriptionStatus\" AS ENUM ('TRIALING', 'ACTIVE', 'PAST_DUE', 'CANCELLED');), but no node in the September index nodes table matches any candidate by exact name or file substring."
+    },
+    {
+      "event_id": "59655a4daa54901e",
+      "query": "checkAvailability slot locking",
+      "project_arg": null,
+      "class": "NODE_PRESENT_MATCHER_MISSED",
+      "candidates_used": [
+        {
+          "token": "checkAvailability",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [
+        {
+          "token": "checkAvailability",
+          "nodes": [
+            {
+              "id": 362,
+              "type": "arrow",
+              "name": "checkAvailability",
+              "file": "/mnt/c/dev/synio/src/server/trpc/routers/calendar.ts",
+              "line": 616
+            },
+            {
+              "id": 489,
+              "type": "arrow",
+              "name": "checkAvailability",
+              "file": "/mnt/c/dev/synio/src/server/trpc/routers/onboarding.router.ts",
+              "line": 154
+            }
+          ]
+        }
+      ],
+      "in_june_index": "yes",
+      "evidence_note": "2 node(s) in the September index named/pathed 'checkAvailability' (e.g. id=362 type=arrow /mnt/c/dev/synio/src/server/trpc/routers/calendar.ts:616); nca_ask's search() returned no match for this query regardless."
+    },
+    {
+      "event_id": "65c5338cc438e195",
+      "query": "AZURE_CALENDAR_CLIENT_ID",
+      "project_arg": null,
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "AZURE_CALENDAR_CLIENT_ID",
+          "kind": "upper_snake"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/app/api/calendar/microsoft/authorize/route.ts:75:  const clientId = process.env.AZURE_CALENDAR_CLIENT_ID;), but no node in the September index nodes table matches any candidate by exact name or file substring."
+    },
+    {
+      "event_id": "6cb66c55da1a16af",
+      "query": "vapi tools manage-appointment build-prompt token-estimator",
+      "project_arg": null,
+      "class": "NODE_PRESENT_MATCHER_MISSED",
+      "candidates_used": [
+        {
+          "token": "manage-appointment",
+          "kind": "path"
+        },
+        {
+          "token": "build-prompt",
+          "kind": "path"
+        },
+        {
+          "token": "token-estimator",
+          "kind": "path"
+        }
+      ],
+      "sept_matches": [
+        {
+          "token": "build-prompt",
+          "nodes": [
+            {
+              "id": 1174,
+              "type": "function",
+              "name": "buildPrompt",
+              "file": "/mnt/c/dev/synio/src/lib/prompt/build-prompt.ts",
+              "line": 78
+            },
+            {
+              "id": 1175,
+              "type": "arrow",
+              "name": "includedSections",
+              "file": "/mnt/c/dev/synio/src/lib/prompt/build-prompt.ts",
+              "line": 140
+            },
+            {
+              "id": 1176,
+              "type": "arrow",
+              "name": "prompt",
+              "file": "/mnt/c/dev/synio/src/lib/prompt/build-prompt.ts",
+              "line": 170
+            },
+            {
+              "id": 1197,
+              "type": "arrow",
+              "name": "createDentalConfig",
+              "file": "/mnt/c/dev/synio/src/lib/prompt/__tests__/build-prompt.test.ts",
+              "line": 10
+            },
+            {
+              "id": 1198,
+              "type": "arrow",
+              "name": "sumOfSections",
+              "file": "/mnt/c/dev/synio/src/lib/prompt/__tests__/build-prompt.test.ts",
+              "line": 166
+            }
+          ]
+        },
+        {
+          "token": "token-estimator",
+          "nodes": [
+            {
+              "id": 1177,
+              "type": "function",
+              "name": "estimateTokens",
+              "file": "/mnt/c/dev/synio/src/lib/prompt/token-estimator.ts",
+              "line": 15
+            }
+          ]
+        }
+      ],
+      "in_june_index": "yes",
+      "evidence_note": "5 node(s) in the September index named/pathed 'build-prompt' (e.g. id=1174 type=function /mnt/c/dev/synio/src/lib/prompt/build-prompt.ts:78); nca_ask's search() returned no match for this query regardless."
+    },
+    {
+      "event_id": "77fb9296660c0382",
+      "query": "DISCORD_ERROR_WEBHOOK",
+      "project_arg": null,
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "DISCORD_ERROR_WEBHOOK",
+          "kind": "upper_snake"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:scripts/backup-daily.sh:14:DISCORD_WEBHOOK=\"${DISCORD_ERROR_WEBHOOK:-}\"), but no node in the September index nodes table matches any candidate by exact name or file substring."
+    },
+    {
+      "event_id": "a1a7d0eb0589f758",
+      "query": "$queryRaw raw SQL injection unsafe query",
+      "project_arg": null,
+      "class": "NODE_PRESENT_MATCHER_MISSED",
+      "candidates_used": [
+        {
+          "token": "$queryRaw",
+          "kind": "dollar"
+        }
+      ],
+      "sept_matches": [
+        {
+          "token": "$queryRaw",
+          "nodes": [
+            {
+              "id": 26,
+              "type": "method",
+              "name": "$queryRaw",
+              "file": "/mnt/c/dev/synio/tests/ux/ux-ctd-e2e.test.ts",
+              "line": 53
+            },
+            {
+              "id": 1603,
+              "type": "method",
+              "name": "$queryRaw",
+              "file": "/mnt/c/dev/synio/src/lib/cache/__tests__/faq-cache.test.ts",
+              "line": 45
+            },
+            {
+              "id": 3803,
+              "type": "method",
+              "name": "$queryRaw",
+              "file": "/mnt/c/dev/synio/tests/security/tenant-isolation/faq-cache-isolation.test.ts",
+              "line": 34
+            }
+          ]
+        }
+      ],
+      "in_june_index": "yes",
+      "evidence_note": "3 node(s) in the September index named/pathed '$queryRaw' (e.g. id=26 type=method /mnt/c/dev/synio/tests/ux/ux-ctd-e2e.test.ts:53); nca_ask's search() returned no match for this query regardless."
+    },
+    {
+      "event_id": "a66eeca3b64f454b",
+      "query": "AdminDashboardPage AdminLayout components",
+      "project_arg": null,
+      "class": "NODE_PRESENT_MATCHER_MISSED",
+      "candidates_used": [
+        {
+          "token": "AdminDashboardPage",
+          "kind": "camel_pascal"
+        },
+        {
+          "token": "AdminLayout",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [
+        {
+          "token": "AdminDashboardPage",
+          "nodes": [
+            {
+              "id": 2270,
+              "type": "function",
+              "name": "AdminDashboardPage",
+              "file": "/mnt/c/dev/synio/src/app/admin/page.tsx",
+              "line": 8
+            }
+          ]
+        },
+        {
+          "token": "AdminLayout",
+          "nodes": [
+            {
+              "id": 2268,
+              "type": "function",
+              "name": "AdminLayout",
+              "file": "/mnt/c/dev/synio/src/app/admin/layout.tsx",
+              "line": 8
+            }
+          ]
+        }
+      ],
+      "in_june_index": "yes",
+      "evidence_note": "1 node(s) in the September index named/pathed 'AdminDashboardPage' (e.g. id=2270 type=function /mnt/c/dev/synio/src/app/admin/page.tsx:8); nca_ask's search() returned no match for this query regardless."
+    },
+    {
+      "event_id": "abbddeebb9010aaa",
+      "query": "AdminDashboardPage AdminLayout",
+      "project_arg": "/mnt/c/dev/synio",
+      "class": "NODE_PRESENT_MATCHER_MISSED",
+      "candidates_used": [
+        {
+          "token": "AdminDashboardPage",
+          "kind": "camel_pascal"
+        },
+        {
+          "token": "AdminLayout",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [
+        {
+          "token": "AdminDashboardPage",
+          "nodes": [
+            {
+              "id": 2270,
+              "type": "function",
+              "name": "AdminDashboardPage",
+              "file": "/mnt/c/dev/synio/src/app/admin/page.tsx",
+              "line": 8
+            }
+          ]
+        },
+        {
+          "token": "AdminLayout",
+          "nodes": [
+            {
+              "id": 2268,
+              "type": "function",
+              "name": "AdminLayout",
+              "file": "/mnt/c/dev/synio/src/app/admin/layout.tsx",
+              "line": 8
+            }
+          ]
+        }
+      ],
+      "in_june_index": "yes",
+      "evidence_note": "1 node(s) in the September index named/pathed 'AdminDashboardPage' (e.g. id=2270 type=function /mnt/c/dev/synio/src/app/admin/page.tsx:8); nca_ask's search() returned no match for this query regardless."
+    },
+    {
+      "event_id": "af01ab0d7d9db27b",
+      "query": "syncAgent updateRetellAgent",
+      "project_arg": "/mnt/c/dev/synio",
+      "class": "NODE_PRESENT_MATCHER_MISSED",
+      "candidates_used": [
+        {
+          "token": "syncAgent",
+          "kind": "camel_pascal"
+        },
+        {
+          "token": "updateRetellAgent",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [
+        {
+          "token": "updateRetellAgent",
+          "nodes": [
+            {
+              "id": 922,
+              "type": "arrow",
+              "name": "updateRetellAgent",
+              "file": "/mnt/c/dev/synio/src/lib/services/__tests__/company-assistant.service.test.ts",
+              "line": 46
+            },
+            {
+              "id": 1372,
+              "type": "function",
+              "name": "updateRetellAgent",
+              "file": "/mnt/c/dev/synio/src/lib/external/retell-api.ts",
+              "line": 175
+            }
+          ]
+        }
+      ],
+      "in_june_index": "yes",
+      "evidence_note": "2 node(s) in the September index named/pathed 'updateRetellAgent' (e.g. id=922 type=arrow /mnt/c/dev/synio/src/lib/services/__tests__/company-assistant.service.test.ts:46); nca_ask's search() returned no match for this query regardless."
+    },
+    {
+      "event_id": "c7e6f783e1a51c8a",
+      "query": "createCompany CreateCompanyForm",
+      "project_arg": "/mnt/c/dev/synio",
+      "class": "NODE_PRESENT_MATCHER_MISSED",
+      "candidates_used": [
+        {
+          "token": "createCompany",
+          "kind": "camel_pascal"
+        },
+        {
+          "token": "CreateCompanyForm",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [
+        {
+          "token": "createCompany",
+          "nodes": [
+            {
+              "id": 3910,
+              "type": "arrow",
+              "name": "createCompany",
+              "file": "/mnt/c/dev/synio/src/server/trpc/routers/synio/company.ts",
+              "line": 176
+            }
+          ]
+        }
+      ],
+      "in_june_index": "yes",
+      "evidence_note": "1 node(s) in the September index named/pathed 'createCompany' (e.g. id=3910 type=arrow /mnt/c/dev/synio/src/server/trpc/routers/synio/company.ts:176); nca_ask's search() returned no match for this query regardless."
+    },
+    {
+      "event_id": "c871e30d25e2c90b",
+      "query": "overall system architecture entry points routers tRPC auth middleware tenancy",
+      "project_arg": null,
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "tRPC",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/migrations/add-row-level-security.sql:286:In your application code (tRPC context or middleware), add:), but no node in the September index nodes table matches any candidate by exact name or file substring. Substring near-miss (not exact, not counted): trpcQuery@/mnt/c/dev/synio/tests/load/k6-load.js:42; trpcMutation@/mnt/c/dev/synio/tests/load/k6-load.js:52; createMockTRPCContext@/mnt/c/dev/synio/tests/helpers/trpc.ts:31; createTRPCError@/mnt/c/dev/synio/tests/helpers/trpc.ts:132; getTRPCClient@/mnt/c/dev/synio/src/lib/trpc/client.ts:37."
+    },
+    {
+      "event_id": "ca87e4124cdec550",
+      "query": "archiveCompany mutation 400 bad request already archived",
+      "project_arg": "/mnt/c/dev/synio",
+      "class": "NODE_PRESENT_MATCHER_MISSED",
+      "candidates_used": [
+        {
+          "token": "archiveCompany",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [
+        {
+          "token": "archiveCompany",
+          "nodes": [
+            {
+              "id": 3930,
+              "type": "arrow",
+              "name": "archiveCompany",
+              "file": "/mnt/c/dev/synio/src/server/trpc/routers/synio/company.ts",
+              "line": 840
+            }
+          ]
+        }
+      ],
+      "in_june_index": "yes",
+      "evidence_note": "1 node(s) in the September index named/pathed 'archiveCompany' (e.g. id=3930 type=arrow /mnt/c/dev/synio/src/server/trpc/routers/synio/company.ts:840); nca_ask's search() returned no match for this query regardless."
+    },
+    {
+      "event_id": "d6886dd681fb9808",
+      "query": "isNoShowRecovery",
+      "project_arg": "/mnt/c/dev/synio",
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "isNoShowRecovery",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/manual/_archived_2026_04_30/017_client_outbound.sql:9:-- 4. Add isNoShowRecovery to PipelineStage), but no node in the September index nodes table matches any candidate by exact name or file substring."
+    },
+    {
+      "event_id": "e344329d8432f075",
+      "query": "companyProcedure staffProcedure definition middleware",
+      "project_arg": null,
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "companyProcedure",
+          "kind": "camel_pascal"
+        },
+        {
+          "token": "staffProcedure",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/context.ts:103:  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure.), but no node in the September index nodes table matches any candidate by exact name or file substring."
+    },
+    {
+      "event_id": "ef61595435a314bf",
+      "query": "manageAppointment booking",
+      "project_arg": null,
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "manageAppointment",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/schema.prisma:2279:  requiredTools  Json @default(\"[]\") // ToolAssertion[] — [{name: \"manageAppointment\", mode?: \"cancel\"}]), but no node in the September index nodes table matches any candidate by exact name or file substring. Substring near-miss (not exact, not counted): handleManageAppointment@/mnt/c/dev/synio/src/lib/appointments/voice-handler.ts:92."
+    },
+    {
+      "event_id": "f1166c163cf9bff8",
+      "query": "withRLSContext",
+      "project_arg": null,
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "withRLSContext",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "yes",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/context.ts:103:  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure.), but no node in the September index nodes table matches any candidate by exact name or file substring."
+    },
+    {
+      "event_id": "f211e9640deed031",
+      "query": "companyProcedure protectedProcedure publicProcedure tRPC procedure builders",
+      "project_arg": null,
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "companyProcedure",
+          "kind": "camel_pascal"
+        },
+        {
+          "token": "protectedProcedure",
+          "kind": "camel_pascal"
+        },
+        {
+          "token": "publicProcedure",
+          "kind": "camel_pascal"
+        },
+        {
+          "token": "tRPC",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:src/server/trpc/context.ts:103:  // by the withRLSContext tRPC middleware on companyProcedure and staffProcedure.), but no node in the September index nodes table matches any candidate by exact name or file substring. Substring near-miss (not exact, not counted): trpcQuery@/mnt/c/dev/synio/tests/load/k6-load.js:42; trpcMutation@/mnt/c/dev/synio/tests/load/k6-load.js:52; createMockTRPCContext@/mnt/c/dev/synio/tests/helpers/trpc.ts:31; createTRPCError@/mnt/c/dev/synio/tests/helpers/trpc.ts:132; getTRPCClient@/mnt/c/dev/synio/src/lib/trpc/client.ts:37."
+    },
+    {
+      "event_id": "fad8dca3d0b5244f",
+      "query": "RLS row level security tenant isolation companyId",
+      "project_arg": null,
+      "class": "INDEXER_NOT_CAPTURED",
+      "candidates_used": [
+        {
+          "token": "companyId",
+          "kind": "camel_pascal"
+        }
+      ],
+      "sept_matches": [],
+      "in_june_index": "no",
+      "evidence_note": "text confirmed present via git grep at synio@e29cb7a1 (drift.js evidence: e29cb7a12d6ac860f8175fa478e88147c4ba1ba7:prisma/manual/_archived_2026_04_30/017_client_outbound.sql:22:    \"companyId\"     TEXT NOT NULL,), but no node in the September index nodes table matches any candidate by exact name or file substring. Substring near-miss (not exact, not counted): getCompanyId@/mnt/c/dev/synio/src/server/trpc/routers/billing.router.ts:26; setRLSCompanyId@/mnt/c/dev/synio/src/lib/security/rls.ts:27."
+    }
+  ]
+}

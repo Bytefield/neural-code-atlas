@@ -1,14 +1,14 @@
 # nca_ask replay — drift report (Replay B, informational, no gate)
 
-Dist: `/mnt/c/dev/nca-replay-scoped/dist` — CURRENT (September) index. See report.md for the gated Phase A report; criterion 3 there is decided by Replay A (replay-a-report.json / replay-a.js), not by this file.
+Dist: `/mnt/c/dev/nca-recall-diagnosis/dist` — CURRENT (September) index. See report.md for the gated Phase A report; criterion 3 there is decided by Replay A (replay-a-report.json / replay-a.js), not by this file.
 
 ## Historical baseline (June 2026 live sessions), same classifier
 
-All 64: {"noisy_fallback":43,"direct_hit":12,"known_env_error":4,"clean_no_match":5}
+All 64: {"noisy_fallback":47,"direct_hit":8,"known_env_error":4,"clean_no_match":5}
 
-In-scope 58: {"noisy_fallback":42,"direct_hit":12,"known_env_error":4}
+In-scope 58: {"noisy_fallback":46,"direct_hit":8,"known_env_error":4}
 
-Historical in-scope direct_hit count: 12. See replay-a-report.json for how many of these reproduce against a period-correct (June) index/build pair — this section only traces them against the CURRENT (drifted) index.
+Historical in-scope direct_hit count: 8. See replay-a-report.json for how many of these reproduce against a period-correct (June) index/build pair — this section only traces them against the CURRENT (drifted) index.
 
 ### Traceability: historical in-scope direct_hit -> today's replay class (current index)
 
@@ -16,15 +16,11 @@ Historical in-scope direct_hit count: 12. See replay-a-report.json for how many 
 |---|---|---|---|
 | 14a67463491e142e | "shouldApplyRLS" | direct_hit | n/a |
 | 197691b9e095a925 | "archiveCompany" | direct_hit | n/a |
-| 32b1871be396d7ff | "manage-appointment.ts imports dependencies" | clean_no_match | symbol_absent |
-| 6cb66c55da1a16af | "vapi tools manage-appointment build-prompt token-estimator" | clean_no_match | source_text_present_but_not_retrieved |
 | 83096b383d93dd6f | "buildIdentity" | direct_hit | n/a |
 | 8df1ea0b273f7ae9 | "EditAgentConfig" | direct_hit | n/a |
-| aeb3bf5484f84ce2 | "files inside src/lib/vapi that import from outside vapi directory" | clean_no_match | symbol_absent |
 | ccf25e844034d5a9 | "buildIdentity" | direct_hit | n/a |
 | e98570b337329a37 | "validateCompanyAccess" | direct_hit | n/a |
 | eae7f5317a98311b | "getCompanies" | direct_hit | n/a |
-| ec16fddb3b924ab5 | "files that import from src/lib/vapi" | clean_no_match | symbol_absent |
 | f1166c163cf9bff8 | "withRLSContext" | clean_no_match | source_text_present_but_not_retrieved |
 
 ## Drift analysis (clean_no_match, in-scope only)
