@@ -28,6 +28,19 @@ function loadConfig(rootPath: string): ScannerConfig {
   }
 }
 
+/**
+ * `errors` vs. `unindexed` — two different kinds of "not fully indexed":
+ *   - `errors` (this interface): the scan OPERATION itself failed for a file
+ *     (I/O error, unexpected exception) — something went wrong that
+ *     shouldn't happen. A healthy scan should end with errors: 0.
+ *   - `unindexed` (Storage.stats() / `nca status`, not part of ScanResult):
+ *     the scan completed fine, but a file's node coverage is known to be
+ *     incomplete, with a reason — `parser_error` (native tree-sitter threw,
+ *     so the file fell back to the regex extractor) or `over_size_limit`
+ *     (excluded outright by max_file_size_kb). This is a valid, expected
+ *     steady state, not a failure: errors: 0 and unindexed: N (N > 0) is a
+ *     normal result and `nca status` should keep reporting that N.
+ */
 export interface ScanResult {
   scanned: number;
   skipped: number;
@@ -111,6 +124,20 @@ export class Scanner {
       }
     }
 
+    // A file recorded as over_size_limit is deliberately absent from
+    // currentFilePaths every scan (collectFiles excludes it before that set
+    // is built), so it never reaches file_index and the purge above never
+    // sees it. Only clear its marker once it's actually gone from disk —
+    // anything still present but still over the limit must keep its marker.
+    const rootPrefix = rootPath.endsWith(path.sep) ? rootPath : rootPath + path.sep;
+    for (const u of this.storage.getUnindexedFiles()) {
+      if (u.path !== rootPath && !u.path.startsWith(rootPrefix)) continue;
+      if (currentFilePaths.has(u.path)) continue;
+      if (!fs.existsSync(u.path)) {
+        this.storage.clearUnindexed(u.path);
+      }
+    }
+
     result.durationMs = Date.now() - start;
     return result;
   }
@@ -138,6 +165,7 @@ export class Scanner {
       const maxSizeBytes = (config.max_file_size_kb ?? 512) * 1024;
       if (stat.size > maxSizeBytes) {
         process.stderr.write(`NCA|skip_large|${filePath}|${stat.size}\n`);
+        this.storage.recordUnindexed(filePath, 'over_size_limit');
         result.skipped++;
         result.durationMs = Date.now() - start;
         return result;
@@ -227,6 +255,7 @@ export class Scanner {
             const size = fs.statSync(fullPath).size;
             if (size > maxSizeBytes) {
               process.stderr.write(`NCA|skip_large|${fullPath}|${size}\n`);
+              this.storage.recordUnindexed(fullPath, 'over_size_limit');
               continue;
             }
           } catch { continue; }

@@ -368,6 +368,20 @@ program
     const unindexedFiles = storage.getUnindexedFiles();
     const ts = Date.now();
 
+    // Known reasons always appear in the breakdown, even at 0, so the
+    // grouping stays legible as new reasons show up over time; any reason
+    // not in this list (future additions) is appended after, sorted.
+    const KNOWN_UNINDEXED_REASONS = ['parser_error', 'over_size_limit'];
+    const unindexedByReason: Record<string, number> = {};
+    for (const r of KNOWN_UNINDEXED_REASONS) unindexedByReason[r] = 0;
+    for (const f of unindexedFiles) {
+      unindexedByReason[f.reason] = (unindexedByReason[f.reason] ?? 0) + 1;
+    }
+    const reasonOrder = [
+      ...KNOWN_UNINDEXED_REASONS,
+      ...Object.keys(unindexedByReason).filter(r => !KNOWN_UNINDEXED_REASONS.includes(r)).sort(),
+    ];
+
     if (opts.json) {
       process.stdout.write(
         JSON.stringify({
@@ -379,10 +393,14 @@ program
           dbPath,
           dbSize: stats.dbSize,
           unindexed: unindexedFiles,
+          unindexedByReason,
         }, null, 2) + '\n'
       );
     } else {
       const sizeKb = (stats.dbSize / 1024).toFixed(0);
+      const unindexedSummary = stats.unindexed > 0
+        ? `${stats.unindexed} (${reasonOrder.map(r => `${r} ${unindexedByReason[r]}`).join(', ')})`
+        : String(stats.unindexed);
       const statusLines = [
         formatStatus(`NCA|status|t:${ts}`),
         separator(),
@@ -392,7 +410,7 @@ program
         '  ' + formatField('files', stats.files),
         '  ' + formatField('flows', stats.flows),
         '  ' + formatField('warnings', stats.warnings),
-        '  ' + formatField('unindexed', stats.unindexed),
+        '  ' + formatField('unindexed', unindexedSummary),
         '  ' + formatField('db', dbPath),
         '  ' + formatField('size', `${sizeKb} KB`),
       ];
