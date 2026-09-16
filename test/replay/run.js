@@ -64,6 +64,15 @@ const REPLAY_DIR = __dirname;
 const FIXTURE_DIR = path.join(REPLAY_DIR, '..', 'fixtures', 'replay');
 const REPO_ROOT = path.join(REPLAY_DIR, '..', '..');
 
+// Single source of truth for nca_ask result classification — shared with the
+// corpus extractor's result_class field (src/corpus/nca-ask-result-class.ts).
+// Do not reimplement these rules here; import them.
+const {
+  classifyNcaAskResult,
+  normalizeNcaAskOutput,
+  KNOWN_ENV_ERROR_RE,
+} = require(path.join(REPO_ROOT, 'dist', 'corpus', 'nca-ask-result-class.js'));
+
 // ─── CLI args ───────────────────────────────────────────────────────────────
 
 function parseArgs(argv) {
@@ -190,48 +199,14 @@ function startServer(distDir, dbPath, registryPath) {
   return { call, close, getStderr: () => stderr };
 }
 
-// ─── Determinism normalization (see manifest.harness.determinism_normalization) ─
+// ─── Determinism normalization + classifier ────────────────────────────────
+// Both now live in src/corpus/nca-ask-result-class.ts (single source of
+// truth, shared with the corpus extractor's result_class field). These are
+// thin aliases so the rest of this file's existing call sites (classify(),
+// normalizeOutput()) don't need to change.
 
-function normalizeOutput(text) {
-  if (typeof text !== 'string') return text;
-  return text
-    .replace(/\|t:\d+/g, '|t:<TS>')
-    .replace(/Index is \d+ days old/g, 'Index is <DAYS> days old');
-}
-
-// ─── Classifier (rules mirrored in manifest.json:classifier — keep in sync) ─────
-
-const KNOWN_ENV_ERROR_RE = /NCA schema version mismatch|schema_version \(\d+\) is newer than this build supports|No NCA index found/;
-
-function classify(response) {
-  if (!response) {
-    return { cls: 'product_error', detail: 'no response received' };
-  }
-  if (response.error) {
-    const message = response.error.message ?? '';
-    if (KNOWN_ENV_ERROR_RE.test(message)) {
-      return { cls: 'known_env_error', detail: normalizeOutput(message) };
-    }
-    return { cls: 'product_error', detail: normalizeOutput(message) };
-  }
-  const text = response.result?.content?.[0]?.text;
-  if (typeof text !== 'string') {
-    return { cls: 'product_error', detail: `malformed success response: ${JSON.stringify(response).slice(0, 300)}` };
-  }
-  const norm = normalizeOutput(text);
-  // Two no-match message formats appear across the corpus: the current
-  // "no matches for '<query>'" phrasing, and a legacy "(no results)" line
-  // (an older nca_ask build, seen in historical June 2026 tool_results —
-  // predates even the "no matches for" wording). Recognizing only the
-  // current phrasing silently miscounted 4 legacy no-match responses as
-  // direct_hit when replaying historical data (see historical.js).
-  const isNoMatch = /no matches for '|^\(no results\)$/m.test(norm);
-  if (!isNoMatch) {
-    return { cls: 'direct_hit', detail: norm };
-  }
-  const hasFlowContent = norm.includes('[F]') || /#[^\s[]+\[/.test(norm);
-  return { cls: hasFlowContent ? 'noisy_fallback' : 'clean_no_match', detail: norm };
-}
+const normalizeOutput = normalizeNcaAskOutput;
+const classify = classifyNcaAskResult;
 
 // ─── Report ─────────────────────────────────────────────────────────────────
 

@@ -1,4 +1,11 @@
 export { extract } from './extractor.js';
+export {
+  classifyNcaAskResult,
+  normalizeNcaAskOutput,
+  KNOWN_ENV_ERROR_RE,
+  NCA_ASK_RESULT_CLASSIFIER_VERSION,
+} from './nca-ask-result-class.js';
+export type { NcaAskResultClass, McpResponseLike } from './nca-ask-result-class.js';
 export { resolveProjectSlug } from './slug.js';
 export { resolveCorpusDir } from './reader.js';
 export { resolveOutputPath, resolveManifestPath, checkExistingVersion } from './writer.js';

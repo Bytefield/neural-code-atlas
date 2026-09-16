@@ -1,4 +1,6 @@
-export const SCHEMA_VERSION = 'orientation_event_v2' as const;
+import { NcaAskResultClass, NCA_ASK_RESULT_CLASSIFIER_VERSION } from './nca-ask-result-class.js';
+
+export const SCHEMA_VERSION = 'orientation_event_v3' as const;
 export const EXTRACTOR_VERSION = '0.1.0' as const;
 
 export type ExperimentPhase = 'baseline' | 'treatment';
@@ -24,6 +26,12 @@ export interface OrientationEvent {
   // post_tool_use only
   tool_name?: string;
   file_path?: string | null;
+  // post_tool_use, mcp__nca__nca_ask only (v3+) — derived from the paired
+  // tool_result, never persisted as raw text. See nca-ask-result-class.ts:
+  // result_classifier records which ruleset produced result_class so
+  // historical events are never silently reinterpreted under later rules.
+  result_class?: NcaAskResultClass;
+  result_classifier?: typeof NCA_ASK_RESULT_CLASSIFIER_VERSION;
 }
 
 export interface RunOptions {
