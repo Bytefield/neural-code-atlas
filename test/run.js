@@ -2996,17 +2996,18 @@ process.on('exit', () => {
     }
   });
 
-  // (c) robustness: a .tsx file that crashes the native tree-sitter binding
-  // (confirmed cause: any input >= 32768 bytes throws "Invalid argument" in
-  // this tree-sitter version, regardless of content — NOT the emoji/surrogate-
-  // pair characters attributed in the earlier tsx-grammar-sizing measurement;
-  // that measurement's 6 failing files were coincidentally all >32KB in a
-  // corpus where content-rich pages also tend to contain emoji, not because
-  // of the emoji itself, per byte-exact bisection during this fix) must not
-  // crash parseFile — src/parser.ts already wraps parser.parse() in try/catch
-  // with a regexFallback, so this is a regression guard on EXISTING behavior,
-  // not new logic added by this fix.
-  test('TSX-CHAR-03 .tsx file over the native parser size limit does not crash the scan', () => {
+  // (c) fix regression: a .tsx file over the native tree-sitter string-input
+  // ceiling (github.com/tree-sitter/node-tree-sitter#250 — the binding
+  // defaults bufferSize to 32768 bytes for string input and throws "Invalid
+  // argument", instead of chunking via the input callback, for any source at
+  // or past that size, regardless of content — NOT the emoji/surrogate-pair
+  // characters attributed in the earlier tsx-grammar-sizing measurement; that
+  // measurement's 6 failing files were coincidentally all >32KB in a corpus
+  // where content-rich pages also tend to contain emoji, not because of the
+  // emoji itself, per byte-exact bisection during this fix) must now be
+  // parsed by the real AST path — src/parser.ts sizes bufferSize to the
+  // source itself, so this no longer falls back to the regex extractor.
+  test('TSX-CHAR-03 .tsx file over the native parser size limit is parsed natively, not via regex fallback', () => {
     const charDir = path.join(os.tmpdir(), `nca-tsx-oversized-${Date.now()}`);
     fs.mkdirSync(charDir, { recursive: true });
     const tsxFile = path.join(charDir, 'Oversized.tsx');
@@ -3015,8 +3016,9 @@ process.on('exit', () => {
       const oversized = `export function Oversized() {\n  return <div>ok</div>;\n}\n\n${padding}`;
       assert(Buffer.byteLength(oversized, 'utf-8') >= 32768, 'TSX-CHAR-03 setup: fixture must exceed the 32768-byte threshold to reproduce the native crash');
 
-      // Confirm this content really does crash the native binding directly —
-      // otherwise this test would pass trivially without exercising the fallback.
+      // Confirm the native binding really does crash on this content when
+      // called the way it was before this fix (no bufferSize option) —
+      // otherwise this test would pass trivially without exercising the fix.
       const p = new TreeSitter();
       p.setLanguage(TSGrammars.tsx);
       let nativeThrew = false;
@@ -3026,13 +3028,27 @@ process.on('exit', () => {
       fs.writeFileSync(tsxFile, oversized, 'utf-8');
       let nodes;
       let threw = null;
+      let usedFallback = false;
       try {
-        nodes = charParser.parseFile(tsxFile, '', charDir, oversized);
+        nodes = charParser.parseFile(tsxFile, '', charDir, oversized, {
+          onParseError: () => { usedFallback = true; },
+        });
       } catch (err) {
         threw = err;
       }
-      assert(threw === null, `TSX-CHAR-03: parseFile threw instead of falling back: ${threw && threw.message}`);
-      assert(Array.isArray(nodes), 'TSX-CHAR-03: expected parseFile to return an array (regex-fallback path) even though the native parser crashed');
+      assert(threw === null, `TSX-CHAR-03: parseFile threw: ${threw && threw.message}`);
+      assert(usedFallback === false,
+        'TSX-CHAR-03: parseFile fell back to the regex extractor for a file past the native ceiling — the buffer-size fix should let the real parser handle it');
+      assert(Array.isArray(nodes), 'TSX-CHAR-03: expected parseFile to return an array');
+      assert(nodes.some(n => n.name === 'Oversized' && n.type === 'function'),
+        `TSX-CHAR-03: expected the natively-parsed AST to still find the Oversized function, got: ${JSON.stringify(nodes.map(n => n.name))}`);
+
+      // Independent check with the raw tree: the fix must produce a clean
+      // tree (no ERROR nodes) for this fixture, not merely avoid throwing.
+      const bufferSize = Buffer.byteLength(oversized, 'utf-8') + 4096;
+      const fixedTree = p.parse(oversized, undefined, { bufferSize });
+      assert(fixedTree.rootNode.hasError === false,
+        'TSX-CHAR-03: expected hasError=false once bufferSize covers the source');
     } finally {
       try { fs.rmSync(charDir, { recursive: true, force: true }); } catch {}
     }
