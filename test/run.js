@@ -626,6 +626,70 @@ test('SRS-01 scanner reads each file exactly once per scan', () => {
   }
 });
 
+// UNINDEXED-01: a file whose native parse throws is registered as unindexed
+// (REC-0005B) and the scan continues — the native exception must not abort
+// scanning or the containing file's own parse_error result count.
+test('UNINDEXED-01 scan registers a file whose native parse fails, and continues scanning', () => {
+  const testDir = path.join(os.tmpdir(), `nca-unindexed-${Date.now()}`);
+  fs.mkdirSync(testDir, { recursive: true });
+  const failFile = path.join(testDir, 'Breaks.tsx');
+  const okFile = path.join(testDir, 'ok.ts');
+  const tmpDb = path.join(testDir, 'unindexed.db');
+
+  fs.writeFileSync(failFile, 'export function Breaks() { return 1; }\n');
+  fs.writeFileSync(okFile, 'export function fine() { return 2; }\n');
+
+  const { Scanner } = require(path.join(ROOT, 'dist', 'scanner.js'));
+  const storage = new StorageClass(tmpDb);
+  const scanner = new Scanner(storage);
+
+  // Force a native tree-sitter failure for exactly the target file's content,
+  // simulating the "Invalid argument" ceiling without depending on a huge
+  // fixture — every other file (and every other Parser use in the process)
+  // is unaffected.
+  const TreeSitter = require('tree-sitter');
+  const originalParse = TreeSitter.prototype.parse;
+  TreeSitter.prototype.parse = function (input, ...rest) {
+    if (typeof input === 'string' && input.includes('Breaks')) {
+      throw new Error('Invalid argument');
+    }
+    return originalParse.call(this, input, ...rest);
+  };
+
+  try {
+    const result = scanner.scan(testDir);
+    assert(result.errors === 0,
+      `expected the native parse failure to be absorbed by the regex fallback, not counted as a scan error: got ${result.errors}`);
+    assert(result.parsed === 2, `expected both files to be recorded as parsed, got ${result.parsed}`);
+
+    const unindexed = storage.getUnindexedFiles();
+    assert(unindexed.length === 1, `expected exactly 1 unindexed file, got ${JSON.stringify(unindexed)}`);
+    assert(unindexed[0].path === failFile, `expected unindexed path ${failFile}, got ${unindexed[0].path}`);
+    assert(unindexed[0].reason === 'parser_error', `expected reason "parser_error", got "${unindexed[0].reason}"`);
+
+    const stats = storage.stats();
+    assert(stats.unindexed === 1, `expected stats.unindexed === 1, got ${stats.unindexed}`);
+
+    const okNodes = storage.getNodesByFile(okFile);
+    assert(okNodes.length === 1 && okNodes[0].name === 'fine',
+      `expected ok.ts to still be indexed normally, got: ${JSON.stringify(okNodes)}`);
+
+    // Recovery: once the native parser no longer throws for this file, a
+    // rescan (content must change to trigger reparse) clears the marker.
+    TreeSitter.prototype.parse = originalParse;
+    fs.writeFileSync(failFile, 'export function Breaks() { return 1; } // now parses cleanly\n');
+    const result2 = scanner.scan(testDir);
+    assert(result2.errors === 0, `expected recovery scan to have no errors, got ${result2.errors}`);
+    assert(storage.getUnindexedFiles().length === 0,
+      `expected the unindexed marker to clear once the file parses cleanly, got: ${JSON.stringify(storage.getUnindexedFiles())}`);
+    assert(storage.stats().unindexed === 0, 'expected stats.unindexed to return to 0 after recovery');
+  } finally {
+    TreeSitter.prototype.parse = originalParse;
+    storage.close();
+    try { fs.rmSync(testDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
 // WUR-01: watch unlink handler relinks graph and flows
 test('WUR-01 watch unlink handler relinks graph and flows', () => {
   const wurDir = path.join(os.tmpdir(), `nca-wur-${Date.now()}`);

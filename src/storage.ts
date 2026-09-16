@@ -317,6 +317,48 @@ export class Storage {
     this.db.prepare(`DELETE FROM file_index WHERE path = ?`).run(filePath);
   }
 
+  /**
+   * Mark a scan-eligible file as unindexed: the parser produced no AST for
+   * it (native tree-sitter threw), so it holds no nodes derived from a real
+   * parse. Stored as a JSON map under the existing schema_meta key/value
+   * table — no schema migration needed for this scan-time bookkeeping.
+   */
+  recordUnindexed(filePath: string, reason: string): void {
+    const map = this.getUnindexedMap();
+    map[filePath] = { reason, detectedAt: Date.now() };
+    this.setUnindexedMap(map);
+  }
+
+  /** Clear a file's unindexed marker — call once it parses cleanly again, or is removed from tracking. */
+  clearUnindexed(filePath: string): void {
+    const map = this.getUnindexedMap();
+    if (!(filePath in map)) return;
+    delete map[filePath];
+    this.setUnindexedMap(map);
+  }
+
+  getUnindexedFiles(): { path: string; reason: string; detectedAt: number }[] {
+    const map = this.getUnindexedMap();
+    return Object.entries(map)
+      .map(([filePath, v]) => ({ path: filePath, reason: v.reason, detectedAt: v.detectedAt }))
+      .sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  private getUnindexedMap(): Record<string, { reason: string; detectedAt: number }> {
+    const row = this.db.prepare(`SELECT value FROM schema_meta WHERE key = 'unindexed_files'`).get() as
+      | { value: string }
+      | undefined;
+    if (!row) return {};
+    return this.parseJSON(row.value, {});
+  }
+
+  private setUnindexedMap(map: Record<string, { reason: string; detectedAt: number }>): void {
+    this.db.prepare(`
+      INSERT INTO schema_meta (key, value) VALUES ('unindexed_files', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    `).run(JSON.stringify(map));
+  }
+
   logQuery(query: string, matchedIds: number[]): void {
     this.stmts.insertQueryLog.run(query, JSON.stringify(matchedIds), Date.now());
   }
@@ -384,15 +426,16 @@ export class Storage {
     return this.stmts.topNodeScores.all() as any[];
   }
 
-  stats(): { files: number; nodes: number; flows: number; warnings: number; notes: number; dbSize: number } {
+  stats(): { files: number; nodes: number; flows: number; warnings: number; notes: number; dbSize: number; unindexed: number } {
     const files = (this.stmts.countFiles.get() as any).count as number;
     const nodes = (this.stmts.countNodes.get() as any).count as number;
     const flows = (this.db.prepare(`SELECT COUNT(*) as count FROM flows`).get() as any).count as number;
     const warnings = (this.db.prepare(`SELECT COUNT(*) as count FROM warnings`).get() as any).count as number;
     const notes = (this.db.prepare(`SELECT COUNT(*) as count FROM notes`).get() as any).count as number;
+    const unindexed = this.getUnindexedFiles().length;
     let dbSize = 0;
     try { dbSize = fs.statSync(this.dbPath).size; } catch {}
-    return { files, nodes, flows, warnings, notes, dbSize };
+    return { files, nodes, flows, warnings, notes, dbSize, unindexed };
   }
 
   searchNotes(query: string): NoteMatch[] {
