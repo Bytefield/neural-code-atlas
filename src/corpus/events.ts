@@ -1,6 +1,9 @@
 import * as crypto from 'crypto';
 import { SCHEMA_VERSION, EXTRACTOR_VERSION, ExperimentPhase, EventType, OrientationEvent } from './types.js';
-import { RawLine, RawContentBlock, RawToolUseBlock, ParsedSession } from './reader.js';
+import { RawLine, RawContentBlock, RawToolUseBlock, RawToolResultBlock, ParsedSession } from './reader.js';
+import { classifyNcaAskResult, NCA_ASK_RESULT_CLASSIFIER_VERSION, McpResponseLike } from './nca-ask-result-class.js';
+
+const NCA_ASK_TOOL_NAME = 'mcp__nca__nca_ask';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -45,6 +48,46 @@ function extractUserPromptText(line: RawLine): string | null {
   return textBlocks.map(b => b.text).join('\n');
 }
 
+// ─── nca_ask result classification (scope: mcp__nca__nca_ask post_tool_use only) ──
+
+// Builds tool_use_id -> tool_result block for every tool_result in the session,
+// once per session, so the post_tool_use loop below does O(1) lookups instead of
+// rescanning session.lines per tool call. Scans all lines regardless of the
+// tool_use/tool_result ordering the corpus happens to use.
+function indexToolResultsByUseId(session: ParsedSession): Map<string, RawToolResultBlock> {
+  const index = new Map<string, RawToolResultBlock>();
+  for (const line of session.lines) {
+    if (line.type !== 'user') continue;
+    const content = line.message?.content;
+    if (!Array.isArray(content)) continue;
+    for (const block of content as RawContentBlock[]) {
+      if ((block as { type: string }).type !== 'tool_result') continue;
+      const tr = block as RawToolResultBlock;
+      if (typeof tr.tool_use_id === 'string') index.set(tr.tool_use_id, tr);
+    }
+  }
+  return index;
+}
+
+// Adapts a transcript tool_result block (Claude Code JSONL shape) into the
+// McpResponseLike shape classifyNcaAskResult() expects (live MCP JSON-RPC
+// response shape). The two are structurally different envelopes around the
+// same underlying MCP content — this only reshapes, it does not reinterpret.
+// The returned object (and everything derived from it) is used transiently
+// to compute result_class; it is never attached to an event or persisted.
+function toolResultBlockToMcpResponseLike(block: RawToolResultBlock): McpResponseLike {
+  const content = block.content;
+  const text = typeof content === 'string'
+    ? content
+    : Array.isArray(content)
+      ? (content as Array<{ type?: string; text?: string }>).find(b => b && b.type === 'text')?.text
+      : undefined;
+  if (block.is_error === true) {
+    return { error: { message: text } };
+  }
+  return { result: { content: [{ text }] } };
+}
+
 // ─── Per-event gitBranch ─────────────────────────────────────────────────────
 
 function getLineBranch(line: RawLine, sessionDefault: string | null): string | null {
@@ -67,6 +110,7 @@ export function deriveSessionEvents(
   const isSubagent = session.isAgentPrefixed || session.hasSidechainTrue;
   let sessionStartEmitted = false;
   let sequenceIndex = 0;
+  const toolResultsByUseId = indexToolResultsByUseId(session);
 
   for (const line of session.lines) {
     const ts = typeof line.timestamp === 'string' ? line.timestamp : null;
@@ -145,14 +189,29 @@ export function deriveSessionEvents(
             ? tb.id
             : `${sequenceIndex}:${toolIndex}`;
 
-          events.push({
+          const event: OrientationEvent = {
             ...baseFields,
             event_id: makeEventId(sourceProject, session.sessionId, ts, 'post_tool_use', disambiguator),
             event_type: 'post_tool_use',
             timestamp: ts,
             tool_name: toolName,
             file_path: filePath,
-          });
+          };
+
+          // Scope (condition 3): result_class exists ONLY on mcp__nca__nca_ask
+          // post_tool_use events. The paired tool_result's text is read only
+          // transiently, inside classifyNcaAskResult()/this adapter — it is
+          // never assigned to a field, logged, or otherwise persisted here.
+          if (toolName === NCA_ASK_TOOL_NAME && typeof tb.id === 'string') {
+            const resultBlock = toolResultsByUseId.get(tb.id);
+            if (resultBlock) {
+              const { cls } = classifyNcaAskResult(toolResultBlockToMcpResponseLike(resultBlock));
+              event.result_class = cls;
+              event.result_classifier = NCA_ASK_RESULT_CLASSIFIER_VERSION;
+            }
+          }
+
+          events.push(event);
           toolIndex++;
         }
         sequenceIndex += toolIndex || 1;

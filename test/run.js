@@ -4543,6 +4543,12 @@ let mcpTestDone = false;
 // ─── Corpus extractor tests ────────────────────────────────────────────────────
 require('./corpus.test.js')(test, assert);
 
+// ─── Corpus insights engine tests ──────────────────────────────────────────────
+require('./insights.test.js')(test, assert);
+
+// ─── Corpus insights regression fixtures (Phase B exit gate) ──────────────────
+require('./insights-regression.test.js')(test, assert);
+
 // Results — wait for MCP async test (3000ms timeout above + 500ms init + 1000ms drain window)
 setTimeout(() => {
   // Flush MCP test result into the pass/fail counters

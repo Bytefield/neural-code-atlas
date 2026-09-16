@@ -183,9 +183,10 @@ module.exports = function runCorpusTests(test, assert) {
       assert(ev.source_cwd === '/test/project',
         `Expected source_cwd=/test/project, got ${ev.source_cwd}`);
     }
-    // schema_version must be v2 (new field source_cwd was added in v2)
-    assert(SCHEMA_VERSION === 'orientation_event_v2',
-      `Expected SCHEMA_VERSION=orientation_event_v2, got ${SCHEMA_VERSION}`);
+    // schema_version must be v3 (result_class/result_classifier added in v3,
+    // scoped to mcp__nca__nca_ask post_tool_use events — see CORPUS-20/21)
+    assert(SCHEMA_VERSION === 'orientation_event_v3',
+      `Expected SCHEMA_VERSION=orientation_event_v3, got ${SCHEMA_VERSION}`);
   });
 
   // ── CORPUS-7: no raw prompt text in output ───────────────────────────────────
@@ -641,6 +642,83 @@ module.exports = function runCorpusTests(test, assert) {
         `main-only must exclude more sessions via too_few_events: ${mainOnlyTooFew} vs ${wtTooFew}`);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  // ── CORPUS-20: result_class scoped to mcp__nca__nca_ask post_tool_use only ────
+
+  test('CORPUS-20 result_class classifies nca_ask tool_result, scoped to nca_ask only', () => {
+    const { NCA_ASK_RESULT_CLASSIFIER_VERSION } = m.index;
+    const session = parseSessionFile(path.join(TEST_CORPUS_DIR, 'session-nca-ask-008.jsonl'));
+    const derivedSession = {
+      sessionId: 'session-nca-ask-008',
+      filename: 'session-nca-ask-008.jsonl',
+      isAgentPrefixed: false,
+      ...session,
+    };
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
+    const byToolUse = {};
+    for (const e of events.filter(e => e.event_type === 'post_tool_use')) {
+      // disambiguator for tool_use events with an id is the id itself; recover
+      // it indirectly via file_path/tool_name pairing is unavailable, so key
+      // by tool_name occurrence order matching the fixture's emission order.
+      (byToolUse[e.tool_name] = byToolUse[e.tool_name] || []).push(e);
+    }
+    const askEvents = byToolUse['mcp__nca__nca_ask'];
+    assert(askEvents && askEvents.length === 5, `Expected 5 nca_ask events, got ${askEvents && askEvents.length}`);
+
+    const [hit, noResult, noisy, envError, unpaired] = askEvents;
+    assert(hit.result_class === 'direct_hit', `Expected direct_hit, got ${hit.result_class}`);
+    assert(noResult.result_class === 'clean_no_match', `Expected clean_no_match, got ${noResult.result_class}`);
+    assert(noisy.result_class === 'noisy_fallback', `Expected noisy_fallback, got ${noisy.result_class}`);
+    assert(envError.result_class === 'known_env_error', `Expected known_env_error, got ${envError.result_class}`);
+    assert(unpaired.result_class === undefined,
+      `Unpaired tool_use (no matching tool_result) must not get result_class, got ${unpaired.result_class}`);
+
+    for (const e of [hit, noResult, noisy, envError]) {
+      assert(e.result_classifier === NCA_ASK_RESULT_CLASSIFIER_VERSION,
+        `Expected result_classifier=${NCA_ASK_RESULT_CLASSIFIER_VERSION}, got ${e.result_classifier}`);
+    }
+
+    // Scope (condition 3): a non-nca_ask tool_result, even one whose text
+    // happens to look like an nca_ask no-match message, must never get
+    // result_class/result_classifier.
+    const readEvent = byToolUse['Read'][0];
+    assert(readEvent.result_class === undefined, 'Read events must never carry result_class');
+    assert(readEvent.result_classifier === undefined, 'Read events must never carry result_classifier');
+  });
+
+  // ── CORPUS-21: no raw tool_result text leaks into any event field ─────────────
+
+  test('CORPUS-21 no raw nca_ask tool_result text in any event field (no-fuga)', () => {
+    const session = parseSessionFile(path.join(TEST_CORPUS_DIR, 'session-nca-ask-008.jsonl'));
+    const derivedSession = {
+      sessionId: 'session-nca-ask-008',
+      filename: 'session-nca-ask-008.jsonl',
+      isAgentPrefixed: false,
+      ...session,
+    };
+    const events = deriveSessionEvents(derivedSession, 'test-project', 'baseline', '/test/project', false);
+    const serialized = JSON.stringify(events);
+    const forbiddenFragments = [
+      'parseSessionFile|reader.ts',
+      'zzz-nonexistent-symbol',
+      "no matches for 'foo'",
+      '#unrelated-flow',
+      'No NCA index found',
+      'transcript cut off before tool_result arrived',
+    ];
+    for (const fragment of forbiddenFragments) {
+      assert(!serialized.includes(fragment),
+        `Raw tool_result/tool_use text leaked into events: "${fragment}"`);
+    }
+    // Only the allowed vocabulary of result_class values may appear as values.
+    const allowedClasses = ['direct_hit', 'clean_no_match', 'noisy_fallback', 'known_env_error', 'product_error'];
+    for (const e of events) {
+      if (e.result_class !== undefined) {
+        assert(allowedClasses.includes(e.result_class),
+          `result_class must be one of the known enum values, got: ${e.result_class}`);
+      }
     }
   });
 

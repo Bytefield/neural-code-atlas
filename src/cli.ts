@@ -1425,4 +1425,78 @@ corpus
     process.stdout.write(lines.join('\n') + '\n');
   });
 
+corpus
+  .command('insights')
+  .description('Derive dont_build/do/fix recommendations from orientation events (Phase B v1)')
+  .requiredOption('--project <name>', 'project name (e.g. synio)')
+  .option('--input <path>', 'explicit path to orientation-events.jsonl')
+  .action((opts: { project: string; input?: string }) => {
+    const {
+      loadEventsForInsights,
+      computeInsights,
+      renderInsightsMarkdown,
+      resolveInsightsDir,
+    } = require('./corpus/index.js') as typeof import('./corpus/index.js');
+
+    let loaded: ReturnType<typeof loadEventsForInsights>;
+    try {
+      loaded = loadEventsForInsights(opts.project, undefined, opts.input);
+    } catch (err) {
+      process.stderr.write(`Error: ${(err as Error).message}\n`);
+      process.exit(1);
+    }
+
+    const scope = loaded.manifest.cwd_filter_mode
+      ? `${opts.project}/${loaded.manifest.cwd_filter_mode}`
+      : opts.project;
+    const recommendations = computeInsights(loaded.events, {
+      projectId: opts.project,
+      cwdFilterMode: loaded.manifest.cwd_filter_mode,
+    });
+    const markdown = renderInsightsMarkdown(recommendations, {
+      project: opts.project,
+      scope,
+      methodologyVersion: recommendations[0]?.methodology_version ?? '1',
+      vocabularyVersion: recommendations[0]?.vocabulary_version ?? 1,
+    });
+
+    const outDir = resolveInsightsDir(opts.project);
+    fs.mkdirSync(outDir, { recursive: true });
+    const reportPath = path.join(outDir, 'report.md');
+    const recommendationsPath = path.join(outDir, 'recommendations.json');
+    const manifestPath = path.join(outDir, 'manifest.json');
+    fs.writeFileSync(reportPath, markdown, 'utf-8');
+    fs.writeFileSync(recommendationsPath, JSON.stringify(recommendations, null, 2) + '\n', 'utf-8');
+    fs.writeFileSync(manifestPath, JSON.stringify({
+      project: opts.project,
+      source_jsonl: loaded.jsonlPath,
+      source_schema_version: loaded.manifest.schema_version,
+      events_seen: loaded.events.length,
+      generated_at: new Date().toISOString(),
+    }, null, 2) + '\n', 'utf-8');
+
+    const lines: string[] = [
+      formatStatus(`NCA|corpus_insights|project:${opts.project}`),
+      separator(),
+      '  ' + header('CORPUS INSIGHTS — RECOMMENDATIONS'),
+      separator(),
+      '  ' + formatField('project', opts.project),
+      '  ' + formatField('scope', scope),
+      '  ' + formatField('source', loaded.jsonlPath),
+      '  ' + formatField('source_schema', loaded.manifest.schema_version),
+      '',
+    ];
+    for (const rec of recommendations) {
+      lines.push(`  ${rec.type.toUpperCase()}  ${rec.target}  (${rec.rule})`);
+      lines.push(`    value=${rec.value ?? '—'} threshold=${rec.threshold ?? '—'} evidence_level=${rec.evidence_level}`);
+    }
+    lines.push('');
+    lines.push('  ' + header('Output'));
+    lines.push('  ' + formatField('report', reportPath));
+    lines.push('  ' + formatField('recommendations', recommendationsPath));
+    lines.push('  ' + formatField('manifest', manifestPath));
+    lines.push(separator());
+    process.stdout.write(lines.join('\n') + '\n');
+  });
+
 program.parse(process.argv);
