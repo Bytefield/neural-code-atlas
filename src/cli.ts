@@ -365,6 +365,7 @@ program
 
     const storage = new Storage(dbPath);
     const stats = storage.stats();
+    const unindexedFiles = storage.getUnindexedFiles();
     const ts = Date.now();
 
     if (opts.json) {
@@ -377,6 +378,7 @@ program
           warnings: stats.warnings,
           dbPath,
           dbSize: stats.dbSize,
+          unindexed: unindexedFiles,
         }, null, 2) + '\n'
       );
     } else {
@@ -390,10 +392,18 @@ program
         '  ' + formatField('files', stats.files),
         '  ' + formatField('flows', stats.flows),
         '  ' + formatField('warnings', stats.warnings),
+        '  ' + formatField('unindexed', stats.unindexed),
         '  ' + formatField('db', dbPath),
         '  ' + formatField('size', `${sizeKb} KB`),
-        separator(),
       ];
+      if (unindexedFiles.length > 0) {
+        statusLines.push(separator());
+        statusLines.push('  ' + header('UNINDEXED FILES'));
+        for (const f of unindexedFiles) {
+          statusLines.push(`  ${f.path} (${f.reason})`);
+        }
+      }
+      statusLines.push(separator());
       process.stdout.write(statusLines.join('\n') + '\n');
     }
 

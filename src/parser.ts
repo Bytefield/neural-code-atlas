@@ -278,8 +278,17 @@ export class NCAParser {
    * @param content - Optional pre-read file content. If omitted, reads from disk.
    *                  Pass this when the caller already has the content to avoid a
    *                  redundant read.
+   * @param opts.onParseError - Called when the native tree-sitter parse throws and
+   *                  extraction falls back to the regex extractor, so callers can
+   *                  track files whose AST-derived nodes are unavailable.
    */
-  parseFile(filePath: string, sha256: string, rootPath: string, content?: string): NCNode[] {
+  parseFile(
+    filePath: string,
+    sha256: string,
+    rootPath: string,
+    content?: string,
+    opts?: { onParseError?: (reason: string) => void }
+  ): NCNode[] {
     const ext = path.extname(filePath).slice(1).toLowerCase();
     const code = content ?? fs.readFileSync(filePath, 'utf-8');
     const module = fileToModule(filePath, rootPath);
@@ -290,9 +299,17 @@ export class NCAParser {
     const extractor = this.extractors.get(ext);
     if (parser && extractor) {
       try {
-        const tree = parser.parse(code);
+        // node-tree-sitter's string-input path defaults bufferSize to 32KB
+        // (github.com/tree-sitter/node-tree-sitter#250) and throws "Invalid
+        // argument" — rather than chunking via the input callback — for any
+        // source at or past that ceiling. Size the buffer to the source
+        // itself (with margin) so files up to the scanner's own
+        // max_file_size_kb cap never hit the native ceiling.
+        const bufferSize = Buffer.byteLength(code, 'utf-8') + 4096;
+        const tree = parser.parse(code, undefined, { bufferSize });
         raws = this.extract(tree.rootNode, extractor);
       } catch {
+        opts?.onParseError?.('parser_error');
         raws = this.regexFallback(code, ext);
       }
     } else {

@@ -78,7 +78,10 @@ export class Scanner {
 
         // File is new or changed — per-node diff to avoid full FTS churn
         const oldChecksums = this.storage.getCellChecksums(filePath);
-        const nodes = this.parser.parseFile(filePath, sha256, rootPath, content);
+        let nativeParseFailed = false;
+        const nodes = this.parser.parseFile(filePath, sha256, rootPath, content, {
+          onParseError: () => { nativeParseFailed = true; },
+        });
         const currentKeys = new Set(nodes.map(n => `${n.name}@${n.line}`));
 
         const changed = nodes.filter(n => oldChecksums.get(n.name) !== n.sha256);
@@ -87,6 +90,11 @@ export class Scanner {
         }
         this.storage.deleteRemovedCells(filePath, currentKeys);
         this.storage.upsertFileRecord(filePath, mtime, sha256);
+        if (nativeParseFailed) {
+          this.storage.recordUnindexed(filePath, 'parser_error');
+        } else {
+          this.storage.clearUnindexed(filePath);
+        }
         result.parsed++;
       } catch (err) {
         result.errors++;
@@ -99,6 +107,7 @@ export class Scanner {
       if (!currentFilePaths.has(trackedPath)) {
         this.storage.deleteNodesForFile(trackedPath);
         this.storage.deleteFileRecord(trackedPath);
+        this.storage.clearUnindexed(trackedPath);
       }
     }
 
@@ -154,7 +163,10 @@ export class Scanner {
       }
 
       const oldChecksums = this.storage.getCellChecksums(filePath);
-      const nodes = this.parser.parseFile(filePath, sha256, rootPath, content);
+      let nativeParseFailed = false;
+      const nodes = this.parser.parseFile(filePath, sha256, rootPath, content, {
+        onParseError: () => { nativeParseFailed = true; },
+      });
       const currentKeys = new Set(nodes.map(n => `${n.name}@${n.line}`));
 
       const changed = nodes.filter(n => oldChecksums.get(n.name) !== n.sha256);
@@ -163,6 +175,11 @@ export class Scanner {
       }
       this.storage.deleteRemovedCells(filePath, currentKeys);
       this.storage.upsertFileRecord(filePath, mtime, sha256);
+      if (nativeParseFailed) {
+        this.storage.recordUnindexed(filePath, 'parser_error');
+      } else {
+        this.storage.clearUnindexed(filePath);
+      }
       result.parsed++;
     } catch (err) {
       result.errors++;
