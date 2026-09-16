@@ -1,35 +1,82 @@
 # Neural Code Atlas (NCA)
 
-> Local project intelligence for AI-assisted development: indexes code structure
-> and documentation together in a single SQLite database, exposes graph analytics
-> (Louvain communities, PageRank, god nodes) and full-text search via CLI and
-> MCP server — so AI assistants get precise structural and contextual answers,
-> not similarity guesses.
+> Measures how AI coding agents actually behave in your codebase and turns that into
+> decisions you can defend — including the decision to build nothing. Underneath it: a
+> local structural index of your code (tree-sitter + SQLite), exposed via CLI and MCP.
 
-NCA scans your repo, builds a persistent SQLite index of code nodes (functions,
-classes, modules) AND documentation (markdown files, architecture docs, personal
-notes), and exposes both via CLI and MCP server. One database, unified context
-for code structure and the reasoning behind it.
+Local-first. No cloud, no embeddings, no LLM calls. Everything runs on your machine and
+stays there.
 
-## Why
+## What it does today
 
-On medium/large codebases, "similarity search" often returns text that looks relevant but isn't on the actual execution path. NCA is built for structural questions:
+Two layers, one CLI.
 
-- "Where does `handleRequest` go next?"
-- "What calls this function?"
-- "What are the hot nodes people keep querying?"
-- "Which modules are getting too coupled?"
+### 1. Behavioural instrument — `nca corpus` *(new in 1.6)*
 
-Beyond point queries, NCA understands your codebase as a graph. Each scan computes:
+Reads your Claude Code session logs and keeps only their *shape*: file paths, tool names,
+timestamps, session ids, counts. Never prompts, never code, never tool output. From that it
+answers, with frozen heuristics and no LLM:
 
-- **Community detection** (Louvain) — which files form natural modules based on coupling
-- **PageRank centrality** — which nodes are structurally important across the whole graph
-- **Betweenness centrality** — which nodes are bottlenecks that everything routes through
-- **God node detection** — which nodes have disproportionate coupling and are at risk of becoming liabilities
+- Where does the agent repeatedly orient? What does it reread across sessions?
+- What kind of work consumes orientation — implementation, diagnosis, search, shell?
+- Which tools are actually in use, and are they helping? (NCA's own `nca_ask` included.)
+- What should change — and what should **not** be built?
 
-This lets you ask architecture-level questions: which modules are drifting toward coupling, where are the load-bearing nodes, what does the dependency topology actually look like?
+Each answer is a recommendation object (`dont_build` / `do` / `fix` / `no_intervention` /
+`insufficient_evidence`) with its evidence, its rule and threshold, a categorical confidence
+(`EVIDENCE_STRONG` … `INSUFFICIENT`, never a percentage), and the metric to remeasure.
+Markdown is just the renderer.
 
-It's local-first: no cloud indexing, no embeddings, no API calls.
+```bash
+nca corpus extract --project myapp --project-root /path/to/myapp --phase baseline --dry-run
+nca corpus extract --project myapp --project-root /path/to/myapp --phase baseline
+nca corpus orientation --project myapp --phase baseline
+nca corpus insights --project myapp
+# → ~/.nca/metrics/myapp/insights/   (never inside your repo)
+```
+
+On the one real corpus it has been validated against (93 sessions), it reproduced three
+decisions that had previously taken hours of manual analysis — two "don't build this" and
+one "fix this first" — purely from the events. That is the whole claim so far. Whether it
+generalizes to codebases and people it has never seen is the next test, not a done deal.
+
+### 2. Structural index — `nca scan` and friends
+
+A persistent SQLite graph of functions, arrows, methods and classes plus your Markdown docs,
+with graph analytics computed on every scan (Louvain communities, PageRank, betweenness,
+god nodes).
+
+```bash
+nca scan .                     # build/update the index; writes .nca/SKILL.md
+nca ask handleRequest          # exact-name lookup; module, PageRank rank, god-node flag
+nca flow handleRequest         # execution path from an entry point
+nca impact                     # callers, docs, security and silent-fallback risk per changed symbol
+nca evolve                     # architectural warnings: complexity, cycles, deep chains, god nodes
+```
+
+`nca_ask` is **exact-name retrieval** over indexed nodes. It is not semantic search and does
+not answer natural-language questions; on no match it says so explicitly and returns no
+graph content. `nca impact` is the more useful entry point for "what does this change touch".
+
+## Where it is going
+
+NCA's roadmap is gated on evidence, not dates. Each step only starts once the previous one
+has produced measurable results:
+
+1. **Decision ledger** — every recommendation → decision → outcome, so confidence can be
+   calibrated against what actually happened.
+2. **Treatment loop** — before/after measurement of an intervention (e.g. a context change)
+   on the same codebase, per lane, with effect sizes and *n*. Quasi-experiment, not A/B, and
+   labelled as such.
+3. **Generalization** — other repos, then a corpus from someone who isn't the author. This is
+   the test of whether NCA discovers knowledge or reconstructs one person's habits.
+4. **Machine-readable judgment** — recommendation objects via `--format json`; proposed
+   context changes as diffs a human accepts. NCA never edits your files on its own.
+5. **Advisory preflight** — before a task, what to read first, what it touches, what prior
+   evidence says. Read-only. Must be able to answer *no policy applies*.
+
+Anything beyond that — agents specialised per task class, orchestration — is explicitly not
+scheduled. If the evidence never justifies it, it never gets built.
 
 ## Install
 
@@ -38,218 +85,105 @@ npm i -g @synio-es/neural-code-atlas
 nca --help
 ```
 
-If install fails, see `INSTALL.md` (native build tools for `better-sqlite3`/`tree-sitter`).
-
-## Quick start
-
-```bash
-cd your-project
-nca scan .
-# → builds index, writes .nca/SKILL.md alongside the database
-
-nca ask "authentication middleware"
-# → returns ranked nodes with module, PageRank position, god-node flag
-
-nca flow handleRequest
-# → traces execution path from entry point
-
-nca evolve
-# → emits architectural warnings (high complexity, cycles, deep chains, god nodes)
-
-nca status
-# → shows node/file/flow counts and DB location
-```
-
-After scanning, `SKILL.md` is written to your project root. Drop it into your Claude Code context to give the AI an accurate structural map of the codebase before asking questions.
+Native modules (`better-sqlite3`, `tree-sitter`) need build tools; see `INSTALL.md`.
 
 ## Commands
 
-### Code navigation
-- `nca ask <query...>` — query the index by symbol or keyword; returns code nodes with module, PageRank rank, and god-node flags (`--json` for structured output)
-- `nca flow <name>` — trace execution flow from an entry point; shows all nodes reachable in dependency order (`--json` supported)
-- `nca evolve` — run architectural analysis and emit warnings (high complexity, cycles, deep chains, god nodes)
+**Corpus** — `nca corpus extract` (`--project`, `--project-root`, `--phase baseline|treatment`,
+`--since`, `--until`, `--dry-run`, `--include-worktrees`, `--min-events`) ·
+`nca corpus orientation` (`--project`, `--phase`, `--json`, `--csv`, `--include-no-write`) ·
+`nca corpus insights` (`--project`).
 
-### Vault & documentation
-- `nca vault scan <path>` — index an Obsidian/Markdown vault with FTS5 full-text search
-- `nca vault search <query>` — search indexed vault docs; returns matched files with excerpts (`--root <vault_path>` to override auto-detected vault)
-- `nca vault get <id_or_path>` — retrieve a specific note by ID or file path (`--root <vault_path>`)
-- `nca related <symbol_or_doc>` — show documentation referencing a code symbol, or code symbols referenced by a doc; traverses doc↔code edges (`--root <vault_path>`)
-- `nca docs audit` — generate documentation coverage report (shows indexed docs and metrics)
+**Code** — `nca ask <query…>` · `nca flow <name>` · `nca impact [diff-spec]` (`--json`, `--air`,
+`--out`) · `nca evolve`.
 
-### Context compiler
-- `nca task [description]` — set the active task (stored in `.nca/current-task.json`); supply a description or omit to read current task
-- `nca task --show` — print the current task
-- `nca task --clear` — clear the current task
-- `nca brief [--light]` — generate a focused context brief for the active task; `--light` emits a compact version (≤300 tokens)
+**Docs & vault** — `nca vault scan <path>` · `nca vault search <query>` · `nca vault get <id|path>` ·
+`nca related <symbol|doc>` · `nca docs audit`.
 
-### Index management
-- `nca scan [path]` — build/update the index; auto-generates `SKILL.md` (defaults to cwd)
-- `nca status` — show index stats (node count, file count, DB location, last scan time)
-- `nca watch [path]` — watch filesystem and auto-reindex on change (requires `chokidar`)
-- `nca insights` — show the most frequently queried nodes
-- `nca projects` — list all registered projects
+**Context** — `nca task [description]` (`--show`, `--clear`) · `nca brief [--light]`.
 
-### Server
-- `nca mcp` — run MCP server over stdio (Claude Code integration)
+**Index** — `nca scan [path]` · `nca status` · `nca watch [path]` · `nca insights` ·
+`nca projects` · `nca migrate`.
 
-Run `nca <command> --help` for full options per command.
+**Server** — `nca mcp`.
 
-## Graph Analytics
+`nca <command> --help` for full options.
 
-Every `nca scan` runs a full graph analysis pass on the dependency graph. Results are stored in the index and surfaced automatically in `nca ask` output and `SKILL.md`.
-
-### Community detection (Louvain)
-
-Groups files into modules based on import/call coupling, without requiring you to define module boundaries. Useful for spotting when two areas of the codebase are more entangled than they should be.
-
-### PageRank centrality
-
-Scores every node by how many other important nodes depend on it. High-PageRank nodes are load-bearing — changes there ripple widely. Shown as `#N of M` in `nca ask` output.
-
-### Betweenness centrality (Brandes)
-
-Identifies nodes that sit on the most shortest paths between other nodes. High betweenness = structural bottleneck. Even a low-complexity function can be high-betweenness if everything routes through it.
-
-### God node detection
-
-Flags nodes whose coupling (in-degree + out-degree) exceeds the p95 threshold of the graph. These are the nodes that "know too much." Shown as `gn:yes|score:<n>` or `gn:no` in query results.
-
-```bash
-nca ask "storage layer"
-# example output includes:
-#   gn:yes|score:0.94   ← this node has disproportionate coupling
-#   rank:#3 of 224      ← 3rd by PageRank out of 224 nodes
-#   module:src/storage  ← directory-level module name
-```
-
-## Project Intelligence
-
-`nca scan` automatically indexes all markdown files in your repo alongside
-code nodes — READMEs, changelogs, architecture docs, and any personal notes
-in a gitignored `notes/` folder. One database, unified context.
-
-`nca_ask` returns unified results: code nodes AND relevant documentation
-excerpts in a single query. Ask about a concept and get both where it lives
-in the code and what your docs say about it.
-
-## SKILL.md
-
-`nca scan` writes `.nca/SKILL.md` alongside the database. It is a structured, token-efficient codebase map that covers:
-
-- **Module list** — node counts per top-level directory
-- **Top 20 nodes by PageRank** — name, fanIn, fanOut, complexity
-- **God nodes** — with coupling scores
-- **Issues** — cycle count and deep chain count
-- **Docs** — all indexed markdown files with titles and paths (new in 1.3.0)
-
-### Using SKILL.md with Claude Code
-
-Add it to your project's context before asking architectural questions:
-
-```
-/add .nca/SKILL.md
-nca_ask(query="what handles auth")
-```
-
-Or reference it in your `CLAUDE.md`:
-
-```markdown
-Read SKILL.md before asking NCA questions — it gives accurate module boundaries
-and flags god nodes to avoid touching carelessly.
-```
-
-`SKILL.md` is regenerated on every scan and is safe to gitignore or commit — it contains no secrets, only structural metadata.
-
-## MCP server (Claude Code integration)
-
-After installing NCA, configure Claude Code to run the MCP server:
+## MCP server (Claude Code)
 
 ```json
-{
-  "mcpServers": {
-    "nca": {
-      "command": "nca",
-      "args": ["mcp"]
-    }
-  }
-}
+{ "mcpServers": { "nca": { "command": "nca", "args": ["mcp"] } } }
 ```
 
-NCA autodetects the project from the working directory. To target a specific project per-call, pass the optional `project` parameter:
+Tools: `nca_ask`, `nca_flow`, `nca_status`, `nca_evolve`, `nca_insights`, `nca_projects`.
+The project is autodetected from the working directory; pass `project` to target another.
 
-```
-nca_ask(query="handler", project="/mnt/c/dev/synio")
-nca_status(project="synio")
-```
+The MCP server is a long-lived process. After rebuilding or upgrading NCA, restart the
+connection — a stale server against a migrated database reports
+`NCA schema version mismatch: db_version=… build_version=… db_path=…` with the fix.
 
-Tools exposed by the MCP server:
+## Graph analytics
 
-- `nca_ask` — query code and docs by name or keyword; returns code nodes with module/PageRank/god-node context, plus documentation excerpts. If no symbols match, falls back to searching by file path (marked `[PATH_MATCH]`). If both symbol and path searches fail, returns a guidance message
-- `nca_flow` — trace execution flow from an entry point
-- `nca_status` — show index stats
-- `nca_evolve` — run architectural heuristics
-- `nca_insights` — show frequently queried nodes
-- `nca_projects` — list all indexed projects
-- `nca_vault_scan` — index an Obsidian/Markdown vault
+Computed on every scan, stored in the index, surfaced in `nca ask` and `SKILL.md`:
+**Louvain communities** (which files form natural modules), **PageRank** (load-bearing
+nodes), **betweenness** (bottlenecks everything routes through), **god nodes** (coupling
+above the p95 of the graph).
 
-## Configuration (`.nca/config.json`)
+`SKILL.md` — written to `.nca/` on every scan — is a token-efficient map: modules with node
+counts, top nodes by PageRank, god nodes, cycle and deep-chain counts, indexed docs. Safe to
+commit; it contains only structural metadata.
 
-Create `.nca/config.json` in your project root:
+## Configuration
+
+`.nca/config.json` in the project root:
 
 ```json
 {
   "exclude": ["generated", "vendor"],
   "include_extensions": [".ts", ".js", ".py"],
   "max_file_size_kb": 256,
-  "evolve": {
-    "complexityThreshold": 10,
-    "maxParamsThreshold": 7,
-    "maxDepsThreshold": 15,
-    "maxChainDepth": 6
-  }
+  "evolve": { "complexityThreshold": 10, "maxParamsThreshold": 7, "maxDepsThreshold": 15, "maxChainDepth": 6 }
 }
 ```
 
-## Supported languages
+Languages: TypeScript (`.ts`, `.tsx`), JavaScript (`.js`, `.jsx`, `.mjs`, `.cjs`), Python.
 
-- TypeScript (`.ts`, `.tsx`)
-- JavaScript (`.js`, `.jsx`, `.mjs`, `.cjs`)
-- Python (`.py`)
+## Keeping the index current
 
-## Keeping the index up to date
+`nca scan` is deliberate, not automatic. First time on a repo, after large refactors or
+import changes, or when `nca status` shows an old scan: rescan. Small edits: not needed.
+Long sessions: `nca watch`. Optional post-commit hook in `.git-hooks/`.
 
-`nca scan` is not free — run it deliberately, not on every save.
+## Privacy
 
-| Situation | Action |
-|-----------|--------|
-| First time on a repo | `nca scan <root>` once |
-| Moved/renamed modules, large refactor, changed imports/exports | `nca scan <root>` |
-| Small edits (bug fix, adding a function) | Not needed; only if results look stale |
-| Long iterative session | `nca watch <root>` — auto-reindexes on save |
-| Before using NCA after a gap (days/weeks) | `nca status` first — rescan if index looks old |
+`nca corpus extract` runs on your machine and writes derived events only. The file it
+produces contains paths, tool names, timestamps, session ids, counts and, for `nca_ask` calls,
+a result label (`hit` / `clean_no_match` / `noisy_fallback` / `error`) computed at extraction.
+The raw transcript text is read once and never persisted. Open the output and read it before
+sharing it with anyone.
 
-**Rule of thumb for AI agents:** run `nca status` before querying. If the index is missing or the last scan predates significant changes, run `nca scan`. Never scan unconditionally on every invocation.
+Claude Code deletes transcripts after ~30 days by default. Derived evidence that cannot be
+recomputed after that is extracted first and kept as the canonical record.
 
-## Git hook (optional)
+## Known limitations
 
-Re-index automatically after each commit:
-
-```bash
-cp .git-hooks/post-commit .git/hooks/post-commit
-chmod +x .git/hooks/post-commit
-```
+- `nca_ask` is exact-name only; its earlier description over-promised ("function name,
+  concept, module…"). Recorded, not yet changed.
+- Six unusually large files crash the native tree-sitter binding (a size ceiling, not an
+  encoding issue) and are absent from the index.
+- The insights engine has been validated on one corpus. Cross-user validation is pending.
+- One test (`VAULT-04`) fails on native Windows only (path separator). Windows is a
+  first-class target; this is tracked debt.
 
 ## Changelog
 
-See [CHANGELOG.md](CHANGELOG.md) for the full history.
+See [CHANGELOG.md](CHANGELOG.md). Highlights:
 
-Recent highlights:
-
-- **1.3.0** — Project Intelligence: unified code + documentation indexing, nca_ask returns code and docs together, SKILL.md Docs section
-- **1.2.1** — canonical path resolution (`realpathSync`) prevents duplicate indexing across WSL/Windows/symlinks
-- **1.2.0** — graph analytics (Louvain, PageRank, betweenness, god nodes), SKILL.md, enriched `nca_ask` responses
-- **1.1.1** — vault scanning with FTS5, YAML frontmatter support, incremental updates
-- **1.1.0** — node identity fix (same-name functions across files), multi-project MCP, stale node cleanup
+- **1.6.0** — `nca corpus insights`, `orientation_event_v3`, `nca impact`, `.tsx` grammar fix,
+  clean `nca_ask` no-match, structured schema-skew error, frozen replay fixture.
+- **1.5.0** — vault search/get, `nca related`, `nca docs audit`, `nca task` / `nca brief`.
+- **1.3.0** — unified code + docs indexing.
+- **1.2.0** — graph analytics, `SKILL.md`.
 
 ## License
 

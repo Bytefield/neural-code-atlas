@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.1] — 2026-09-16
+
+### Changed
+- README rewritten around what NCA does today (behavioural instrument + structural index)
+  and where it is going (evidence-gated roadmap). Documents `nca corpus` and `nca impact`,
+  the honest scope of `nca_ask`, privacy of extracted events, and known limitations.
+- Changelog correction: the analyzer command is `nca corpus orientation`, not `corpus analyze`.
+
+---
+
 ## [1.6.0] — 2026-09-16
 
 ### Added
@@ -19,7 +29,7 @@ All notable changes to this project will be documented in this file.
   is never persisted. v2 events remain readable; identity of pre-existing fields is preserved.
 - **`nca corpus extract`** (#52): orientation-event extractor from Claude Code session
   transcripts (main-only by default, `--include-worktrees`, `--phase`, cwd filter,
-  deterministic `event_id`, content scrubbed). **`nca corpus analyze`** (#53): dual-track
+  deterministic `event_id`, content scrubbed). **`nca corpus orientation`** (#53): dual-track
   orientation analyzer — implementation vs diagnostic lanes, never pooled.
 - **`nca impact <symbol>`** (#50, #51): reverse-caller index with a confidence guard for
   changes invisible to the graph (function bodies, security-relevant edits).
