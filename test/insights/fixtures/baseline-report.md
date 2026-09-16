@@ -50,7 +50,7 @@ Evidence (sample, not exhaustive):
 - `session:80553728-e6c0-49b9-8d29-6b815983db3d`
 - `session:43ce5d64-6ef2-46fd-af84-51c005ee73c2`
 
-## INSUFFICIENT EVIDENCE — nca_ask_matcher
+## FIX — nca_ask_matcher
 
 **noisy_fallback_dominant**
 
@@ -58,28 +58,16 @@ Evidence (sample, not exhaustive):
 |---|---|
 | id | `INSIGHT-NCA-ASK-RELIABILITY-V1` |
 | rule | `NCA_ASK_NOISY_FALLBACK_V1` |
-| value | — |
+| value | 73.4% |
 | threshold | 40% |
-| evidence_level | INSUFFICIENT |
+| evidence_level | EVIDENCE_MODERATE |
 | expected_effect | reduce noisy_fallback share of nca_ask responses |
 | metric_to_remeasure | `nca_ask_noisy_fallback_rate` |
 | expires_when | classifier version bumps, or methodology_version bumps |
 
-## NO INTERVENTION — nca_ask_matcher
-
-**source_text_present_but_not_retrieved**
-
-| field | value |
-|---|---|
-| id | `INSIGHT-NCA-ASK-RECALL-V1` |
-| rule | `NCA_ASK_RECALL_GAP_V1` |
-| value | 26 |
-| threshold | — |
-| evidence_level | EVIDENCE_MODERATE |
-| expected_effect | not evaluated — recorded pending a decision on whether recall deserves investment |
-| metric_to_remeasure | `replay_recall_gap_count` |
-| expires_when | a Replay A/B re-run after a matcher/indexer change, or Phase B explicitly decides on recall |
-
 Evidence (sample, not exhaustive):
-- `file:test/replay/recall-subclassification.md`
-- `file:test/replay/rootcause-2gaps.md`
+- `session:43ce5d64-6ef2-46fd-af84-51c005ee73c2`
+- `session:8521423d-31b1-41b5-9c11-fd5d64dce440`
+- `session:9998d01c-dbc9-4410-a4f4-4406bb4c39e8`
+- `session:045abbef-7e5a-4f99-8433-afe2c6e6b9b3`
+- `session:2a5a97f4-aa27-4bb5-a6e8-b5ac967023a5`

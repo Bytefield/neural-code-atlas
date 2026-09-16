@@ -1,16 +1,23 @@
 #!/usr/bin/env node
 /**
  * Phase B gate 1 — verifies the insights engine against the REAL, frozen
- * SYNIO main-only baseline corpus (~/.nca/replay/synio-baseline-events.jsonl),
- * not the synthetic fixtures in test/insights-regression.test.js. Those prove
- * the engine's arithmetic and determinism are correct given known inputs;
- * this proves the engine reaches the documented decisions when run on real,
+ * SYNIO main-only baseline corpus (~/.nca/replay/synio-baseline-events-v3.jsonl,
+ * the v3 re-extraction — see manifest-v3.json for provenance), not the
+ * synthetic fixtures in test/insights-regression.test.js. Those prove the
+ * engine's arithmetic and determinism are correct given known inputs; this
+ * proves the engine reaches the documented decisions when run on real,
  * historical session data — reproducible by anyone with the frozen file in
  * place, the same way test/replay/run.js --check works: real data lives
  * outside the repo, only its sha256 + metadata are committed
- * (test/insights/fixtures/manifest.json — deliberately NOT under test/fixtures/,
- * which is the CLI test suite's own scan target; a .md file placed there gets
- * swept up as a spurious indexed note by unrelated SK5-03-style tests).
+ * (test/insights/fixtures/manifest-v3.json — deliberately NOT under
+ * test/fixtures/, which is the CLI test suite's own scan target; a .md file
+ * placed there gets swept up as a spurious indexed note by unrelated
+ * SK5-03-style tests).
+ *
+ * The v2 freeze (manifest.json, synio-baseline-events.jsonl) predates this
+ * script's v3 upgrade and is kept only as a historical record of the earlier,
+ * incomplete search for the raw transcripts — see manifest-v3.json's
+ * provenance for the correction. This script no longer reads it.
  *
  * Usage: node test/insights/baseline-check.js [--check]
  * (--check is accepted for command-line consistency with test/replay/run.js
@@ -18,13 +25,9 @@
  *
  * Exit codes:
  *   0  frozen file not present on this machine — SKIPPED, never a false green
- *   0  all 3 rules verified against real data — full PASS
+ *   0  all 3 rules verified against real data — full PASS (gate 1 = 3/3)
  *   1  sha256 drift, event/session count drift, or a rule failed to
  *      reproduce its documented decision — a real kill signal
- *   1  a rule is BLOCKED by data unavailability (see NCA_ASK_NOISY_FALLBACK_V1
- *      below) — this is NOT a heuristic failure, but it is also not a clean
- *      pass, so it does not exit 0 either; the console output distinguishes
- *      BLOCKED from FAIL explicitly so this is never misread as either
  */
 
 'use strict';
@@ -35,7 +38,7 @@ const crypto = require('crypto');
 const os = require('os');
 
 const ROOT = path.join(__dirname, '..', '..');
-const MANIFEST_PATH = path.join(__dirname, 'fixtures', 'manifest.json');
+const MANIFEST_PATH = path.join(__dirname, 'fixtures', 'manifest-v3.json');
 
 function sha256(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
@@ -45,14 +48,14 @@ function main() {
   const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf-8'));
   const frozenPath = manifest.frozen_file.replace(/^~/, os.homedir());
 
-  console.log('Phase B gate 1 — frozen baseline check');
+  console.log('Phase B gate 1 — frozen baseline check (v3)');
   console.log(`  frozen file: ${frozenPath}`);
 
   if (!fs.existsSync(frozenPath)) {
     console.log('');
-    console.log('SKIPPED: frozen baseline file not found on this machine.');
+    console.log('SKIPPED: frozen v3 baseline file not found on this machine.');
     console.log('This is not a failure — it means this machine has not been set up with');
-    console.log('the gate-1 corpus. See test/insights/fixtures/manifest.json for exact');
+    console.log('the gate-1 corpus. See test/insights/fixtures/manifest-v3.json for exact');
     console.log('provenance (sha256, source, window) and how it was produced.');
     process.exit(0);
   }
@@ -92,7 +95,6 @@ function main() {
   const byRule = Object.fromEntries(recs.map(r => [r.rule, r]));
 
   let failures = 0;
-  let blocked = 0;
 
   // ── P4a — REREAD_MEMORY_V1 ────────────────────────────────────────────────
   {
@@ -133,37 +135,23 @@ function main() {
   // ── nca_ask — NCA_ASK_NOISY_FALLBACK_V1 ───────────────────────────────────
   {
     const rec = byRule['NCA_ASK_NOISY_FALLBACK_V1'];
+    const ok = rec.type === 'fix' && rec.value !== null && rec.value >= 0.4;
     console.log('nca_ask / NCA_ASK_NOISY_FALLBACK_V1:');
     console.log(`  type=${rec.type}  value=${rec.value}`);
-    if (rec.type === 'insufficient_evidence') {
-      console.log('  BLOCKED (not FAIL, not PASS) — see manifest.json\'s "not_v3_note": the raw');
-      console.log('  session transcripts needed to compute result_class for this exact baseline');
-      console.log('  population no longer exist on this machine (verified across every known');
-      console.log('  corpus location, WSL and Windows-native). This is a data-retention fact,');
-      console.log('  not a heuristic failure — the engine is correctly reporting');
-      console.log('  insufficient_evidence rather than assuming 47/64 or any other historical');
-      console.log('  figure. If those transcripts are ever recovered, re-run `nca corpus');
-      console.log('  extract` for that window/project and re-freeze this fixture.');
-      blocked++;
-    } else {
-      const ok = rec.type === 'fix' && rec.value >= 0.4;
-      console.log(`  ${ok ? 'PASS' : 'FAIL'} — expected type=fix, value>=0.4`);
-      if (!ok) failures++;
-      const HISTORICAL = 47 / 64;
-      if (rec.value !== HISTORICAL) {
-        console.log(`  NOTE: real v3 value (${rec.value}) differs from the historical 47/64 ` +
-          `(${HISTORICAL.toFixed(6)}) this task anticipated — this is expected once real ` +
-          `data is available, not an error; the classifier ran on real, not assumed, data.`);
-      }
+    console.log(`  ${ok ? 'PASS' : 'FAIL'} — expected type=fix, value>=0.4`);
+    if (!ok) failures++;
+    const HISTORICAL = 47 / 64;
+    if (rec.value === HISTORICAL) {
+      console.log(`  value matches the historical 47/64 (${HISTORICAL.toFixed(6)}) exactly — the raw`);
+      console.log('  session transcripts backed up at ~/nca-corpus-backup/-mnt-c-dev-synio/');
+      console.log('  reproduce REC-0001\'s own baseline figure bit-for-bit once re-extracted with');
+      console.log('  the v3 classifier.');
+    } else if (rec.value !== null) {
+      console.log(`  NOTE: real v3 value (${rec.value}) differs from the historical 47/64 ` +
+        `(${HISTORICAL.toFixed(6)}). Explain the source of any such difference before`);
+      console.log('  trusting it (e.g. calls with no matching tool_result, sessions outside the');
+      console.log('  frozen window) — none applies here, this branch exists for future re-runs.');
     }
-  }
-  console.log('');
-
-  // ── Case 4 — recall gap (non-gating, informational only) ──────────────────
-  {
-    const rec = byRule['NCA_ASK_RECALL_GAP_V1'];
-    console.log('Case 4 / NCA_ASK_RECALL_GAP_V1 (non-gating, informational — registered, not asserted):');
-    console.log(JSON.stringify(rec, null, 2));
   }
   console.log('');
 
@@ -174,13 +162,7 @@ function main() {
     console.log('wrong, not the idea. Do not adjust thresholds to force a pass.');
     process.exit(1);
   }
-  if (blocked > 0) {
-    console.log(`GATE 1: PARTIAL — ${3 - blocked} of 3 rules verified against real data, ` +
-      `${blocked} BLOCKED by data unavailability (see above — not a failure).`);
-    console.log('Not a clean PASS: nca_ask\'s real-data verification could not run on this machine.');
-    process.exit(1);
-  }
-  console.log('GATE 1: PASS — all 3 rules reproduce the documented decision against real data.');
+  console.log('GATE 1: PASS (3/3) — all 3 rules reproduce the documented decision against real data.');
   process.exit(0);
 }
 

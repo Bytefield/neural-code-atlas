@@ -235,9 +235,9 @@ module.exports = function runInsightsTests(test, assert) {
 
   // ── INSIGHTS-4: engine — recommendation objects, schema, thresholds, INSUFFICIENT_EVIDENCE ──
 
-  test('INSIGHTS-4a computeInsights emits 4 recommendation objects with the frozen schema fields', () => {
+  test('INSIGHTS-4a computeInsights emits 3 recommendation objects with the frozen schema fields', () => {
     const recs = computeInsights([], { projectId: 'test-project', cwdFilterMode: 'main-only' });
-    assert(recs.length === 4, `Expected 4 recommendations, got ${recs.length}`);
+    assert(recs.length === 3, `Expected 3 recommendations, got ${recs.length}`);
     const requiredFields = [
       'vocabulary_version', 'project_id', 'id', 'type', 'target', 'finding', 'task_class',
       'value', 'threshold', 'rule', 'evidence', 'evidence_level', 'scope', 'expected_effect',
@@ -262,7 +262,6 @@ module.exports = function runInsightsTests(test, assert) {
     assert(byRule[NCA_ASK_NOISY_FALLBACK_V1.rule].type === 'insufficient_evidence',
       `Expected NCA_ASK insufficient_evidence, got ${byRule[NCA_ASK_NOISY_FALLBACK_V1.rule].type}`);
     for (const rec of recs) {
-      if (rec.rule === 'NCA_ASK_RECALL_GAP_V1') continue; // static, not event-derived
       assert(rec.evidence_level === 'INSUFFICIENT', `Expected evidence_level=INSUFFICIENT, got ${rec.evidence_level}`);
     }
   });
@@ -309,11 +308,15 @@ module.exports = function runInsightsTests(test, assert) {
     assert(rereadRec.type === 'dont_build', `Expected type=dont_build, got ${rereadRec.type}`);
   });
 
-  test('INSIGHTS-4f computeInsights always includes the non-gating recall-gap finding', () => {
+  test('INSIGHTS-4f computeInsights never includes NCA_ASK_RECALL_GAP_V1 (removed: hardcoded, not derived)', () => {
+    // The recall gap is a real, documented finding (roadmap-frozen, 26 queries)
+    // but v1 cannot derive it from orientation_event data — it belongs in the
+    // vault ledger, not as an engine "rule" that would have to fake a
+    // derivation or hardcode its value. See engine.ts's module comment and
+    // insights-regression.test.js's ANTI-HARDCODING guard.
     const recs = computeInsights([], { projectId: 'test-project' });
     const recallRec = recs.find(r => r.rule === 'NCA_ASK_RECALL_GAP_V1');
-    assert(recallRec !== undefined, 'Expected the recall-gap finding to always be present');
-    assert(recallRec.type === 'no_intervention', `Expected type=no_intervention, got ${recallRec.type}`);
+    assert(recallRec === undefined, 'NCA_ASK_RECALL_GAP_V1 must not be emitted by the engine');
   });
 
   // ── INSIGHTS-5: Markdown renderer ────────────────────────────────────────────

@@ -125,19 +125,26 @@ function buildBriefFixture() {
   return events;
 }
 
-// ── nca_ask fixture: 47 noisy_fallback out of 64 classifiable calls (73.4%) ──
-//
-// Matches this task's condition 6 exactly: "histórico corregido 47/64
-// noisy_fallback".
-function buildNcaAskFixture() {
+// Parameterized nca_ask fixture: `noisy` noisy_fallback calls + (`total` - `noisy`)
+// direct_hit calls.
+function buildNcaAskRuleset(noisy, total) {
   const events = [];
-  for (let i = 0; i < 47; i++) {
+  for (let i = 0; i < noisy; i++) {
     events.push(mkEvent({ tool_name: 'mcp__nca__nca_ask', result_class: 'noisy_fallback', result_classifier: 'NCA_ASK_RESULT_V1' }));
   }
-  for (let i = 0; i < 17; i++) {
+  for (let i = 0; i < total - noisy; i++) {
     events.push(mkEvent({ tool_name: 'mcp__nca__nca_ask', result_class: 'direct_hit', result_classifier: 'NCA_ASK_RESULT_V1' }));
   }
   return events;
+}
+
+// nca_ask fixture: 47 noisy_fallback out of 64 classifiable calls (73.4%).
+// Matches this task's own "histórico corregido 47/64 noisy_fallback" framing —
+// FIXTURE-3 below proves historical reproduction. The NCA-ASK-RULESET tests
+// (A/B/C further down) use buildNcaAskRuleset directly at OTHER ratios to prove
+// the heuristic generalizes across the threshold, not just at this one point.
+function buildNcaAskFixture() {
+  return buildNcaAskRuleset(47, 64);
 }
 
 module.exports = function runInsightsRegressionTests(test, assert) {
@@ -187,6 +194,58 @@ module.exports = function runInsightsRegressionTests(test, assert) {
     assert(byRule[REREAD_MEMORY_V1.rule].type === 'dont_build', 'P4a must reproduce DONT_BUILD');
     assert(byRule[SEARCH_FIRST_ACTION_V1.rule].type === 'dont_build', 'Brief must reproduce DONT_BUILD');
     assert(byRule[NCA_ASK_NOISY_FALLBACK_V1.rule].type === 'fix', 'nca_ask must reproduce FIX');
+  });
+
+  // ── NCA-ASK-RULESET A/B/C: the heuristic itself, not the historical figure ──
+  //
+  // FIXTURE-3 proves the rule reproduces the one known historical value (47/64).
+  // These prove the rule's threshold LOGIC generalizes correctly at OTHER
+  // ratios that were never observed historically — a rule that only happened
+  // to work at 47/64 (e.g. by coincidence or overfitting) would fail these.
+
+  test('NCA-ASK-RULESET-A 30/50 (60%) crosses the 0.4 threshold -> fix', () => {
+    const events = buildNcaAskRuleset(30, 50);
+    const recs = computeInsights(events, { projectId: 'synio', cwdFilterMode: 'main-only' });
+    const rec = recs.find(r => r.rule === NCA_ASK_NOISY_FALLBACK_V1.rule);
+    assert(rec.value === 0.6, `Expected value=0.6, got ${rec.value}`);
+    assert(rec.type === 'fix', `Expected type=fix, got ${rec.type}`);
+  });
+
+  test('NCA-ASK-RULESET-B 10/50 (20%) stays under the 0.4 threshold -> no_intervention', () => {
+    const events = buildNcaAskRuleset(10, 50);
+    const recs = computeInsights(events, { projectId: 'synio', cwdFilterMode: 'main-only' });
+    const rec = recs.find(r => r.rule === NCA_ASK_NOISY_FALLBACK_V1.rule);
+    assert(rec.value === 0.2, `Expected value=0.2, got ${rec.value}`);
+    assert(rec.type === 'no_intervention', `Expected type=no_intervention, got ${rec.type}`);
+  });
+
+  test('NCA-ASK-RULESET-C 0 calls -> insufficient_evidence, never a fabricated value', () => {
+    const recs = computeInsights([], { projectId: 'synio', cwdFilterMode: 'main-only' });
+    const rec = recs.find(r => r.rule === NCA_ASK_NOISY_FALLBACK_V1.rule);
+    assert(rec.value === null, `Expected value=null, got ${rec.value}`);
+    assert(rec.type === 'insufficient_evidence', `Expected type=insufficient_evidence, got ${rec.type}`);
+  });
+
+  // ── ANTI-HARDCODING GUARD: no rule may emit a value it didn't derive ────────
+  //
+  // A rule that returns a fixed constant regardless of input (like the removed
+  // NCA_ASK_RECALL_GAP_V1, which hardcoded value:26) cannot possibly report
+  // value=null on zero input events — only a value genuinely computed FROM the
+  // events can naturally be absent when there are none. This is a generic
+  // guard: it does not name any rule, so it also catches a future rule added
+  // to the engine without checking each one individually.
+
+  test('ANTI-HARDCODING every rule reports value=null on zero input events', () => {
+    const recs = computeInsights([], { projectId: 'synio', cwdFilterMode: 'main-only' });
+    assert(recs.length > 0, 'Expected at least one recommendation to check');
+    for (const rec of recs) {
+      assert(rec.value === null,
+        `Rule ${rec.rule} reported value=${JSON.stringify(rec.value)} on zero input events — ` +
+        `a genuinely derived value must be null/absent when there is nothing to derive it from. ` +
+        `A non-null value here means this rule is hardcoding a constant instead of computing it.`);
+      assert(rec.type === 'insufficient_evidence',
+        `Rule ${rec.rule} reported type=${rec.type} on zero input events, expected insufficient_evidence.`);
+    }
   });
 
   // ── DETERMINISM: computeInsights is byte-identical across repeated runs ─────

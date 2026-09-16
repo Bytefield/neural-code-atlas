@@ -39,11 +39,14 @@ export function computeNcaAskNoisyFallbackRate(events: OrientationEvent[]): NcaA
     known_env_error: 0,
     product_error: 0,
   };
-  const noisySessionIds: string[] = [];
+  // Set, not array: a session with multiple noisy_fallback calls must not crowd
+  // out the 5-item sample with duplicates of itself (see search-first-action.ts's
+  // identical fix, commit eaf7c6a).
+  const noisySessionIds = new Set<string>();
   for (const e of classifiable) {
     const cls = e.result_class as NcaAskResultClass;
     classCounts[cls]++;
-    if (cls === 'noisy_fallback' && noisySessionIds.length < 5) noisySessionIds.push(e.source_session_id);
+    if (cls === 'noisy_fallback' && noisySessionIds.size < 5) noisySessionIds.add(e.source_session_id);
   }
 
   const denominator = classifiable.length;
@@ -54,6 +57,6 @@ export function computeNcaAskNoisyFallbackRate(events: OrientationEvent[]): NcaA
     totalCallsSeen: calls.length,
     unclassifiableCalls: calls.length - denominator,
     classCounts,
-    sampleEvidence: noisySessionIds.map(id => `session:${id}`),
+    sampleEvidence: [...noisySessionIds].map(id => `session:${id}`),
   };
 }

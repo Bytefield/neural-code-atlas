@@ -1,0 +1,27 @@
+{
+  "frozen_file": "~/.nca/replay/synio-baseline-events-v3.jsonl",
+  "sha256": "29d3ca372b5a2ac48a927c77e9f4fcbfbb1011850da796eaf279b8d03acfa319",
+  "events_total": 5595,
+  "sessions_total": 93,
+  "schema_version": "orientation_event_v3",
+  "extractor_version": "0.1.0",
+  "result_classifier": "NCA_ASK_RESULT_V1",
+  "window": {
+    "since": "2026-05-28T09:03:20.251Z",
+    "until": "2026-06-26T07:10:32.860Z"
+  },
+  "project": "synio",
+  "cwd_filter_mode": "main-only",
+  "provenance": "Re-extracted with the v3 extractor from the raw session transcripts backed up at ~/nca-corpus-backup/-mnt-c-dev-synio/ (148 .jsonl files, 112 with tool_result blocks) — the same raw transcripts the replay fixture used to reconstruct its 64 baseline queries. The prior search for these transcripts (manifest-v2's not_v3_note) checked only the live corpus locations, not this backup; that was a partial search reported as if complete, corrected here. Extraction used the exact same parameters as the official v2 baseline (project=synio, project-root=/mnt/c/dev/synio, phase=baseline, main-only, minEventsThreshold=5) plus an explicit since/until matching the v2 manifest's own temporal_range — necessary because the backup spans a wider window (2026-05-15 to 2026-07-03) than the original corpus did at its June 26 extraction time, so reproducing the exact same 93-session/5595-event population requires pinning the window explicitly this time, not a parameter change in spirit.",
+  "identity_note": "Verified index-by-index against the frozen v2 file (~/.nca/replay/synio-baseline-events.jsonl, sha256 bb9395cf8fba5244eea9763cd4f0d6fc983709e1d7f0d0926644a8183a7aeb8d): identical event_id, source_session_id, source_project, nca_experiment_phase, subagent, event_type, timestamp, git_branch, source_cwd, prompt_hash, prompt_length, tool_name, file_path for all 5595 events in order — zero mismatches. schema_version differs (v2 -> v3) and extractor_version matches (0.1.0), both as expected. The only new fields are result_class/result_classifier, present on exactly 64 events (all and only the mcp__nca__nca_ask post_tool_use events) and absent everywhere else. See test/insights/identity-check.js --check for the re-runnable verification.",
+  "note_on_sessions_included_metadata": "A dry-run extract() report against the backup shows sessionsIncluded=112 (vs the v2 manifest's 93) and sessionsTotal=148 (vs 123) — this is a report-metadata artifact of the wider backup population (148 raw session files vs 123 originally present), not a discrepancy in the derived events: the too_few_events session-inclusion check is unwindowed by design (src/corpus/extractor.ts's countFilteredRealEvents), so 19 extra sessions from outside the May28-Jun26 window pass that check yet contribute zero events once the since/until filter is applied per-event. The actual eventCounts (session_start:93, user_prompt_submit:856, post_tool_use:4646, total:5595) and temporalRange match the v2 manifest exactly.",
+  "nca_ask_real_value": {
+    "classifiable_calls": 64,
+    "noisy_fallback": 47,
+    "direct_hit": 8,
+    "known_env_error": 4,
+    "clean_no_match": 5,
+    "rate": 0.734375,
+    "matches_historical_47_64": true
+  }
+}
