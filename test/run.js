@@ -2915,6 +2915,128 @@ process.on('exit', () => {
       try { fs.rmSync(charDir, { recursive: true, force: true }); } catch {}
     }
   });
+
+  // ─── TSX grammar fix (REC-0004) ────────────────────────────────────────────
+  // .tsx files must use tree-sitter-typescript's 'tsx' grammar, not the plain
+  // 'typescript' one (which rejects JSX syntax) — see src/parser.ts:loadTreeSitter.
+
+  const TreeSitter = require('tree-sitter');
+  const TSGrammars = require('tree-sitter-typescript');
+
+  const TSX_SNIPPET = [
+    "import { useState } from 'react';",
+    '',
+    'export function Widget({ label }: { label: string }) {',
+    '  const [count, setCount] = useState(0);',
+    '',
+    '  const onClick = () => {',
+    '    setCount(count + 1);',
+    '  };',
+    '',
+    '  return (',
+    '    <div onClick={onClick}>',
+    '      {label}: {count}',
+    '    </div>',
+    '  );',
+    '}',
+  ].join('\n');
+
+  // (a) real JSX .tsx: expected function nodes + 0 ERROR nodes under the grammar.
+  test('TSX-CHAR-01 .tsx with real JSX produces expected nodes and 0 ERROR nodes', () => {
+    const charDir = path.join(os.tmpdir(), `nca-tsx-char-${Date.now()}`);
+    fs.mkdirSync(charDir, { recursive: true });
+    const tsxFile = path.join(charDir, 'Widget.tsx');
+    try {
+      fs.writeFileSync(tsxFile, TSX_SNIPPET, 'utf-8');
+      const nodes = charParser.parseFile(tsxFile, '', charDir, TSX_SNIPPET);
+      nodes.sort((a, b) => a.line - b.line);
+      const actual = nodes.map(n => ({ name: n.name, type: n.type, line: n.line }));
+      const expected = [
+        { name: 'Widget', type: 'function', line: 2 },
+        { name: 'onClick', type: 'arrow', line: 5 },
+      ];
+      assert(JSON.stringify(actual) === JSON.stringify(expected),
+        `TSX-CHAR-01: expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
+
+      // Independently verify the grammar itself parses clean (no ERROR nodes) —
+      // this is the direct evidence the .tsx grammar (not the plain one) is in use.
+      const p = new TreeSitter();
+      p.setLanguage(TSGrammars.tsx);
+      const tree = p.parse(TSX_SNIPPET);
+      assert(tree.rootNode.hasError === false, 'TSX-CHAR-01: expected hasError=false parsing valid JSX with the tsx grammar');
+    } finally {
+      try { fs.rmSync(charDir, { recursive: true, force: true }); } catch {}
+    }
+  });
+
+  // (b) control: the SAME non-JSX snippet already golden-verified for .ts
+  // (TS-CHAR-01, above) must extract identically when parsed as .tsx — proving
+  // .ts behavior is untouched and the tsx grammar is a proper superset for
+  // ordinary (non-JSX) TypeScript content.
+  test('TSX-CHAR-02 non-JSX content parses identically as .ts and .tsx (control)', () => {
+    const charDir = path.join(os.tmpdir(), `nca-tsx-control-${Date.now()}`);
+    fs.mkdirSync(charDir, { recursive: true });
+    const tsxFile = path.join(charDir, 'char.tsx');
+    try {
+      fs.writeFileSync(tsxFile, TS_SNIPPET, 'utf-8');
+      const nodesAsTsx = charParser.parseFile(tsxFile, '', charDir, TS_SNIPPET);
+      const tsFile = path.join(charDir, 'char.ts');
+      fs.writeFileSync(tsFile, TS_SNIPPET, 'utf-8');
+      const nodesAsTs = charParser.parseFile(tsFile, '', charDir, TS_SNIPPET);
+
+      const norm = (nodes) => nodes
+        .map(n => ({ name: n.name, type: n.type, inputs: n.inputs, outputs: n.outputs, complexity: n.complexity, deps: n.deps, line: n.line }))
+        .sort((a, b) => a.line - b.line);
+
+      assert(JSON.stringify(norm(nodesAsTsx)) === JSON.stringify(norm(nodesAsTs)),
+        `TSX-CHAR-02: .tsx extraction differs from .ts for identical non-JSX content:\n` +
+        `.tsx: ${JSON.stringify(norm(nodesAsTsx))}\n.ts: ${JSON.stringify(norm(nodesAsTs))}`);
+    } finally {
+      try { fs.rmSync(charDir, { recursive: true, force: true }); } catch {}
+    }
+  });
+
+  // (c) robustness: a .tsx file that crashes the native tree-sitter binding
+  // (confirmed cause: any input >= 32768 bytes throws "Invalid argument" in
+  // this tree-sitter version, regardless of content — NOT the emoji/surrogate-
+  // pair characters attributed in the earlier tsx-grammar-sizing measurement;
+  // that measurement's 6 failing files were coincidentally all >32KB in a
+  // corpus where content-rich pages also tend to contain emoji, not because
+  // of the emoji itself, per byte-exact bisection during this fix) must not
+  // crash parseFile — src/parser.ts already wraps parser.parse() in try/catch
+  // with a regexFallback, so this is a regression guard on EXISTING behavior,
+  // not new logic added by this fix.
+  test('TSX-CHAR-03 .tsx file over the native parser size limit does not crash the scan', () => {
+    const charDir = path.join(os.tmpdir(), `nca-tsx-oversized-${Date.now()}`);
+    fs.mkdirSync(charDir, { recursive: true });
+    const tsxFile = path.join(charDir, 'Oversized.tsx');
+    try {
+      const padding = '// padding line to exceed the 32768-byte native parser ceiling\n'.repeat(600);
+      const oversized = `export function Oversized() {\n  return <div>ok</div>;\n}\n\n${padding}`;
+      assert(Buffer.byteLength(oversized, 'utf-8') >= 32768, 'TSX-CHAR-03 setup: fixture must exceed the 32768-byte threshold to reproduce the native crash');
+
+      // Confirm this content really does crash the native binding directly —
+      // otherwise this test would pass trivially without exercising the fallback.
+      const p = new TreeSitter();
+      p.setLanguage(TSGrammars.tsx);
+      let nativeThrew = false;
+      try { p.parse(oversized); } catch { nativeThrew = true; }
+      assert(nativeThrew, 'TSX-CHAR-03 setup: fixture did not reproduce the native parse crash — adjust padding size');
+
+      fs.writeFileSync(tsxFile, oversized, 'utf-8');
+      let nodes;
+      let threw = null;
+      try {
+        nodes = charParser.parseFile(tsxFile, '', charDir, oversized);
+      } catch (err) {
+        threw = err;
+      }
+      assert(threw === null, `TSX-CHAR-03: parseFile threw instead of falling back: ${threw && threw.message}`);
+      assert(Array.isArray(nodes), 'TSX-CHAR-03: expected parseFile to return an array (regex-fallback path) even though the native parser crashed');
+    } finally {
+      try { fs.rmSync(charDir, { recursive: true, force: true }); } catch {}
+    }
+  });
 }
 
 // ─── VSEARCH tests ────────────────────────────────────────────────────────────
