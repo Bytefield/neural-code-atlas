@@ -1,0 +1,17 @@
+{
+  "frozen_file": "~/.nca/replay/synio-baseline-events.jsonl",
+  "sha256": "bb9395cf8fba5244eea9763cd4f0d6fc983709e1d7f0d0926644a8183a7aeb8d",
+  "events_total": 5595,
+  "sessions_total": 93,
+  "schema_version": "orientation_event_v2",
+  "extractor_version": "0.1.0",
+  "result_classifier": null,
+  "window": {
+    "since": "2026-05-28T09:03:20.251Z",
+    "until": "2026-06-26T07:10:32.860Z"
+  },
+  "project": "synio",
+  "cwd_filter_mode": "main-only",
+  "provenance": "Byte-identical copy of the official frozen SYNIO main-only baseline at ~/.nca/metrics/synio/orientation-events.jsonl (extracted 2026-06-26, BASELINE-V1-CONTRACT-FROZEN). The sha256 above matches that file's own output_sha256 field exactly. This copy lives under ~/.nca/replay/ (the established location for frozen, read-only regression-test inputs in this repo — see test/replay/) so gate-1 verification never depends on ~/.nca/metrics/ staying untouched by unrelated work.",
+  "not_v3_note": "This file is schema v2, not v3, by necessity, not by choice: result_class (added in schema v3) can only be computed at extraction time by pairing each mcp__nca__nca_ask tool_use with its tool_result from the RAW Claude Code session transcripts. Those raw transcripts — for corpus slug -mnt-c-dev-synio, the exact source of this baseline — no longer exist on this machine in any known location (verified: WSL ~/.claude/projects/-mnt-c-dev-synio/ has 0 .jsonl files; the parallel Windows-native slug /mnt/c/Users/jesus/.claude/projects/c--dev-synio/ also has 0; no archive/trash directory holds them either). Re-extracting with v3 is therefore not possible for this exact population — see NCA_ASK_NOISY_FALLBACK_V1's result in baseline-check.js's output: it correctly reports insufficient_evidence, not a fabricated or assumed value. REREAD_MEMORY_V1 and SEARCH_FIRST_ACTION_V1 need only tool_name/file_path/timestamp/source_session_id, all present in this v2 file, so both are still verified fully against real data."
+}
