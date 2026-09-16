@@ -47,7 +47,7 @@ export function computeSearchFirstActionRate(events: OrientationEvent[]): Search
 
   const buckets: Record<FirstActionBucket, number> = { SEARCH: 0, EXEC: 0, DIRECT: 0, OTHER: 0, NONE: 0 };
   let queuedPromptsMerged = 0;
-  const searchSessionIds: string[] = [];
+  const searchSessionIds = new Set<string>();
 
   for (const [sessionId, sessionEvents] of bySession) {
     const sorted = [...sessionEvents].sort((a, b) =>
@@ -82,7 +82,7 @@ export function computeSearchFirstActionRate(events: OrientationEvent[]): Search
       );
       const bucket = classifyFirstTool(firstTool?.tool_name);
       buckets[bucket]++;
-      if (bucket === 'SEARCH' && searchSessionIds.length < 5) searchSessionIds.push(sessionId);
+      if (bucket === 'SEARCH' && searchSessionIds.size < 5) searchSessionIds.add(sessionId);
     }
   }
 
@@ -93,6 +93,6 @@ export function computeSearchFirstActionRate(events: OrientationEvent[]): Search
     denominator,
     buckets,
     queuedPromptsMerged,
-    sampleEvidence: searchSessionIds.map(id => `session:${id}`),
+    sampleEvidence: [...searchSessionIds].map(id => `session:${id}`),
   };
 }

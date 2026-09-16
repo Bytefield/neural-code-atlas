@@ -6,8 +6,11 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
 
 const ROOT = path.join(__dirname, '..');
+const FIXTURES_ANALYZER = path.join(__dirname, 'fixtures', 'analyzer');
 
 function loadModules() {
   return {
@@ -48,6 +51,9 @@ module.exports = function runInsightsTests(test, assert) {
     computeSearchFirstActionRate,
     computeNcaAskNoisyFallbackRate,
     computeInsights,
+    renderInsightsMarkdown,
+    loadEventsForInsights,
+    resolveInsightsDir,
     REREAD_MEMORY_V1,
     SEARCH_FIRST_ACTION_V1,
     NCA_ASK_NOISY_FALLBACK_V1,
@@ -308,5 +314,60 @@ module.exports = function runInsightsTests(test, assert) {
     const recallRec = recs.find(r => r.rule === 'NCA_ASK_RECALL_GAP_V1');
     assert(recallRec !== undefined, 'Expected the recall-gap finding to always be present');
     assert(recallRec.type === 'no_intervention', `Expected type=no_intervention, got ${recallRec.type}`);
+  });
+
+  // ── INSIGHTS-5: Markdown renderer ────────────────────────────────────────────
+
+  test('INSIGHTS-5a renderInsightsMarkdown is deterministic for identical input', () => {
+    const recs = computeInsights([], { projectId: 'test-project', cwdFilterMode: 'main-only' });
+    const meta = { project: 'test-project', scope: 'test-project/main-only', methodologyVersion: '1', vocabularyVersion: 1 };
+    const md1 = renderInsightsMarkdown(recs, meta);
+    const md2 = renderInsightsMarkdown(recs, meta);
+    assert(md1 === md2, 'renderInsightsMarkdown must be deterministic for identical input');
+  });
+
+  test('INSIGHTS-5b renderInsightsMarkdown includes rule, evidence_level, and value for each recommendation', () => {
+    const events = [];
+    for (let i = 0; i < 5; i++) {
+      events.push(mkEvent({ tool_name: 'mcp__nca__nca_ask', result_class: 'noisy_fallback', result_classifier: 'NCA_ASK_RESULT_V1' }));
+    }
+    const recs = computeInsights(events, { projectId: 'test-project' });
+    const md = renderInsightsMarkdown(recs, { project: 'test-project', scope: 'test-project', methodologyVersion: '1', vocabularyVersion: 1 });
+    assert(md.includes('NCA_ASK_NOISY_FALLBACK_V1'), 'Expected rule name in rendered Markdown');
+    assert(md.includes('EVIDENCE_WEAK') || md.includes('INSUFFICIENT') || md.includes('EVIDENCE_MODERATE') || md.includes('EVIDENCE_STRONG'),
+      'Expected an evidence_level token in rendered Markdown');
+    assert(md.includes('100.0%'), `Expected the 5/5 noisy_fallback rate rendered as 100.0%, got:\n${md}`);
+    assert(!/\bconfidence\b\s*[:=]?\s*\d/i.test(md), 'Must never render evidence_level as a numeric confidence percentage');
+  });
+
+  // ── INSIGHTS-6: loader (schema-tolerant, unlike analyzer.ts's strict gate) ──
+
+  test('INSIGHTS-6a loadEventsForInsights reads a v3-tagged fixture without throwing', () => {
+    const loaded = loadEventsForInsights('sample-events', undefined, path.join(FIXTURES_ANALYZER, 'sample-events.jsonl'));
+    assert(loaded.events.length > 0, 'Expected events to be loaded');
+    assert(loaded.manifest.schema_version, 'Expected manifest.schema_version to be present');
+  });
+
+  test('INSIGHTS-6b loadEventsForInsights throws a clear error when the jsonl file is missing', () => {
+    let threw = false;
+    try {
+      loadEventsForInsights('does-not-exist-project', fs.mkdtempSync(path.join(os.tmpdir(), 'nca-insights-loader-test-')));
+    } catch (err) {
+      threw = true;
+      assert(err.message.includes('not found'), `Expected a clear not-found error, got: ${err.message}`);
+    }
+    assert(threw, 'Expected loadEventsForInsights to throw for a missing corpus file');
+  });
+
+  test('INSIGHTS-6c resolveInsightsDir places output under <project>/insights, never inside the repo', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-insights-dir-test-'));
+    try {
+      const dir = resolveInsightsDir('test-project', tmpDir);
+      assert(dir.startsWith(tmpDir), `Expected dir under ${tmpDir}, got ${dir}`);
+      assert(dir.endsWith(path.join('test-project', 'insights')), `Expected dir to end with test-project/insights, got ${dir}`);
+      assert(!dir.startsWith(ROOT), 'Insights output must never resolve inside the repo');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 };

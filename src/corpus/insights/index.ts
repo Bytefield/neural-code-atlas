@@ -1,5 +1,8 @@
 export { computeInsights } from './engine.js';
 export type { InsightsOptions } from './engine.js';
+export { loadEventsForInsights, resolveInsightsDir } from './loader.js';
+export type { LoadedInsightsCorpus, InsightsSourceManifest } from './loader.js';
+export { renderInsightsMarkdown } from './render.js';
 export {
   VOCABULARY_VERSION,
   METHODOLOGY_VERSION,
