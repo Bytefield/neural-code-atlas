@@ -2,6 +2,55 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] — 2026-09-16
+
+### Added
+- **`nca corpus insights --project <name>`** (#63): deterministic Markdown report from the
+  orientation-event corpus. Heuristics only, no LLM. Three rules under frozen methodology v1
+  (`REREAD_MEMORY_V1`, `SEARCH_FIRST_ACTION_V1`, `NCA_ASK_NOISY_FALLBACK_V1`), each emitting a
+  recommendation object (`dont_build` / `do` / `fix` / `no_intervention` /
+  `insufficient_evidence`) with evidence pointers, categorical `evidence_level`, threshold,
+  and metric to remeasure. Markdown is a renderer over the objects. Output under
+  `~/.nca/metrics/<project>/insights/`, never inside the repo.
+- **`orientation_event_v3`** (#63): `post_tool_use` events for `mcp__nca__nca_ask` carry a
+  derived `result_class` (`hit` / `clean_no_match` / `noisy_fallback` / `error`) plus
+  `result_classifier` (`NCA_ASK_RESULT_V1`). The classifier lives in
+  `src/corpus/nca-ask-result-class.ts` and is shared with the replay harness. Tool-result text
+  is never persisted. v2 events remain readable; identity of pre-existing fields is preserved.
+- **`nca corpus extract`** (#52): orientation-event extractor from Claude Code session
+  transcripts (main-only by default, `--include-worktrees`, `--phase`, cwd filter,
+  deterministic `event_id`, content scrubbed). **`nca corpus analyze`** (#53): dual-track
+  orientation analyzer — implementation vs diagnostic lanes, never pooled.
+- **`nca impact <symbol>`** (#50, #51): reverse-caller index with a confidence guard for
+  changes invisible to the graph (function bodies, security-relevant edits).
+- Agent-context pilot (#49): `CLAUDE.md` reduced to a router.
+- Frozen `nca_ask` replay fixture (#56–#61, test-only): 64 baseline queries, frozen
+  September and June indexes (out of repo, sha256 manifests), deterministic classifier,
+  Replay A (regression gate: same frozen baseline index, build changes) and Replay B (drift
+  report). `--check` detects classifier drift.
+
+### Fixed
+- **`.tsx` files were parsed with the plain TypeScript grammar** (#62): JSX produced parse
+  errors, dropping real function nodes and creating phantom nodes from error recovery. `.tsx`
+  now uses the tsx grammar. On a Next.js repo this recovered ~125 function nodes and removed
+  ~52 phantom nodes.
+- **`nca_ask` no longer pads no-match responses** with the global flow dump (#54). A clean
+  no-match is explicit and contains no graph content. Previously 73% of real calls returned
+  query-independent noise.
+- **Schema version skew is a structured error** (#55): `NCA schema version mismatch:
+  db_version=X build_version=Y db_path=... — Fix: ...`. Occurs when a long-lived MCP server
+  keeps serving an old build after a rebuild while a fresh CLI has migrated the DB.
+  No auto-migration. Restart the MCP connection after `npm run build`.
+
+### Known
+- Six large files crash the native tree-sitter binding (size ceiling, not encoding) and are
+  absent from the index. Not yet handled.
+- `nca_ask` is exact-name retrieval over function/arrow/method/class nodes; its description
+  ("function name, concept, module, etc.") over-promises. Recorded, not changed.
+- `VAULT-04` test fails on native Windows only (path separator).
+
+---
+
 ## [1.5.1] — 2026-06-08
 
 ### Fixed
