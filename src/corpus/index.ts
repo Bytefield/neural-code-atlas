@@ -17,6 +17,7 @@ export {
   classifyNoWriteSessions,
   DEFAULT_DIAGNOSTIC_THRESHOLD,
 } from './analyzer.js';
+export * from './insights/index.js';
 export type {
   RunOptions,
   RunReport,
