@@ -754,6 +754,199 @@ test('UNINDEXED-02 scan registers a file over max_file_size_kb as over_size_limi
   }
 });
 
+// PARSER-VERSION tests (REC-0006): the per-file cache key (mtime, sha256)
+// only detects the *input* changing, never the *parsing logic* changing —
+// a parser fix alone leaves already-indexed files stuck on old output
+// indefinitely. scan() compares schema_meta's stored parser_version against
+// PARSER_VERSION (src/parser.ts) and forces a full reparse, ignoring the
+// per-file cache, whenever they differ; only a full scan that completes
+// without throwing may advance the stored version.
+
+test('PARSER-VERSION-01 (a) stale parser_version forces a full reparse even with unchanged mtime/sha256, and advances the version', () => {
+  const testDir = path.join(os.tmpdir(), `nca-pv-a-${Date.now()}`);
+  fs.mkdirSync(testDir, { recursive: true });
+  const fixtureFile = path.join(testDir, 'foo.ts');
+  fs.writeFileSync(fixtureFile, 'export function foo() { return 1; }\n');
+  const tmpDb = path.join(testDir, 'pv.db');
+
+  const { Scanner } = require(path.join(ROOT, 'dist', 'scanner.js'));
+  const { PARSER_VERSION, NCAParser } = require(path.join(ROOT, 'dist', 'parser.js'));
+  const storage = new StorageClass(tmpDb);
+  const scanner = new Scanner(storage);
+
+  try {
+    // Baseline: a fresh DB has no parser_version key, so this first scan is
+    // itself a full reparse and ends by writing the current version.
+    scanner.scan(testDir);
+    assert(storage.getParserVersion() === PARSER_VERSION, 'expected the baseline scan to set parser_version');
+    const recordBefore = storage.getFileRecord(fixtureFile);
+
+    // Simulate a legacy index left behind by an older parser binary, without
+    // touching the file at all — mtime and content stay exactly as they were.
+    storage.setParserVersion(PARSER_VERSION - 1);
+
+    let parseFileCalls = 0;
+    const originalParseFile = NCAParser.prototype.parseFile;
+    NCAParser.prototype.parseFile = function (...args) {
+      parseFileCalls++;
+      return originalParseFile.apply(this, args);
+    };
+
+    try {
+      const result = scanner.scan(testDir);
+      assert(parseFileCalls === 1,
+        `expected the stale-version scan to reparse foo.ts despite unchanged mtime/sha256, got ${parseFileCalls} parseFile call(s)`);
+      assert(result.parsed === 1, `expected result.parsed === 1, got ${result.parsed}`);
+      assert(storage.getParserVersion() === PARSER_VERSION,
+        `expected parser_version to advance to ${PARSER_VERSION} after a successful full reparse, got ${storage.getParserVersion()}`);
+      const recordAfter = storage.getFileRecord(fixtureFile);
+      assert(recordAfter.mtime === recordBefore.mtime, 'sanity check failed: file mtime changed, so this would not exercise the version-mismatch path');
+    } finally {
+      NCAParser.prototype.parseFile = originalParseFile;
+    }
+  } finally {
+    storage.close();
+    try { fs.rmSync(testDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
+test('PARSER-VERSION-02 (c) a DB with no parser_version key (legacy index) is treated as stale: one full reparse, then normal caching', () => {
+  const testDir = path.join(os.tmpdir(), `nca-pv-c-${Date.now()}`);
+  fs.mkdirSync(testDir, { recursive: true });
+  const fixtureFile = path.join(testDir, 'bar.ts');
+  fs.writeFileSync(fixtureFile, 'export function bar() { return 1; }\n');
+  const tmpDb = path.join(testDir, 'pv.db');
+
+  const { Scanner } = require(path.join(ROOT, 'dist', 'scanner.js'));
+  const { PARSER_VERSION, NCAParser } = require(path.join(ROOT, 'dist', 'parser.js'));
+  const storage = new StorageClass(tmpDb);
+  const scanner = new Scanner(storage);
+
+  try {
+    assert(storage.getParserVersion() === null, 'sanity check failed: a fresh DB must have no parser_version key');
+
+    let parseFileCalls = 0;
+    const originalParseFile = NCAParser.prototype.parseFile;
+    NCAParser.prototype.parseFile = function (...args) {
+      parseFileCalls++;
+      return originalParseFile.apply(this, args);
+    };
+
+    try {
+      const result1 = scanner.scan(testDir);
+      assert(parseFileCalls === 1, `expected exactly 1 parseFile call on the first (no-key) scan, got ${parseFileCalls}`);
+      assert(result1.parsed === 1, `expected result1.parsed === 1, got ${result1.parsed}`);
+      assert(storage.getParserVersion() === PARSER_VERSION, 'expected parser_version to be set after the first successful scan');
+
+      parseFileCalls = 0;
+      const result2 = scanner.scan(testDir); // same file, now at the current version
+      assert(parseFileCalls === 0,
+        `expected the second scan (current version, unchanged file) to be fully cached, got ${parseFileCalls} parseFile call(s)`);
+      assert(result2.skipped === 1, `expected result2.skipped === 1, got ${result2.skipped}`);
+    } finally {
+      NCAParser.prototype.parseFile = originalParseFile;
+    }
+  } finally {
+    storage.close();
+    try { fs.rmSync(testDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
+test('PARSER-VERSION-03 (d) an interrupted full-reparse scan does not advance parser_version', () => {
+  const testDir = path.join(os.tmpdir(), `nca-pv-d-${Date.now()}`);
+  fs.mkdirSync(testDir, { recursive: true });
+  const fixtureFile = path.join(testDir, 'baz.ts');
+  fs.writeFileSync(fixtureFile, 'export function baz() { return 1; }\n');
+  const tmpDb = path.join(testDir, 'pv.db');
+
+  const { Scanner } = require(path.join(ROOT, 'dist', 'scanner.js'));
+  const { PARSER_VERSION, NCAParser } = require(path.join(ROOT, 'dist', 'parser.js'));
+  const storage = new StorageClass(tmpDb);
+  const scanner = new Scanner(storage);
+
+  try {
+    scanner.scan(testDir); // baseline: sets parser_version
+    storage.setParserVersion(PARSER_VERSION - 1); // simulate a stale index
+
+    // Simulate the scan being interrupted after the per-file loop but
+    // before parser_version would be advanced — getTrackedFilesUnder is
+    // called in the purge step that runs between them.
+    const originalGetTracked = storage.getTrackedFilesUnder.bind(storage);
+    storage.getTrackedFilesUnder = () => { throw new Error('simulated interruption'); };
+
+    let threw = null;
+    try {
+      scanner.scan(testDir);
+    } catch (err) {
+      threw = err;
+    } finally {
+      storage.getTrackedFilesUnder = originalGetTracked;
+    }
+
+    assert(threw !== null, 'expected the simulated interruption to propagate out of scan()');
+    assert(storage.getParserVersion() === PARSER_VERSION - 1,
+      `expected parser_version to remain stale after an interrupted scan, got ${storage.getParserVersion()}`);
+
+    // Recovery: the next scan still sees the stale version and completes the reparse.
+    let parseFileCalls = 0;
+    const originalParseFile = NCAParser.prototype.parseFile;
+    NCAParser.prototype.parseFile = function (...args) {
+      parseFileCalls++;
+      return originalParseFile.apply(this, args);
+    };
+    try {
+      scanner.scan(testDir);
+      assert(parseFileCalls === 1, `expected the recovery scan to still perform a full reparse, got ${parseFileCalls} parseFile call(s)`);
+      assert(storage.getParserVersion() === PARSER_VERSION,
+        'expected parser_version to finally advance once a scan completes successfully');
+    } finally {
+      NCAParser.prototype.parseFile = originalParseFile;
+    }
+  } finally {
+    storage.close();
+    try { fs.rmSync(testDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
+test('PARSER-VERSION-04 (e) scanFile() reparses a single file under a stale parser_version, but never advances it', () => {
+  const testDir = path.join(os.tmpdir(), `nca-pv-e-${Date.now()}`);
+  fs.mkdirSync(testDir, { recursive: true });
+  const fixtureFile = path.join(testDir, 'qux.ts');
+  fs.writeFileSync(fixtureFile, 'export function qux() { return 1; }\n');
+  const tmpDb = path.join(testDir, 'pv.db');
+
+  const { Scanner } = require(path.join(ROOT, 'dist', 'scanner.js'));
+  const { PARSER_VERSION, NCAParser } = require(path.join(ROOT, 'dist', 'parser.js'));
+  const storage = new StorageClass(tmpDb);
+  const scanner = new Scanner(storage);
+
+  try {
+    scanner.scan(testDir); // baseline: sets parser_version, indexes qux.ts
+    storage.setParserVersion(PARSER_VERSION - 1); // simulate stale index; file itself is untouched
+
+    let parseFileCalls = 0;
+    const originalParseFile = NCAParser.prototype.parseFile;
+    NCAParser.prototype.parseFile = function (...args) {
+      parseFileCalls++;
+      return originalParseFile.apply(this, args);
+    };
+    try {
+      const result = scanner.scanFile(fixtureFile, testDir);
+      assert(parseFileCalls === 1,
+        `expected scanFile() to reparse qux.ts despite unchanged mtime/sha256, got ${parseFileCalls} call(s)`);
+      assert(result.parsed === 1, `expected result.parsed === 1, got ${result.parsed}`);
+    } finally {
+      NCAParser.prototype.parseFile = originalParseFile;
+    }
+
+    assert(storage.getParserVersion() === PARSER_VERSION - 1,
+      `expected parser_version to remain untouched by scanFile(), got ${storage.getParserVersion()}`);
+  } finally {
+    storage.close();
+    try { fs.rmSync(testDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
 // WUR-01: watch unlink handler relinks graph and flows
 test('WUR-01 watch unlink handler relinks graph and flows', () => {
   const wurDir = path.join(os.tmpdir(), `nca-wur-${Date.now()}`);

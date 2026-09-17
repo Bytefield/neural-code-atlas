@@ -359,6 +359,30 @@ export class Storage {
     `).run(JSON.stringify(map));
   }
 
+  /**
+   * The PARSER_VERSION (src/parser.ts) this DB's nodes were last fully
+   * reparsed under. Returns null when the key is absent — an index built
+   * before parser_version tracking existed, which scan() treats the same
+   * as a stale version (full reparse). Same schema_meta mechanism as
+   * unindexed_files — no schema migration.
+   */
+  getParserVersion(): number | null {
+    const row = this.db.prepare(`SELECT value FROM schema_meta WHERE key = 'parser_version'`).get() as
+      | { value: string }
+      | undefined;
+    if (!row) return null;
+    const n = parseInt(row.value, 10);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  /** Record that a full reparse under this PARSER_VERSION has completed — call only after scan() finishes successfully. */
+  setParserVersion(version: number): void {
+    this.db.prepare(`
+      INSERT INTO schema_meta (key, value) VALUES ('parser_version', ?)
+      ON CONFLICT(key) DO UPDATE SET value = excluded.value
+    `).run(String(version));
+  }
+
   logQuery(query: string, matchedIds: number[]): void {
     this.stmts.insertQueryLog.run(query, JSON.stringify(matchedIds), Date.now());
   }

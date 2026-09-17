@@ -3,6 +3,23 @@ import * as path from 'path';
 import * as crypto from 'crypto';
 import type { NCNode } from './storage.js';
 
+/**
+ * Bump this whenever anything that changes the nodes parseFile() produces
+ * changes: grammars, extractNodeName/extractNodeParams/etc., native parse
+ * buffer sizing, node types/kinds. scanner.ts's per-file cache key is
+ * (mtime, sha256 of file content) — it detects the *input* changing, not
+ * the *parsing logic* changing, so a parser fix alone never invalidates an
+ * already-indexed file. Comparing this constant against schema_meta's
+ * stored parser_version is how scan() decides a full reparse is needed
+ * regardless of what mtime/sha256 say (REC-0006).
+ *
+ * 1 = every index built before parser_version tracking existed.
+ * 2 = native parse buffer sizing fix — bufferSize derived from source
+ *     length instead of the tree-sitter binding's ~32KB default ceiling
+ *     (REC-0005A).
+ */
+export const PARSER_VERSION = 2;
+
 // Lazy-load tree-sitter to allow graceful fallback
 let TreeSitterParser: any;
 let tsLanguage: any;
