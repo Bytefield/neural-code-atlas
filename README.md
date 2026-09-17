@@ -154,6 +154,9 @@ Languages: TypeScript (`.ts`, `.tsx`), JavaScript (`.js`, `.jsx`, `.mjs`, `.cjs`
 import changes, or when `nca status` shows an old scan: rescan. Small edits: not needed.
 Long sessions: `nca watch`. Optional post-commit hook in `.git-hooks/`.
 
+After upgrading NCA, just run `nca scan`: if the parser changed, the index performs a
+one-time full reparse on its own and then returns to incremental. No wipe needed.
+
 ## Privacy
 
 `nca corpus extract` runs on your machine and writes derived events only. The file it
@@ -169,8 +172,8 @@ recomputed after that is extracted first and kept as the canonical record.
 
 - `nca_ask` is exact-name only; its earlier description over-promised ("function name,
   concept, module…"). Recorded, not yet changed.
-- Six unusually large files crash the native tree-sitter binding (a size ceiling, not an
-  encoding issue) and are absent from the index.
+- Files the parser cannot index, or that exceed `max_file_size_kb`, are excluded from the
+  index — and listed by `nca status` with the reason, so the blind spot is visible.
 - The insights engine has been validated on one corpus. Cross-user validation is pending.
 - One test (`VAULT-04`) fails on native Windows only (path separator). Windows is a
   first-class target; this is tracked debt.
@@ -179,6 +182,8 @@ recomputed after that is extracted first and kept as the canonical record.
 
 See [CHANGELOG.md](CHANGELOG.md). Highlights:
 
+- **1.6.2** — parsing over 32 KB, visible `unindexed` files with reasons, self-upgrading
+  index on parser changes.
 - **1.6.0** — `nca corpus insights`, `orientation_event_v3`, `nca impact`, `.tsx` grammar fix,
   clean `nca_ask` no-match, structured schema-skew error, frozen replay fixture.
 - **1.5.0** — vault search/get, `nca related`, `nca docs audit`, `nca task` / `nca brief`.

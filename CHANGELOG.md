@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.2] — 2026-09-17
+
+### Parser reliability and upgrade safety
+- **Fixed parsing of source files over 32 KB** (#64). The tree-sitter Node binding's default
+  parse buffer silently failed at that size; the buffer is now sized to the source. On SYNIO this
+  recovered six hand-written files (97 nodes) that had never been indexed.
+- **Blind spots are now visible** (#64, #65). Files the parser cannot index (`parser_error`) and
+  files excluded by `max_file_size_kb` (`over_size_limit`) are recorded and shown by `nca status`
+  with a per-reason breakdown. A scan with `errors: 0` and `unindexed: N` is a valid result:
+  the scan succeeded, coverage is incomplete, and it says so.
+- **Existing indexes now upgrade themselves** (#66). The incremental cache was keyed on file
+  content only, so parser fixes never reached previously indexed, unchanged files. A
+  `PARSER_VERSION` epoch is now stored in the index; when the installed parser's epoch differs,
+  the next `nca scan` performs a one-time full reparse, then returns to incremental. No wipe,
+  no manual steps: `npm update` then `nca scan`. Only a completed full scan advances the
+  stored epoch; a failed or single-file scan cannot.
+
+---
+
 ## [1.6.1] — 2026-09-16
 
 ### Changed

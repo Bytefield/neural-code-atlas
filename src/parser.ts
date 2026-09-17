@@ -14,9 +14,13 @@ import type { NCNode } from './storage.js';
  * regardless of what mtime/sha256 say (REC-0006).
  *
  * 1 = every index built before parser_version tracking existed.
- * 2 = native parse buffer sizing fix — bufferSize derived from source
- *     length instead of the tree-sitter binding's ~32KB default ceiling
- *     (REC-0005A).
+ * 2 = current parser output epoch.
+ *
+ * This is an epoch of parser *output*, not a record of specific fixes.
+ * Increment it whenever parser behaviour changes in a way that can affect
+ * indexed output: grammars, node extraction, parsing limits or buffers,
+ * supported syntax. Do not annotate versions with the change that caused
+ * them; the changelog holds that history.
  */
 export const PARSER_VERSION = 2;
 
