@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { Storage } from './storage.js';
-import { NCAParser } from './parser.js';
+import { NCAParser, PARSER_VERSION } from './parser.js';
 
 const DEFAULT_EXCLUDED_DIRS = [
   'node_modules', '.git', 'dist', 'build', '.next', '.nuxt', '.svelte-kit',
@@ -62,6 +62,20 @@ export class Scanner {
     const start = Date.now();
     const result: ScanResult = { scanned: 0, skipped: 0, parsed: 0, errors: 0, durationMs: 0 };
 
+    // The per-file cache key (mtime, sha256) only detects the *input*
+    // changing, not the *parsing logic* changing — a parser fix alone never
+    // invalidates an already-indexed file. When the stored parser_version
+    // (or its absence, for indexes built before this tracking existed)
+    // doesn't match PARSER_VERSION, ignore the cache for every eligible
+    // file this run and force a full reparse (REC-0006).
+    const storedParserVersion = this.storage.getParserVersion();
+    const fullReparse = storedParserVersion !== PARSER_VERSION;
+    if (fullReparse) {
+      process.stderr.write(
+        `NCA|parser_version_changed|from:${storedParserVersion ?? 'none'}|to:${PARSER_VERSION}|full_reparse\n`
+      );
+    }
+
     const config = loadConfig(rootPath);
     const files = this.collectFiles(rootPath, config);
     result.scanned = files.length;
@@ -71,7 +85,7 @@ export class Scanner {
       try {
         const stat = fs.statSync(filePath);
         const mtime = Math.floor(stat.mtimeMs);
-        const record = this.storage.getFileRecord(filePath);
+        const record = fullReparse ? null : this.storage.getFileRecord(filePath);
 
         // Check if file changed
         if (record && record.mtime === mtime) {
@@ -138,6 +152,16 @@ export class Scanner {
       }
     }
 
+    // Only a full scan that reaches this point without throwing may advance
+    // parser_version. If collectFiles, the per-file loop, or either purge
+    // step above throws (I/O failure, process interrupted), this line never
+    // runs — the next scan() sees the same stale (or absent) version and
+    // retries the full reparse from scratch, rather than recording success
+    // for a run that didn't actually finish.
+    if (fullReparse) {
+      this.storage.setParserVersion(PARSER_VERSION);
+    }
+
     result.durationMs = Date.now() - start;
     return result;
   }
@@ -172,7 +196,13 @@ export class Scanner {
       }
 
       const mtime = Math.floor(stat.mtimeMs);
-      const record = this.storage.getFileRecord(filePath);
+      // Same version check as scan(), but scanFile() never writes
+      // parser_version — advancing it is scan()'s exclusive job, since only
+      // a completed full scan can attest every eligible file was reparsed.
+      // A version mismatch here just means this one file skips its cache
+      // check; the next full scan() still does the complete reparse.
+      const forceReparse = this.storage.getParserVersion() !== PARSER_VERSION;
+      const record = forceReparse ? null : this.storage.getFileRecord(filePath);
 
       if (record && record.mtime === mtime) {
         result.skipped++;
