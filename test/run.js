@@ -690,6 +690,70 @@ test('UNINDEXED-01 scan registers a file whose native parse fails, and continues
   }
 });
 
+// UNINDEXED-02: a file excluded by max_file_size_kb (a deliberate policy
+// exclusion, distinct from a parser_error) is registered as over_size_limit,
+// the scan continues normally for other files, and the marker clears once
+// the file is raised back into the eligible size range.
+test('UNINDEXED-02 scan registers a file over max_file_size_kb as over_size_limit, and clears it once the limit is raised', () => {
+  const testDir = path.join(os.tmpdir(), `nca-oversize-${Date.now()}`);
+  fs.mkdirSync(path.join(testDir, '.nca'), { recursive: true });
+  const configPath = path.join(testDir, '.nca', 'config.json');
+  fs.writeFileSync(configPath, JSON.stringify({ max_file_size_kb: 1 }));
+
+  const bigFile = path.join(testDir, 'big.ts');
+  const okFile = path.join(testDir, 'small.ts');
+  const tmpDb = path.join(testDir, 'oversize.db');
+
+  const bigContent = 'export function big() {\n' + '  // padding line\n'.repeat(200) + '  return 1;\n}\n';
+  assert(Buffer.byteLength(bigContent, 'utf-8') > 1024, 'UNINDEXED-02 setup: fixture must exceed the 1KB test limit');
+  fs.writeFileSync(bigFile, bigContent);
+  fs.writeFileSync(okFile, 'export function small() { return 1; }\n');
+
+  const { Scanner } = require(path.join(ROOT, 'dist', 'scanner.js'));
+  const storage = new StorageClass(tmpDb);
+  const scanner = new Scanner(storage);
+
+  try {
+    const result = scanner.scan(testDir);
+    assert(result.errors === 0, `expected a size exclusion to be a normal result, not a scan error: got ${result.errors}`);
+    assert(result.parsed === 1, `expected only small.ts to be parsed, got ${result.parsed}`);
+
+    const unindexed = storage.getUnindexedFiles();
+    assert(unindexed.length === 1, `expected exactly 1 unindexed file, got ${JSON.stringify(unindexed)}`);
+    assert(unindexed[0].path === bigFile, `expected unindexed path ${bigFile}, got ${unindexed[0].path}`);
+    assert(unindexed[0].reason === 'over_size_limit', `expected reason "over_size_limit", got "${unindexed[0].reason}"`);
+    assert(storage.stats().unindexed === 1, `expected stats.unindexed === 1, got ${storage.stats().unindexed}`);
+
+    const okNodes = storage.getNodesByFile(okFile);
+    assert(okNodes.length === 1 && okNodes[0].name === 'small',
+      `expected small.ts to still be indexed normally, got: ${JSON.stringify(okNodes)}`);
+
+    // The marker must survive an unrelated rescan while the file is still
+    // over the limit — over_size_limit files never enter file_index, so the
+    // generic tracked-file purge must not be the thing clearing it.
+    const result1b = scanner.scan(testDir);
+    assert(result1b.errors === 0, `expected the repeat scan to have no errors, got ${result1b.errors}`);
+    assert(storage.getUnindexedFiles().length === 1,
+      `expected the over_size_limit marker to persist while the file is still oversized, got: ${JSON.stringify(storage.getUnindexedFiles())}`);
+
+    // Raise the limit and rescan: the file becomes eligible, parses cleanly,
+    // and the over_size_limit marker clears.
+    fs.writeFileSync(configPath, JSON.stringify({ max_file_size_kb: 512 }));
+    const result2 = scanner.scan(testDir);
+    assert(result2.errors === 0, `expected no scan errors after raising the limit, got ${result2.errors}`);
+    assert(storage.getUnindexedFiles().length === 0,
+      `expected the over_size_limit marker to clear once the file is within the limit, got: ${JSON.stringify(storage.getUnindexedFiles())}`);
+    assert(storage.stats().unindexed === 0, 'expected stats.unindexed to return to 0 after raising the limit');
+
+    const bigNodes = storage.getNodesByFile(bigFile);
+    assert(bigNodes.length === 1 && bigNodes[0].name === 'big',
+      `expected big.ts to now be indexed once under the raised limit, got: ${JSON.stringify(bigNodes)}`);
+  } finally {
+    storage.close();
+    try { fs.rmSync(testDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
 // WUR-01: watch unlink handler relinks graph and flows
 test('WUR-01 watch unlink handler relinks graph and flows', () => {
   const wurDir = path.join(os.tmpdir(), `nca-wur-${Date.now()}`);
