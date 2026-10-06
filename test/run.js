@@ -4,7 +4,7 @@
  * Tests: AC1 scan, AC2 ask, AC3 cache, AC4 flow, AC5 MCP, AC6 evolve
  */
 
-const { execSync, spawn } = require('child_process');
+const { execSync, spawn, spawnSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -2590,6 +2590,88 @@ test('VAULT-05 --dry-run does not write to DB', () => {
 
   aeStorage.close();
   try { fs.rmSync(aeDir, { recursive: true }); } catch {}
+}
+
+// ── AF: nca_ask scopes [F] flows to matched symbols ───────────────────────────
+
+{
+  const { Storage } = require(path.join(ROOT, 'dist', 'storage.js'));
+  const afDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-af-'));
+  const afDb = path.join(afDir, 'nca.db');
+  const afStorage = new Storage(afDb);
+
+  const mkNode = (name, filePath, line) => ({
+    type: 'function', name, module: 'test',
+    inputs: [], outputs: [], deps: [], effects: [],
+    complexity: 1, file: filePath, line, sha256: name,
+  });
+
+  afStorage.upsertNode(mkNode('zqLogin', '/proj/src/zqauth.ts', 1));
+  afStorage.upsertNode(mkNode('zqSession', '/proj/src/zqauth.ts', 2));
+  afStorage.upsertNode(mkNode('zqBilling', '/proj/src/zqbilling.ts', 1));
+  afStorage.upsertNode(mkNode('zqOrphan', '/proj/src/zqorphan.ts', 1));
+  afStorage.upsertNode(mkNode('zqPathOnly', '/proj/src/zqpathmod/inner.ts', 1));
+  afStorage.upsertFlow({ name: 'zqLogin', steps: ['zqLogin', 'zqSession'] });
+  afStorage.upsertFlow({ name: 'zqBilling', steps: ['zqBilling', 'zqCharge'] });
+  afStorage.upsertFlow({ name: 'zqPathFlow', steps: ['zqPathOnly', 'zqHelper'] });
+
+  // getFlowsForSymbols unit tests
+  test('AF-01 getFlowsForSymbols returns [] for empty input', () => {
+    assert(afStorage.getFlowsForSymbols([]).length === 0, 'Expected no flows for empty input');
+  });
+
+  test('AF-02 getFlowsForSymbols matches on any step, partial overlap', () => {
+    const names = afStorage.getFlowsForSymbols(['zqSession', 'notAStep']).map(f => f.name);
+    assert(names.length === 1 && names[0] === 'zqLogin', `Expected only zqLogin, got ${JSON.stringify(names)}`);
+  });
+
+  test('AF-03 getFlowsForSymbols returns [] when no symbol is in a flow', () => {
+    assert(afStorage.getFlowsForSymbols(['zqOrphan']).length === 0, 'Expected no flows');
+  });
+
+  afStorage.close();
+
+  // End-to-end through the MCP server (toolAsk)
+  const askText = (query) => {
+    const input = JSON.stringify({
+      jsonrpc: '2.0', id: 1, method: 'tools/call',
+      params: { name: 'nca_ask', arguments: { query } },
+    }) + '\n';
+    const r = spawnSync('node', [path.join(ROOT, 'dist', 'mcp.js')], {
+      input, encoding: 'utf-8', timeout: 15000,
+      env: { ...process.env, NCA_DB_PATH: afDb },
+    });
+    const line = (r.stdout || '').trim().split('\n').filter(Boolean)[0];
+    assert(line, `No MCP response (stderr: ${(r.stderr || '').slice(0, 300)})`);
+    return JSON.parse(line).result.content[0].text;
+  };
+
+  test('AF-04 match with its own flow shows only that flow under [F]', () => {
+    const out = askText('zqLogin');
+    assert(out.includes('[F]'), `Expected [F] section, got:\n${out}`);
+    assert(out.includes('#zqLogin[zqLogin>zqSession]'), `Expected own flow, got:\n${out}`);
+    assert(!out.includes('zqBilling[') && !out.includes('zqPathFlow'), `Unrelated flows leaked:\n${out}`);
+  });
+
+  test('AF-05 match not in any flow has no [F] section', () => {
+    const out = askText('zqOrphan');
+    assert(out.includes('zqOrphan'), `Expected symbol in output, got:\n${out}`);
+    assert(!out.includes('[F]'), `Expected no [F] section, got:\n${out}`);
+  });
+
+  test('AF-06 no match has no [F] section', () => {
+    const out = askText('zzz-nonexistent-symbol');
+    assert(!out.includes('[F]'), `Expected no [F] section on a miss, got:\n${out}`);
+  });
+
+  test('AF-07 path fallback shows only the flow through the path-matched symbol', () => {
+    const out = askText('zqpathmod');
+    assert(out.includes('zqPathOnly'), `Expected path-matched symbol, got:\n${out}`);
+    assert(out.includes('#zqPathFlow[zqPathOnly>zqHelper]'), `Expected path flow, got:\n${out}`);
+    assert(!out.includes('zqLogin[') && !out.includes('zqBilling['), `Unrelated flows leaked:\n${out}`);
+  });
+
+  try { fs.rmSync(afDir, { recursive: true }); } catch {}
 }
 
 // ── SK: SKILL.md generator ────────────────────────────────────────────────────

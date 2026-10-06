@@ -293,6 +293,13 @@ export class Storage {
     }));
   }
 
+  /** Flows whose steps include at least one of the given symbol names. */
+  getFlowsForSymbols(symbolNames: string[]): NCFlow[] {
+    if (symbolNames.length === 0) return [];
+    const wanted = new Set(symbolNames);
+    return this.getAllFlows().filter(f => f.steps.some(s => wanted.has(s)));
+  }
+
   clearWarnings(): void {
     this.stmts.clearWarnings.run();
   }
