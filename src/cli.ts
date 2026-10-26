@@ -1138,6 +1138,7 @@ corpus
   .option('--dry-run', 'count events without writing output')
   .option('--force-rewrite', 'overwrite output even if version differs')
   .option('--include-worktrees', 'include events from git worktrees sharing the same corpus slug')
+  .option('--include-subagents', 'also read <parentId>/subagents/*.jsonl of eligible sessions (emits orientation_event_v4)')
   .option('--min-events <n>', 'minimum real-event threshold per session (default: 5)', '5')
   .action((opts: {
     project: string;
@@ -1148,6 +1149,7 @@ corpus
     dryRun?: boolean;
     forceRewrite?: boolean;
     includeWorktrees?: boolean;
+    includeSubagents?: boolean;
     minEvents: string;
   }) => {
     if (opts.phase !== 'baseline' && opts.phase !== 'treatment') {
@@ -1176,6 +1178,7 @@ corpus
         dryRun: opts.dryRun ?? false,
         forceRewrite: opts.forceRewrite ?? false,
         includeWorktrees: opts.includeWorktrees ?? false,
+        includeSubagents: opts.includeSubagents ?? false,
         minEventsThreshold: Math.max(1, parseInt(opts.minEvents, 10) || 5),
       });
     } catch (err) {
@@ -1233,6 +1236,16 @@ corpus
       for (const c of sr.conflicts) {
         lines.push(`    • ${c.sessionId.slice(0, 8)}… agent-prefix:${c.hasAgentPrefix} isSidechain:${c.hasIsSidechain}`);
       }
+    }
+
+    if (report.nested) {
+      lines.push('');
+      lines.push('  ' + header('Nested (subagents)'));
+      lines.push('  ' + formatField('nested_seen', report.nested.nestedSeen));
+      lines.push('  ' + formatField('nested_included', report.nested.nestedIncluded));
+      lines.push('  ' + formatField('orphan_nested', report.nested.orphanNested));
+      lines.push('  ' + formatField('parent_ineligible', report.nested.parentIneligible));
+      lines.push('  ' + formatField('nested nca_ask tool_use', report.nested.nestedNcaAskToolUse));
     }
 
     if (!opts.dryRun && report.outputPath) {

@@ -1064,4 +1064,98 @@ module.exports = function runCorpusTests(test, assert) {
     assert(noise_sessions.length === 1, 'expected 1 noise session');
     assert(noise_sessions[0].structured_output_count === 1, 'noise session must carry structured_output_count');
   });
+  // ── CORPUS-SUB: --include-subagents (orientation_event_v4) ──────────────────
+  // Fixture layout (test/fixtures/corpus-subagents, projectRoot /test/project):
+  //   parent-ok.jsonl (eligible), parent-few.jsonl (1 pair: below min-events)
+  //   parent-ok/subagents/{agent-a1 (1 nca_ask), agent-a2, agent-wt (worktree cwd only)}.jsonl
+  //   parent-ok/subagents/deep/*, parent-ok/other/* and notes.txt (must NOT be read)
+  //   parent-few/subagents/agent-b1.jsonl (parent ineligible), ghost-parent/subagents/agent-c1.jsonl (orphan)
+  const SUB_CORPUS_HOME = path.join(__dirname, 'fixtures', 'corpus-subagents');
+  const SUB_GOLDEN = path.join(SUB_CORPUS_HOME, 'expected-flag-off.jsonl');
+  const { readNestedSessions } = m.reader;
+
+  function runSub(includeSubagents) {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nca-corpus-sub-'));
+    try {
+      const report = extract({
+        projectName: 'test-project',
+        projectRoot: '/test/project',
+        phase: 'baseline',
+        corpusHome: SUB_CORPUS_HOME,
+        metricsHome: tmpDir,
+        includeSubagents,
+      });
+      const raw = fs.readFileSync(report.outputPath);
+      const manifest = JSON.parse(fs.readFileSync(report.manifestPath, 'utf-8'));
+      return { report, raw, manifest, events: raw.toString('utf-8').split('\n').filter(Boolean).map(l => JSON.parse(l)) };
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  }
+
+  test('CORPUS-SUB-1 discovery reads only <parent>/subagents/*.jsonl, one level', () => {
+    const corpusDir = path.join(SUB_CORPUS_HOME, '.claude', 'projects', '-test-project');
+    const nested = readNestedSessions(corpusDir);
+    const ids = nested.map(s => `${s.parentSessionId}/${s.sessionId}`).sort();
+    assert(JSON.stringify(ids) === JSON.stringify([
+      'ghost-parent/agent-c1',
+      'parent-few/agent-b1',
+      'parent-ok/agent-a1',
+      'parent-ok/agent-a2',
+      'parent-ok/agent-wt',
+    ]), 'unexpected nested discovery: ' + ids.join(','));
+  });
+
+  test('CORPUS-SUB-2 orphan nested file (parent absent) is excluded and counted', () => {
+    const { report, events } = runSub(true);
+    assert(report.nested.orphanNested === 1, 'orphanNested=' + report.nested.orphanNested);
+    assert(!events.some(e => e.source_session_id === 'agent-c1'), 'orphan events must not be emitted');
+  });
+
+  test('CORPUS-SUB-3 eligibility is inherited from the parent; nested never establishes it', () => {
+    const { report, events } = runSub(true);
+    const n = report.nested;
+    assert(n.nestedSeen === 5, 'nestedSeen=' + n.nestedSeen);
+    assert(n.nestedIncluded === 3, 'nestedIncluded=' + n.nestedIncluded);
+    assert(n.parentIneligible === 1, 'parentIneligible=' + n.parentIneligible);
+    assert(report.sessionsIncluded === 1, 'top-level sessionsIncluded must stay 1');
+    // agent-b1 has 3 pairs (would pass min-events alone) but its parent fails -> excluded
+    assert(!events.some(e => e.source_session_id === 'agent-b1'), 'ineligible-parent nested events must not be emitted');
+    // agent-a2 has only 1 pair: no min-events test of its own on nested files
+    assert(events.some(e => e.source_session_id === 'agent-a2'), 'short nested file of an eligible parent must be kept');
+  });
+
+  test('CORPUS-SUB-4 nested attribution, v4 tag, cwd filter and nested nca_ask count', () => {
+    const { report, events, manifest } = runSub(true);
+    assert(events.every(e => e.schema_version === 'orientation_event_v4'), 'all events must be v4');
+    const nestedEv = events.filter(e => e.source_session_id.startsWith('agent-'));
+    assert(nestedEv.length > 0 && nestedEv.every(e => e.subagent === true && e.parent_session_id === 'parent-ok'),
+      'nested events need subagent=true and parent_session_id=parent-ok');
+    const top = events.filter(e => !e.source_session_id.startsWith('agent-'));
+    assert(top.every(e => e.subagent === false && e.parent_session_id === e.source_session_id),
+      'top-level events: parent_session_id equals own id');
+    assert(!events.some(e => e.source_session_id === 'agent-wt'), 'worktree-cwd nested events are dropped by the main-only filter');
+    assert(report.nested.nestedNcaAskToolUse === 1, 'nestedNcaAskToolUse=' + report.nested.nestedNcaAskToolUse);
+    assert(manifest.schema_version === 'orientation_event_v4', 'manifest schema tag');
+    assert(manifest.nested_report && manifest.nested_report.nestedSeen === 5, 'manifest carries nested counts');
+  });
+
+  test('CORPUS-SUB-5 flag off is byte-identical to the pre-change (v3) output', () => {
+    const { raw, report, manifest } = runSub(false);
+    const golden = fs.readFileSync(SUB_GOLDEN);
+    assert(Buffer.compare(raw, golden) === 0, 'flag-off bytes differ from golden');
+    assert(report.nested === undefined, 'no nested report when flag is off');
+    assert(manifest.nested_report === undefined, 'no nested manifest field when flag is off');
+    assert(manifest.schema_version === 'orientation_event_v3', 'v3 tag when flag off');
+  });
+
+  test('CORPUS-SUB-6 flag on: top-level subset equals the flag-off output apart from v4 fields', () => {
+    const { events } = runSub(true);
+    const golden = fs.readFileSync(SUB_GOLDEN, 'utf-8').split('\n').filter(Boolean).map(l => JSON.parse(l));
+    const stripped = events
+      .filter(e => !e.subagent)
+      .map(e => { const { parent_session_id, ...rest } = e; return { ...rest, schema_version: 'orientation_event_v3' }; });
+    assert(JSON.stringify(stripped) === JSON.stringify(golden), 'top-level subset differs from flag-off output');
+  });
+
 };

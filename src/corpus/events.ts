@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import { SCHEMA_VERSION, EXTRACTOR_VERSION, ExperimentPhase, EventType, OrientationEvent } from './types.js';
+import { SCHEMA_VERSION, SCHEMA_VERSION_V4, EXTRACTOR_VERSION, ExperimentPhase, EventType, OrientationEvent } from './types.js';
 import { RawLine, RawContentBlock, RawToolUseBlock, RawToolResultBlock, ParsedSession } from './reader.js';
 import { classifyNcaAskResult, NCA_ASK_RESULT_CLASSIFIER_VERSION, McpResponseLike } from './nca-ask-result-class.js';
 
@@ -105,9 +105,11 @@ export function deriveSessionEvents(
   includeWorktrees: boolean,
   since?: Date,
   until?: Date,
+  includeSubagents = false,
 ): OrientationEvent[] {
   const events: OrientationEvent[] = [];
-  const isSubagent = session.isAgentPrefixed || session.hasSidechainTrue;
+  const isNested = session.parentSessionId !== undefined;
+  const isSubagent = isNested || session.isAgentPrefixed || session.hasSidechainTrue;
   let sessionStartEmitted = false;
   let sequenceIndex = 0;
   const toolResultsByUseId = indexToolResultsByUseId(session);
@@ -129,10 +131,11 @@ export function deriveSessionEvents(
     // All fields here must be deterministic (corpus-derived or constant) so that
     // re-running the extractor on the same corpus produces identical JSONL bytes.
     const baseFields = {
-      schema_version: SCHEMA_VERSION,
+      schema_version: includeSubagents ? SCHEMA_VERSION_V4 : SCHEMA_VERSION,
       extractor_version: EXTRACTOR_VERSION,
       source: 'claude_corpus' as const,
       source_session_id: session.sessionId,
+      ...(includeSubagents ? { parent_session_id: session.parentSessionId ?? session.sessionId } : {}),
       source_project: sourceProject,
       nca_experiment_phase: phase,
       subagent: isSubagent,

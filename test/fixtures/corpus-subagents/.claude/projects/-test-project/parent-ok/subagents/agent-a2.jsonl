@@ -1,0 +1,2 @@
+{"type":"user","uuid":"agent-a2u0","timestamp":"2026-09-20T10:00:30.000Z","sessionId":"agent-a2","cwd":"/test/project","gitBranch":"main","isSidechain":true,"message":{"role":"user","content":"prompt agent-a2 0"}}
+{"type":"assistant","uuid":"agent-a2a0","timestamp":"2026-09-20T10:00:31.000Z","sessionId":"agent-a2","cwd":"/test/project","gitBranch":"main","isSidechain":true,"message":{"role":"assistant","content":[{"type":"tool_use","id":"tu-agent-a2-0","name":"Read","input":{"file_path":"/test/project/f0.ts"}}]}}

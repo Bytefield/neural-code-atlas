@@ -9,7 +9,7 @@ export type { NcaAskResultClass, McpResponseLike } from './nca-ask-result-class.
 export { resolveProjectSlug } from './slug.js';
 export { resolveCorpusDir } from './reader.js';
 export { resolveOutputPath, resolveManifestPath, checkExistingVersion } from './writer.js';
-export { SCHEMA_VERSION, EXTRACTOR_VERSION } from './types.js';
+export { SCHEMA_VERSION, SCHEMA_VERSION_V4, EXTRACTOR_VERSION } from './types.js';
 export {
   analyze,
   analyzeEvents,
@@ -26,6 +26,7 @@ export type {
   EventType,
   Manifest,
   SubagentReport,
+  NestedReport,
 } from './types.js';
 export type {
   SessionMetrics,
