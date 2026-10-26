@@ -1,6 +1,6 @@
-import { RunOptions, RunReport, Manifest, EventType, SubagentReport, CwdFilterMode, SCHEMA_VERSION, EXTRACTOR_VERSION } from './types.js';
+import { RunOptions, RunReport, Manifest, EventType, SubagentReport, CwdFilterMode, NestedReport, SCHEMA_VERSION, SCHEMA_VERSION_V4, EXTRACTOR_VERSION } from './types.js';
 import { resolveProjectSlug } from './slug.js';
-import { resolveCorpusDir, readAllSessions, ParsedSession } from './reader.js';
+import { resolveCorpusDir, readAllSessions, readNestedSessions, ParsedSession } from './reader.js';
 import { deriveSessionEvents } from './events.js';
 import { writeOutput, checkExistingVersion, resolveOutputPath, resolveManifestPath } from './writer.js';
 import { OrientationEvent } from './types.js';
@@ -40,6 +40,7 @@ export function extract(opts: RunOptions): RunReport {
     forceRewrite = false,
     minEventsThreshold = DEFAULT_MIN_EVENTS,
     includeWorktrees = false,
+    includeSubagents = false,
     metricsHome,
     corpusHome,
   } = opts;
@@ -56,12 +57,12 @@ export function extract(opts: RunOptions): RunReport {
   // Version compatibility guard — abort early before doing any work
   if (!dryRun && !forceRewrite) {
     const outputPath = resolveOutputPath(projectName, metricsHome);
-    const versionCheck = checkExistingVersion(outputPath);
+    const versionCheck = checkExistingVersion(outputPath, includeSubagents);
     if (!versionCheck.compatible) {
       throw new Error(
         `Incompatible output version.\n` +
         `  Found:    schema=${versionCheck.foundSchemaVersion ?? 'unknown'} extractor=${versionCheck.foundExtractorVersion ?? 'unknown'}\n` +
-        `  Expected: schema=${SCHEMA_VERSION} extractor=${EXTRACTOR_VERSION}\n` +
+        `  Expected: schema=${includeSubagents ? SCHEMA_VERSION_V4 : SCHEMA_VERSION} extractor=${EXTRACTOR_VERSION}\n` +
         `  Use --force-rewrite to overwrite.`
       );
     }
@@ -109,10 +110,43 @@ export function extract(opts: RunOptions): RunReport {
     includedSessions.push(session);
   }
 
+  // ── Nested sessions (opt-in) ──────────────────────────────────────────────
+  // Eligibility is inherited from the parent top-level session, which must have
+  // passed the v1 filters above (min-events counted on top-level events only).
+  // Nested files never establish eligibility and have no min-events test.
+  const nestedToDerive: ParsedSession[] = [];
+  const nestedReport: NestedReport = {
+    nestedSeen: 0,
+    nestedIncluded: 0,
+    orphanNested: 0,
+    parentIneligible: 0,
+    nestedNcaAskToolUse: 0,
+  };
+  if (includeSubagents) {
+    const topLevelIds = new Set(allSessions.map(s => s.sessionId));
+    const eligibleIds = new Set(includedSessions.map(s => s.sessionId));
+    for (const nested of readNestedSessions(corpusDir)) {
+      nestedReport.nestedSeen++;
+      const parentId = nested.parentSessionId as string;
+      if (!topLevelIds.has(parentId)) {
+        nestedReport.orphanNested++;
+      } else if (!eligibleIds.has(parentId)) {
+        nestedReport.parentIneligible++;
+      } else {
+        nestedReport.nestedIncluded++;
+        nestedToDerive.push(nested);
+      }
+    }
+  }
+
   // ── Derive events for included sessions ───────────────────────────────────
   const allEvents: OrientationEvent[] = [];
   for (const session of includedSessions) {
-    const events = deriveSessionEvents(session, projectName, phase, projectRoot, includeWorktrees, since, until);
+    const events = deriveSessionEvents(session, projectName, phase, projectRoot, includeWorktrees, since, until, includeSubagents);
+    allEvents.push(...events);
+  }
+  for (const session of nestedToDerive) {
+    const events = deriveSessionEvents(session, projectName, phase, projectRoot, includeWorktrees, since, until, true);
     allEvents.push(...events);
   }
 
@@ -141,6 +175,15 @@ export function extract(opts: RunOptions): RunReport {
     if (latest === null || ev.timestamp > latest) latest = ev.timestamp;
     const cwd = ev.source_cwd ?? '(no-cwd)';
     cwdEventCounts[cwd] = (cwdEventCounts[cwd] ?? 0) + 1;
+    if (
+      includeSubagents &&
+      ev.parent_session_id !== undefined &&
+      ev.parent_session_id !== ev.source_session_id &&
+      ev.event_type === 'post_tool_use' &&
+      ev.tool_name === 'mcp__nca__nca_ask'
+    ) {
+      nestedReport.nestedNcaAskToolUse++;
+    }
   }
 
   const totalEvents = allEvents.length;
@@ -152,7 +195,7 @@ export function extract(opts: RunOptions): RunReport {
   if (!dryRun) {
     const completedAt = new Date().toISOString();
     const manifest: Manifest = {
-      schema_version: SCHEMA_VERSION,
+      schema_version: includeSubagents ? SCHEMA_VERSION_V4 : SCHEMA_VERSION,
       extractor_version: EXTRACTOR_VERSION,
       source: 'claude_corpus',
       project: projectName,
@@ -170,6 +213,7 @@ export function extract(opts: RunOptions): RunReport {
       subagent_report: subagentReport,
       cwd_filter_mode: cwdFilterMode,
       cwd_event_counts: cwdEventCounts,
+      ...(includeSubagents ? { nested_report: nestedReport } : {}),
       output_path: resolveOutputPath(projectName, metricsHome),
       output_sha256: null, // filled in by writeOutput
       generated_at: startedAt, // extraction run timestamp (volatile; kept in manifest, not in events)
@@ -195,6 +239,7 @@ export function extract(opts: RunOptions): RunReport {
     subagentReport,
     cwdFilterMode,
     cwdEventCounts,
+    ...(includeSubagents ? { nested: nestedReport } : {}),
     outputPath,
     manifestPath,
   };

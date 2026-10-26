@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
-import { OrientationEvent, Manifest, SCHEMA_VERSION, EXTRACTOR_VERSION } from './types.js';
+import { OrientationEvent, Manifest, SCHEMA_VERSION, SCHEMA_VERSION_V4, EXTRACTOR_VERSION } from './types.js';
 
 // ─── Path resolution ──────────────────────────────────────────────────────────
 
@@ -27,7 +27,8 @@ export interface VersionCheck {
   foundExtractorVersion?: string;
 }
 
-export function checkExistingVersion(outputPath: string): VersionCheck {
+export function checkExistingVersion(outputPath: string, includeSubagents = false): VersionCheck {
+  const expectedSchema = includeSubagents ? SCHEMA_VERSION_V4 : SCHEMA_VERSION;
   if (!fs.existsSync(outputPath)) return { compatible: true };
 
   try {
@@ -36,7 +37,7 @@ export function checkExistingVersion(outputPath: string): VersionCheck {
     if (!firstLine) return { compatible: true };
     const event = JSON.parse(firstLine) as Partial<OrientationEvent>;
     return {
-      compatible: event.schema_version === SCHEMA_VERSION && event.extractor_version === EXTRACTOR_VERSION,
+      compatible: event.schema_version === expectedSchema && event.extractor_version === EXTRACTOR_VERSION,
       foundSchemaVersion: event.schema_version,
       foundExtractorVersion: event.extractor_version,
     };

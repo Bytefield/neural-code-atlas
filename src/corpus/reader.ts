@@ -61,6 +61,7 @@ export interface ParsedSession {
   sessionGitBranch: string | null; // from first event that carries gitBranch
   cwdValues: string[];
   realEventCount: number; // user + assistant events with timestamps
+  parentSessionId?: string; // set only for nested sessions (<parentId>/subagents/*.jsonl)
 }
 
 // ─── Corpus resolution ────────────────────────────────────────────────────────
@@ -135,6 +136,46 @@ export function readAllSessions(corpusDir: string): ParsedSession[] {
       });
     } catch {
       // Unreadable session file — skip
+    }
+  }
+
+  return sessions;
+}
+
+// Nested discovery (opt-in). Exactly one shape: <corpusDir>/<parentId>/subagents/*.jsonl.
+// Nothing else is recursed. Session id = file stem; parentSessionId = directory name.
+export function readNestedSessions(corpusDir: string): ParsedSession[] {
+  if (!fs.existsSync(corpusDir)) return [];
+
+  const sessions: ParsedSession[] = [];
+  const parentDirs = fs.readdirSync(corpusDir, { withFileTypes: true })
+    .filter(d => d.isDirectory())
+    .map(d => d.name)
+    .sort();
+
+  for (const parentId of parentDirs) {
+    const subDir = path.join(corpusDir, parentId, 'subagents');
+    if (!fs.existsSync(subDir) || !fs.statSync(subDir).isDirectory()) continue;
+
+    const files = fs.readdirSync(subDir, { withFileTypes: true })
+      .filter(f => f.isFile() && f.name.endsWith('.jsonl'))
+      .map(f => f.name)
+      .sort();
+
+    for (const entry of files) {
+      const sessionId = entry.slice(0, -'.jsonl'.length);
+      try {
+        const parsed = parseSessionFile(path.join(subDir, entry));
+        sessions.push({
+          sessionId,
+          filename: entry,
+          isAgentPrefixed: sessionId.startsWith('agent-'),
+          parentSessionId: parentId,
+          ...parsed,
+        });
+      } catch {
+        // Unreadable nested file — skip
+      }
     }
   }
 
